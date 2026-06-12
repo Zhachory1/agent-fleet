@@ -12,9 +12,9 @@ Before convening, ask the user (one line) for their current decision + the risks
 
 ## Step 1 — Capture artifact once
 Identify the artifact under review (a diff, a doc path, a metrics table, pasted text).
-- diff → `git diff [args] > /tmp-council-<slug>.txt`
+- diff → `git diff [args] > /tmp/council-<slug>.txt`
 - file/doc → use its path directly
-- pasted text / table → write to `/tmp-council-<slug>.txt`
+- pasted text / table → write to `/tmp/council-<slug>.txt`
 Hold the path. <2KB may be inlined; else pass the path.
 
 ## Step 2 — Select 2-4 personas (rules table → LLM fallback)
