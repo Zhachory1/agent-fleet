@@ -71,17 +71,19 @@ Produce:
 
 ## Step 6 — Journal
 Ask the user: did the council surface a net-new issue you'd have missed (Y/N), did you act on it
-(Y/N), how many raised issues did you dismiss as noise? For validation runs also ask: did the
-council beat the lens-baseline from Step 0.5 (Y/N)? Then:
-`bash ~/code/agent-fleet/lib/journal.sh append "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null>`
+(Y/N), how many issues did the council raise total, and how many did you dismiss as noise? For
+validation runs also ask: did the council beat the lens-baseline from Step 0.5 (Y/N)? Then:
+`bash ~/code/agent-fleet/lib/journal.sh append "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised>`
 
-Then tell the user where to read the full transcript (Step "Visibility" below).
+Then tell the user where to read the full transcript + the running gate stats (Visibility below).
 
 ## Visibility — where the council's thinking lives
 - **Full per-persona reasoning (durable):** `bash ~/code/agent-fleet/lib/transcript.sh show <slug>`
   (omit `<slug>` for the newest run). Raw: `~/.claude/agent-chat/rooms/council-<slug>/log.jsonl`.
 - **List past councils:** `bash ~/code/agent-fleet/lib/transcript.sh rooms`
-- **KPI journal (catches over time):** `cat ~/.claude/agent-fleet-journal.jsonl | jq .`
+- **KPI gate dashboard:** `bash ~/code/agent-fleet/lib/journal.sh stats [N]` — catch rate,
+  false-alarm rate, lens-baseline-beat rate, and the keep/kill verdict over the last N runs.
+- **Raw journal:** `cat ~/.claude/agent-fleet-journal.jsonl | jq .`
 - **Live, this session:** the synthesis you print in Step 5.
 
 ## Hard limits
