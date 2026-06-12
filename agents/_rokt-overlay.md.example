@@ -1,0 +1,9 @@
+# Rokt Overlay (example — copy to _rokt-overlay.md and fill; that copy is gitignored)
+
+When reviewing, apply these domain specifics:
+- Ads metrics: APT, CoPI, VPT, YER, CVR, eCPM, value-based bidding.
+- Experiment caveats: auction interference (SUTVA violation), pacing, holdout hygiene.
+- Stack: KFP pipelines, Trino/Iceberg datalake, Datadog, K8s (blue=experiments, green=scheduled).
+- Hot paths: bid path, selection/serving — latency + blast-radius sensitive.
+- Current priorities: doppelganger / LAL / CoPI.
+# NOTE: keep real overlay free of PII and confidential internals beyond what you need.
