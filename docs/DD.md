@@ -84,8 +84,9 @@ Claude Code agents). No new tech.
                 software-architect.md  generalist-swe.md  red-team.md
                 _rokt-overlay.md.example   (template; real one private+gitignored)
   skills/council/ SKILL.md   (orchestrator)
-  lib/          transcript.sh   (serial JSONL append helper)
-                journal.sh      (counterfactual log helper)
+  lib/          transcript.sh   (serial JSONL append + show/rooms viewer)
+                journal.sh      (counterfactual log helper, incl lens-baseline fields)
+                synth.sh        (deterministic consensus/dissent flag)
   install.sh    (symlink agents/ + skills/council → ~/.claude; reversible)
   test/         test_agents_load.sh  test_selection.sh  test_round_contract.sh
   .gitignore    (_rokt-overlay.md, run artifacts)
@@ -216,6 +217,11 @@ For small artifacts (<~2KB) inline directly. Round 2 inject **summarized** brief
 `lib/transcript.sh append <room> <from> <text>` = jq-build line + single `printf >> log`. Called
 serially by orchestrator. Read-only-format-compatible with agent-chat (mode A future). No cursor.
 
+**Store the FULL POSITION per persona** (not just the one-liner) — the transcript is the durable
+record of the council's reasoning. View it: `transcript.sh show [room]` (boxed per-persona render,
+newest if room omitted) and `transcript.sh rooms` (list). This is where the user reads the
+council's thinking after a run.
+
 ## Counterfactual Journal (NFR5 / KPI)
 
 `~/.claude/agent-fleet-journal.jsonl`, one/run:
@@ -305,7 +311,8 @@ has Read tool → conditional read. Absent = no error (portability NFR3).
 | 3 | Round-2 trigger condition | Default OFF; ON if verdicts conflict or I pass `--deep`. Confirm in plan. |
 | 4 | Artifact excerpt thresholds | <2KB inline, else path. Tune empirically. |
 | 5 | Where orchestrator skill lives | fleet repo `skills/council`, symlinked. Resolved. |
-| 6 | Does Claude Code load agents from `~/.claude/agents/`? | **Verify in plan phase** before building (hard dependency). |
+| 6 | Does Claude Code load agents from `~/.claude/agents/`? | **RESOLVED GREEN** — spiked: `subagent_type: red-team` resolves mid-session, loads persona body, honors overlay hook + read-only tools. Orchestrator spawns personas by name directly. |
+| 7 | Validation must test "do lenses help" not "do agents help" | **RESOLVED** — SKILL.md Step 0.5 lens-baseline arm; journal records `lens_baseline_run` + `council_beat_baseline`. |
 
 > Coaching: OQ#6 is the one real external dependency — confirm the agent-loading path + frontmatter
 > format Claude Code expects BEFORE writing 6 personas, else rework. Plan phase must spike it first.

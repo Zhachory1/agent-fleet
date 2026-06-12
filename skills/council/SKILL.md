@@ -10,6 +10,15 @@ You are the council orchestrator. Run this protocol. Personas are STATELESS one-
 ## Step 0 — Solo first (counterfactual, MANDATORY)
 Before convening, ask the user (one line) for their current decision + the risks they already see. Record as `solo_decision`. This powers the catch-rate KPI. If they decline, set solo_decision="(skipped)".
 
+## Step 0.5 — Lens-baseline arm (validation, do this for the first ~20 runs)
+The honest null hypothesis is "do the LENSES help?", NOT "do multiple AGENTS help?". So for
+validation runs: BEFORE spawning the council, in YOUR own context produce a quick single-pass
+review of the artifact prompted with the SAME selected lenses (e.g. "review this as a skeptical
+ML scientist AND an experiment statistician AND ..."). Hold that as `lens_baseline`. After the
+council finishes, judge whether the council surfaced a net-new catch the lens-baseline did NOT.
+Record both in the journal (Step 6). If the council never beats the lens-baseline, the multi-agent
+apparatus is not earning its cost — the lenses are. (Skip only once validation is complete.)
+
 ## Step 1 — Capture artifact once
 Identify the artifact under review (a diff, a doc path, a metrics table, pasted text).
 - diff → `git diff [args] > /tmp/council-<slug>.txt`
@@ -32,13 +41,17 @@ Match task to this table; if no row matches, use judgment to pick 2-4 + one-line
 State the selected personas + why (one line each) to the user before spawning.
 
 ## Step 3 — Round 1 (parallel)
-Spawn each selected persona via the Task tool IN PARALLEL (one message, multiple Task calls). Each prompt = the persona name (subagent_type) + the artifact path/excerpt + the task statement. Collect each returned POSITION.
+Spawn each selected persona via the Task tool IN PARALLEL (one message, multiple Task calls).
+Set `subagent_type` to the persona name directly (e.g. `subagent_type: red-team`) — verified to
+resolve from `~/.claude/agents/`. Each prompt = the artifact path/excerpt + the task statement.
+Collect each returned POSITION.
 
-Append each position to the transcript serially:
-`bash ~/code/agent-fleet/lib/transcript.sh append council-<slug> <persona> "<one_line + verdict>"`
+Append each persona's **FULL POSITION** to the transcript serially (NOT just the one-liner — the
+transcript IS the durable record of the council's thinking; store everything):
+`bash ~/code/agent-fleet/lib/transcript.sh append council-<slug> <persona> "<full POSITION block>"`
 
 ## Step 4 — Round 2 (only if verdicts conflict OR user passed --deep)
-Summarize round-1 positions into a short peer brief (you do this — do NOT concatenate raw). Re-spawn the SAME personas in parallel, prompt now includes the brief. Collect revisions, append to transcript.
+Summarize round-1 positions into a short peer brief (you do this — do NOT concatenate raw). Re-spawn the SAME personas in parallel, prompt now includes the brief. Collect revisions, append full positions to transcript.
 
 ## Step 5 — Synthesize (in YOUR context)
 Compute the consensus/dissent flag deterministically: pipe '<persona> <verdict>' lines into `bash ~/code/agent-fleet/lib/synth.sh flag`.
@@ -57,8 +70,19 @@ Produce:
 ```
 
 ## Step 6 — Journal
-Ask the user: did the council surface a net-new issue you'd have missed (Y/N), did you act on it (Y/N), how many raised issues did you dismiss as noise? Then:
-`bash ~/code/agent-fleet/lib/journal.sh append "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count>`
+Ask the user: did the council surface a net-new issue you'd have missed (Y/N), did you act on it
+(Y/N), how many raised issues did you dismiss as noise? For validation runs also ask: did the
+council beat the lens-baseline from Step 0.5 (Y/N)? Then:
+`bash ~/code/agent-fleet/lib/journal.sh append "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null>`
+
+Then tell the user where to read the full transcript (Step "Visibility" below).
+
+## Visibility — where the council's thinking lives
+- **Full per-persona reasoning (durable):** `bash ~/code/agent-fleet/lib/transcript.sh show <slug>`
+  (omit `<slug>` for the newest run). Raw: `~/.claude/agent-chat/rooms/council-<slug>/log.jsonl`.
+- **List past councils:** `bash ~/code/agent-fleet/lib/transcript.sh rooms`
+- **KPI journal (catches over time):** `cat ~/.claude/agent-fleet-journal.jsonl | jq .`
+- **Live, this session:** the synthesis you print in Step 5.
 
 ## Hard limits
 ≤4 personas, ≤2 rounds. No loops. Personas are read-only advisors.
