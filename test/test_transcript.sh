@@ -22,4 +22,14 @@ echo "$OUT" | grep -q "software-architect" || { echo "FAIL: show missing persona
 echo "$OUT" | grep -q "│ top_issues:" || { echo "FAIL: show didn't render multiline body"; exit 1; }
 # rooms lists it
 "$DIR/lib/transcript.sh" rooms | grep -q "$ROOM" || { echo "FAIL: rooms didn't list room"; exit 1; }
+# batch capture: 2 multiline blocks → 2 JSONL lines, full text preserved
+CROOM="cap-room"
+printf '@@from: red-team\nverdict: BLOCK\n- [BLOCKER] x\n@@from: generalist-swe\nverdict: SHIP\n- [MINOR] y\n' \
+  | "$DIR/lib/transcript.sh" capture "$CROOM"
+CLOG="$AGENT_CHAT_ROOT/rooms/$CROOM/log.jsonl"
+[ "$(wc -l < "$CLOG" | tr -d ' ')" = "2" ] || { echo "FAIL: capture didn't make 2 lines"; exit 1; }
+sed -n '1p' "$CLOG" | jq -e '.from=="red-team" and (.text|contains("[BLOCKER]"))' >/dev/null || { echo "FAIL: capture block-1 wrong"; exit 1; }
+sed -n '2p' "$CLOG" | jq -e '.from=="generalist-swe"' >/dev/null || { echo "FAIL: capture block-2 wrong"; exit 1; }
+# capture with no blocks → error (loud, not silent skip)
+printf 'no markers here\n' | "$DIR/lib/transcript.sh" capture "$CROOM" 2>/dev/null && { echo "FAIL: capture should reject markerless stdin"; exit 1; } || true
 echo "PASS test_transcript"

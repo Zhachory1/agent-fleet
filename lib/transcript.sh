@@ -19,6 +19,31 @@ case "$cmd" in
       '{ts:$ts, from:$from, text:$text}')"
     printf '%s\n' "$line" >> "$rd/log.jsonl"
     ;;
+  capture)
+    # Batch-persist ALL positions in ONE call (orchestrator pipes them on stdin).
+    # Format: blocks delimited by a line beginning '@@from: <persona>'; everything
+    # until the next '@@from:' (or EOF) is that persona's full POSITION text.
+    # One call instead of an N-iteration append loop = far harder for the
+    # orchestrator to skip (the reliability bug this fixes).
+    room="$(ac_safe "${1:?room}")"; rd="$ROOMS/$room"; mkdir -p "$rd"
+    _from=""; _buf=""; _n=0
+    _flush() {
+      [ -n "$_from" ] || return 0
+      jq -cn --arg ts "$(ac_now)" --arg from "$_from" --arg text "$_buf" \
+        '{ts:$ts, from:$from, text:$text}' >> "$rd/log.jsonl"
+      _n=$((_n+1))
+    }
+    while IFS= read -r ln || [ -n "$ln" ]; do
+      case "$ln" in
+        "@@from: "*) _flush; _from="${ln#@@from: }"; _buf="" ;;
+        *) if [ -z "$_buf" ]; then _buf="$ln"; else _buf="$_buf
+$ln"; fi ;;
+      esac
+    done
+    _flush
+    [ "$_n" -gt 0 ] || { echo "capture: no '@@from:' blocks on stdin" >&2; exit 1; }
+    echo "captured $_n position(s) to room '$room'"
+    ;;
   rooms)
     [ -d "$ROOMS" ] || { echo "(no rooms yet)"; exit 0; }
     ls -1t "$ROOMS" 2>/dev/null | sed 's/^/  /' || echo "(no rooms yet)"

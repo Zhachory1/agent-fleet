@@ -46,9 +46,22 @@ Set `subagent_type` to the persona name directly (e.g. `subagent_type: red-team`
 resolve from `~/.claude/agents/`. Each prompt = the artifact path/excerpt + the task statement.
 Collect each returned POSITION.
 
-Append each persona's **FULL POSITION** to the transcript serially (NOT just the one-liner — the
-transcript IS the durable record of the council's thinking; store everything):
-`bash ~/code/agent-fleet/lib/transcript.sh append council-<slug> <persona> "<full POSITION block>"`
+**MANDATORY before synthesis — persist the full thinking in ONE call.** Do NOT loop N appends
+(easy to skip — this exact step was skipped on real runs and lost the transcript). Instead pipe
+ALL positions at once into `capture`, blocks delimited by `@@from: <persona>`:
+
+```
+bash ~/code/agent-fleet/lib/transcript.sh capture council-<slug> <<'EOF'
+@@from: <persona-1>
+<persona-1 FULL POSITION block, verbatim>
+@@from: <persona-2>
+<persona-2 FULL POSITION block, verbatim>
+EOF
+```
+
+Store the full POSITION (verdict + all top_issues + strongest_counterargument), not the one-liner.
+You hold all positions in context already — capture them before you synthesize. Verify with
+`transcript.sh rooms` that `council-<slug>` now exists; if not, the run is unrecorded — redo this.
 
 ## Step 4 — Round 2 (only if verdicts conflict OR user passed --deep)
 Summarize round-1 positions into a short peer brief (you do this — do NOT concatenate raw). Re-spawn the SAME personas in parallel, prompt now includes the brief. Collect revisions, append full positions to transcript.
@@ -70,6 +83,10 @@ Produce:
 ```
 
 ## Step 6 — Journal
+**Precondition:** confirm `bash ~/code/agent-fleet/lib/transcript.sh rooms` lists `council-<slug>`.
+If it does not, you skipped Step 3's `capture` — go back and persist the positions FIRST. Never
+journal a run whose thinking wasn't recorded.
+
 Ask the user: did the council surface a net-new issue you'd have missed (Y/N), did you act on it
 (Y/N), how many issues did the council raise total, and how many did you dismiss as noise? For
 validation runs also ask: did the council beat the lens-baseline from Step 0.5 (Y/N)? Then:
