@@ -94,9 +94,13 @@ council whose thinking wasn't saved.
 
 ## How it works (design)
 Personas are stateless one-shot reviewers; the **orchestrator** sequences rounds and holds all
-state (subagents can't talk live — there's no reader left alive to listen mid-turn). It runs ≤2
-rounds, ≤4 personas, then synthesizes. Full rationale + the validation gate (does this beat a
-single lens-prompt over 20 real runs?) in `docs/{PRD,DD,PLAN}.md`.
+state (subagents can't talk live — there's no reader left alive to listen mid-turn). It runs N
+**reflection iterations** (`--council --iterations N`, default 2, hard cap 4): iteration 1 is
+blind, later iterations inject peers' full prior positions and personas revise via
+**critique-before-concede** (refute first, concede only what you can't refute), with a deterministic
+convergence + capitulation detector. ≤4 personas, then synthesizes. Full rationale + the validation
+gate in `docs/{PRD,DD,PLAN}.md`; the iteration feature in
+`docs/features/iterative-reflection/{PRD,DD,PLAN}.md`.
 
 ## Tests
 ```bash

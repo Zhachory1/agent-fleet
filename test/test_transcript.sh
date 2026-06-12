@@ -32,4 +32,21 @@ sed -n '1p' "$CLOG" | jq -e '.from=="red-team" and (.text|contains("[BLOCKER]"))
 sed -n '2p' "$CLOG" | jq -e '.from=="generalist-swe"' >/dev/null || { echo "FAIL: capture block-2 wrong"; exit 1; }
 # capture with no blocks → error (loud, not silent skip)
 printf 'no markers here\n' | "$DIR/lib/transcript.sh" capture "$CROOM" 2>/dev/null && { echo "FAIL: capture should reject markerless stdin"; exit 1; } || true
+# round-tagged capture stored RAW; show groups by round
+RR=round-room
+printf '@@from: red-team#r1\nverdict: BLOCK\n@@from: red-team#r2\nverdict: SHIP\n' | "$DIR/lib/transcript.sh" capture "$RR"
+grep -q '"from":"red-team#r2"' "$AGENT_CHAT_ROOT/rooms/$RR/log.jsonl" || { echo "FAIL: #rN not stored raw"; exit 1; }
+SHOW="$("$DIR/lib/transcript.sh" show "$RR")"
+echo "$SHOW" | grep -q '── round 1 ──' || { echo "FAIL: no round1 header"; exit 1; }
+echo "$SHOW" | grep -q '── round 2 ──' || { echo "FAIL: no round2 header"; exit 1; }
+# MULTI-LINE block must render intact (catches the jq-real-newline vs awk-tab bug)
+ML=ml-room
+printf '@@from: red-team#r1\nverdict: BLOCK\ntop_issues:\n- [BLOCKER] x\n' | "$DIR/lib/transcript.sh" capture "$ML"
+MOUT="$("$DIR/lib/transcript.sh" show "$ML")"
+echo "$MOUT" | grep -q '│ top_issues:' || { echo "FAIL: multiline body not rendered (jq/awk newline bug)"; exit 1; }
+echo "$MOUT" | grep -cq '── round' && [ "$(echo "$MOUT" | grep -c '── round')" = 1 ] || { echo "FAIL: multiline split into spurious rounds"; exit 1; }
+# negative: a '#' that is NOT a round suffix must not be grouped as a round
+NR=neg-room
+printf '@@from: persona#hashtag\nverdict: SHIP\n' | "$DIR/lib/transcript.sh" capture "$NR"
+"$DIR/lib/transcript.sh" show "$NR" | grep -qE '── round [0-9]+ ──' && { echo "FAIL: #hashtag misread as round"; exit 1; } || true
 echo "PASS test_transcript"

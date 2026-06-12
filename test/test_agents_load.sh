@@ -11,5 +11,8 @@ for name in "${EXPECTED[@]}"; do
   grep -q "^tools:" "$f" || { echo "FAIL: $name no tools"; fail=1; }
   grep -q "strongest_counterargument" "$f" || { echo "FAIL: $name missing mandatory dissent"; fail=1; }
   grep -q "_rokt-overlay.md" "$f" || { echo "FAIL: $name no overlay hook"; fail=1; }
+  # reflection alignment: no stale soft round-2 line (contradicts REFUTE-FIRST); must carry REFUTE FIRST
+  grep -qi 'agree, refute, or sharpen' "$f" && { echo "FAIL: $name has stale soft round-2 line"; fail=1; }
+  grep -q "REFUTE FIRST" "$f" || { echo "FAIL: $name missing REFUTE FIRST reflection alignment"; fail=1; }
 done
 [ "$fail" = "0" ] && echo "PASS test_agents_load" || exit 1

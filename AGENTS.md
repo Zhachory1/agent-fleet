@@ -1,7 +1,8 @@
 # AGENTS.md — agent-fleet
 
 This repo is a portable **council of specialist review personas** + an orchestrator that convenes
-2-4 of them, runs a bounded debate, and synthesizes a decision-grade answer with named dissents.
+2-4 of them, runs a bounded N-iteration reflection debate (critique-before-concede; default 2,
+cap 4), and synthesizes a decision-grade answer with named dissents.
 Tools that read `AGENTS.md` (Codex, opencode, Cursor, …) pick this up automatically.
 
 ## To run a council
