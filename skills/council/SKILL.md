@@ -83,14 +83,15 @@ Produce:
 ```
 
 ## Step 6 — Journal
-**Precondition:** confirm `bash ~/code/agent-fleet/lib/transcript.sh rooms` lists `council-<slug>`.
-If it does not, you skipped Step 3's `capture` — go back and persist the positions FIRST. Never
-journal a run whose thinking wasn't recorded.
+The journal **enforces** Step 3: `journal.sh append` REFUSES (exit 2) unless `council-<slug>` has a
+captured transcript. If it refuses, you skipped `capture` — go do it, then retry. You cannot record
+a run whose thinking wasn't persisted; this is structural, not a reminder.
 
 Ask the user: did the council surface a net-new issue you'd have missed (Y/N), did you act on it
 (Y/N), how many issues did the council raise total, and how many did you dismiss as noise? For
-validation runs also ask: did the council beat the lens-baseline from Step 0.5 (Y/N)? Then:
-`bash ~/code/agent-fleet/lib/journal.sh append "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised>`
+validation runs also ask: did the council beat the lens-baseline from Step 0.5 (Y/N)? Then (note
+the room slug is the FIRST arg):
+`bash ~/code/agent-fleet/lib/journal.sh append "council-<slug>" "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised>`
 
 Then tell the user where to read the full transcript + the running gate stats (Visibility below).
 

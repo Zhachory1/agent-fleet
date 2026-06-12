@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Counterfactual journal — powers the catch-rate KPI + the kill-gate.
 # Usage:
-#   journal.sh append <task> <solo_decision> <personas_csv> <net_new_catch> <catch_note> \
+#   journal.sh append <room> <task> <solo_decision> <personas_csv> <net_new_catch> <catch_note> \
 #                     <acted_on> <dismissed_count> \
 #                     [lens_baseline_run] [council_beat_baseline] [issues_raised]
 #   journal.sh stats  [N]      summarize last N runs (0/omitted = all) vs the gate
+#
+# GUARD: append REFUSES (exit 2) unless room '<room>' has a non-empty transcript — you cannot
+#        journal a run whose thinking was not captured (this is what silently failed on real
+#        runs). Capture first: `transcript.sh capture <room> <<EOF ... EOF`.
+#        Override only for tests: AGENT_FLEET_REQUIRE_TRANSCRIPT=0.
 #
 # lens_baseline_run     (bool, default false): did this run ALSO produce a single-context
 #                       baseline with the SAME lenses, to test "do the lenses help" (honest null)
@@ -19,14 +24,28 @@ ac_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 cmd="${1:-}"; shift || true
 case "$cmd" in
   append)
-    task="${1:?}"; solo="${2:?}"; personas="${3:?}"; catch="${4:?}"; note="${5:-}"; acted="${6:?}"; dis="${7:-0}"
-    base_run="${8:-false}"; beat="${9:-null}"; raised="${10:-0}"
+    room="${1:?room (use 'council-<slug>')}"; task="${2:?}"; solo="${3:?}"; personas="${4:?}"
+    catch="${5:?}"; note="${6:-}"; acted="${7:?}"; dis="${8:-0}"
+    base_run="${9:-false}"; beat="${10:-null}"; raised="${11:-0}"
+    # GUARD: no transcript -> no journal. Prevents the 'journaled but skipped capture' data loss.
+    if [ "${AGENT_FLEET_REQUIRE_TRANSCRIPT:-1}" = "1" ]; then
+      ACR="${AGENT_CHAT_ROOT:-$HOME/.claude/agent-chat}"; rlog="$ACR/rooms/$room/log.jsonl"
+      if [ ! -s "$rlog" ]; then
+        {
+          echo "journal: REFUSING — no transcript for room '$room' ($rlog)."
+          echo "  Capture the council's full positions FIRST:"
+          echo "    bash $(dirname "$0")/transcript.sh capture $room <<'EOF' ... EOF"
+          echo "  then re-run this journal append. (test-only override: AGENT_FLEET_REQUIRE_TRANSCRIPT=0)"
+        } >&2
+        exit 2
+      fi
+    fi
     mkdir -p "$(dirname "$JOURNAL")"
-    jq -cn --arg ts "$(ac_now)" --arg task "$task" --arg solo "$solo" \
+    jq -cn --arg ts "$(ac_now)" --arg room "$room" --arg task "$task" --arg solo "$solo" \
       --arg personas "$personas" --argjson catch "$catch" --arg note "$note" \
       --argjson acted "$acted" --argjson dis "$dis" \
       --argjson base_run "$base_run" --argjson beat "$beat" --argjson raised "$raised" \
-      '{ts:$ts, task:$task, solo_decision:$solo, personas:($personas|split(",")),
+      '{ts:$ts, room:$room, task:$task, solo_decision:$solo, personas:($personas|split(",")),
         net_new_catch:$catch, catch_note:$note, acted_on:$acted, dismissed_count:$dis,
         lens_baseline_run:$base_run, council_beat_baseline:$beat, issues_raised:$raised}' \
       >> "$JOURNAL"
