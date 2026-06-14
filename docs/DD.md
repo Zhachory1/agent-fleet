@@ -7,7 +7,7 @@
 **Domain:** Personal developer tooling (`~/.claude`, global)
 **Last updated:** 2026-06-12
 **DRI:** Zhach Volker
-**Related:** `./PRD.md` (Rev 2) · agent-chat JSONL format (`ROKT/ai-workflows`, format only)
+**Related:** `./PRD.md` (Rev 2) · agent-chat JSONL room format (internal, format only)
 
 ---
 
@@ -27,7 +27,7 @@ architecture so build subagents have exact blueprint.
 | **Guardrail** | false-alarm rate (issues dismissed) | < 50% |
 | **Functional** | agents load clean; rules-table selection deterministic; round contract holds | 100% of NFR6 tests pass |
 | **Cost** | input tokens/run | ≤4 personas × ≤2 rounds, artifact passed once |
-| **Portability** | runs overlay-absent, no plugin dep | clean on non-Rokt machine |
+| **Portability** | runs overlay-absent, no plugin dep | clean on a machine with no private overlay |
 
 ---
 
@@ -66,9 +66,9 @@ do all sequencing + hold all state. Room = transcript only, not coordination.
   output schema (position).
 * **Transcript:** `~/.claude/agent-chat/rooms/council-<slug>/log.jsonl`. Write-only. Same
   `{ts,from,text}` line format as agent-chat. **No** marker/cursor/listen/Stop-hook. No plugin dep.
-* **Overlay:** `~/.claude/agents/_rokt-overlay.md` (gitignored, private). Optional.
+* **Overlay:** `~/.claude/agents/_overlay.md` (gitignored, private). Optional.
 
-No Rokt Brain boundary. No Transaction Moment. No SoR object. Paved road n/a (markdown + bash +
+No platform-internal boundaries. No system-of-record object. No paved-road dependency (markdown + bash +
 Claude Code agents). No new tech.
 
 ---
@@ -82,14 +82,14 @@ Claude Code agents). No new tech.
   docs/         PRD.md  DD.md  PLAN.md
   agents/       ml-scientist.md  ab-critic.md  reliability-sentinel.md
                 software-architect.md  generalist-swe.md  red-team.md
-                _rokt-overlay.md.example   (template; real one private+gitignored)
+                _overlay.md.example   (template; real one private+gitignored)
   skills/council/ SKILL.md   (orchestrator)
   lib/          transcript.sh   (serial JSONL append + show/rooms viewer)
                 journal.sh      (counterfactual log helper, incl lens-baseline fields)
                 synth.sh        (deterministic consensus/dissent flag)
   install.sh    (symlink agents/ + skills/council → ~/.claude; reversible)
   test/         test_agents_load.sh  test_selection.sh  test_round_contract.sh
-  .gitignore    (_rokt-overlay.md, run artifacts)
+  .gitignore    (_overlay.md, run artifacts)
 ```
 
 Install = symlink each `agents/*.md` → `~/.claude/agents/`, `skills/council` →
@@ -102,7 +102,7 @@ Each agent `.md`: YAML frontmatter (`name`, `description`, `tools`) + body. Body
 1. **Lens** — one-paragraph identity + what this persona distrusts by default.
 2. **What you attack** — checklist of failure modes this lens owns.
 3. **Output contract** — fixed structure (below).
-4. **Overlay hook** — `If ~/.claude/agents/_rokt-overlay.md exists, read it for domain specifics`.
+4. **Overlay hook** — `If ~/.claude/agents/_overlay.md exists, read it for domain specifics`.
 5. **Etiquette** — terse, evidence-based, severity-tagged, MUST surface ≥1 dissent/counterargument.
 
 **Persona output schema** (returned to orchestrator):
@@ -252,8 +252,8 @@ solo-first counterfactual). Powers the kill-criterion.
 
 ## Overlay Loading
 
-Persona body ends: `If file ~/.claude/agents/_rokt-overlay.md exists, read it and apply its
-domain specifics (ads metrics, KFP/Trino/Datadog/dopp/LAL). If absent, proceed generic.` Subagent
+Persona body ends: `If file ~/.claude/agents/_overlay.md exists, read it and apply its
+domain specifics (your org's KPIs / stack / hot paths / priorities). If absent, proceed generic.` Subagent
 has Read tool → conditional read. Absent = no error (portability NFR3).
 
 ---
@@ -264,7 +264,7 @@ has Read tool → conditional read. Absent = no error (portability NFR3).
   subagents) — capped.
 * **Degradation:** persona spawn fails → orchestrator drops it (`.filter(Boolean)` semantics),
   proceed with survivors, note in synthesis. Never block whole run on one dead persona.
-* **Observability:** transcript log + journal. No Datadog (local tool).
+* **Observability:** transcript log + journal. No external APM (local tool).
 
 ---
 

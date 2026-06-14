@@ -1,0 +1,21 @@
+# Overlay (example — copy to _overlay.md and fill; that copy is gitignored)
+
+When reviewing, apply YOUR org's domain specifics. The committed personas are pure generic; this
+file is where you (privately) tell them what your stack, KPIs, and hot paths look like.
+
+Suggested sections to fill in:
+
+- **Headline KPIs / metrics**: what does "model improved" mean in your business? List the metrics
+  the team actually steers on, plus any well-known proxies-vs-real-objective gotchas.
+- **Experiment caveats**: known interference / SUTVA-violation patterns in your domain,
+  pacing/budget effects, holdout-hygiene rules you have learned the hard way.
+- **Stack**: orchestrator (e.g. Airflow / KFP / Argo / Prefect), warehouse (e.g. Snowflake /
+  BigQuery / Trino), observability (e.g. Datadog / Grafana / Honeycomb), runtime (e.g. K8s with
+  any cluster-role conventions your org uses).
+- **Hot paths**: which code paths are latency- and blast-radius-sensitive (serving, bidding, ranking).
+- **Current priorities / projects**: the 1-3 named initiatives the team is shipping right now —
+  helps the personas calibrate "is this consistent with where the team is going".
+
+# NOTE: keep this file free of PII, advertiser/customer identifiers, and anything that's truly
+# confidential beyond what you need to make the personas useful. This file is .gitignored — but
+# treat that as a SECOND line of defense, not the first.

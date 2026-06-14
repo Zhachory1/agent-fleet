@@ -55,7 +55,20 @@ $ln"; fi ;;
     room="$(ac_safe "$room")"; log="$ROOMS/$room/log.jsonl"
     [ -f "$log" ] || { echo "no transcript for room '$room'"; exit 1; }
     printf '═══ council transcript: %s ═══\n\n' "$room"
-    jq -r '"┌─ [\(.from)]  \(.ts)\n" + (.text | split("\n") | map("│ " + .) | join("\n")) + "\n└─"' "$log"
+    # emit "round<TAB>from<TAB>ts<TAB>text"; round = trailing #r<digits> on from (else 0).
+    # gsub("\n";"\\n"): jq -r decodes \n to REAL newlines, which would break the tab-record parse —
+    # re-escape so each log entry stays ONE awk record; awk re-splits on the literal \n.
+    # sort: numeric on round (k1), then plain string on from (k2) for deterministic in-round order.
+    jq -r '. as $e | ($e.from | capture("#r(?<n>[0-9]+)$").n // "0") as $r
+           | "\($r)\t\($e.from|gsub("\t";" "))\t\($e.ts|gsub("\t";" "))\t\($e.text|gsub("\t";" ")|gsub("\n";"\\n"))"' "$log" \
+    | sort -s -k1,1n -k2,2 -t$'\t' \
+    | awk -F'\t' '
+        BEGIN { prev = "" }
+        { r=$1; from=$2; gsub(/#r[0-9]+$/,"",from); ts=$3; text=$4
+          if (r!=prev) { if (r=="0") printf "── round — ──\n"; else printf "── round %s ──\n", r; prev=r }
+          printf "┌─ [%s]  %s\n", from, ts
+          n=split(text, L, /\\n/); for(i=1;i<=n;i++) printf "│ %s\n", L[i]
+          printf "└─\n" }'
     ;;
   *) echo "usage: transcript.sh {append <room> <from> <text> | show [room] | rooms}" >&2; exit 1;;
 esac

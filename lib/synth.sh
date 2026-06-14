@@ -28,5 +28,35 @@ case "$cmd" in
       fi
     fi
     ;;
-  *) echo "usage: synth.sh flag  (stdin: '<persona> <verdict>' lines)" >&2; exit 1;;
+  converged)
+    # stdin: prev block, exactly ONE "---" line, curr block. Lines: "<persona> <verdict> <issue_count>".
+    raw="$(cat)"; [ -n "$(printf '%s' "$raw" | tr -d '[:space:]')" ] || { echo NO-INPUT; exit 1; }
+    seps="$(printf '%s\n' "$raw" | grep -c '^---$' || true)"
+    [ "$seps" = "1" ] || { echo NO-INPUT; exit 1; }          # exactly one separator, else malformed
+    first="$(printf '%s\n' "$raw" | sed '/^[[:space:]]*$/d' | head -1)"
+    [ "$first" != "---" ] || { echo NO-INPUT; exit 1; }      # separator-first = empty prev block
+    prev="$(printf '%s\n' "$raw" | sed -n '1,/^---$/p' | sed '/^---$/d' | sed '/^[[:space:]]*$/d')"
+    curr="$(printf '%s\n' "$raw" | sed -n '/^---$/,$p' | sed '/^---$/d' | sed '/^[[:space:]]*$/d')"
+    [ -n "$prev" ] && [ -n "$curr" ] || { echo NO-INPUT; exit 1; }
+    # curr majority verdict (plurality). Empty => malformed curr (lines lacking a verdict field).
+    maj="$(printf '%s\n' "$curr" | awk '{print $2}' | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')"
+    [ -n "$maj" ] || { echo NO-INPUT; exit 1; }
+    pv() { printf '%s\n' "$prev" | awk -v p="$1" '$1==p{print $2; exit}'; }
+    pc() { printf '%s\n' "$prev" | awk -v p="$1" '$1==p{print $3; exit}'; }
+    flips=0; degraded=0; changed=0
+    while read -r p v c; do
+      [ -n "$p" ] || continue
+      ov="$(pv "$p")"; oc="$(pc "$p")"
+      [ -n "$ov" ] && [ "$ov" != "$v" ] && changed=1                              # guard: missing prev != change
+      if [ -n "$ov" ] && [ "$ov" != "$maj" ] && [ "$v" = "$maj" ]; then          # moved TO majority
+        flips=$((flips+1))
+        if [[ "$c" =~ ^[0-9]+$ ]] && [[ "$oc" =~ ^[0-9]+$ ]] && [ "$c" -lt "$oc" ]; then degraded=1; fi # ...while dropping issues (both counts numeric)
+      fi
+    done <<< "$curr"
+    if [ "$flips" -ge 2 ] || [ "$degraded" = 1 ]; then echo SUSPICIOUS-FLIP
+    elif [ "$changed" = 1 ]; then echo CHANGED
+    else echo CONVERGED
+    fi
+    ;;
+  *) echo "usage: synth.sh {flag | converged}  (flag: '<persona> <verdict>' lines; converged: prev block, '---', curr block of '<persona> <verdict> <issue_count>')" >&2; exit 1;;
 esac

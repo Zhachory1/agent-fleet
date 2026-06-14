@@ -1,4 +1,6 @@
-# private overlay — never commit Rokt-confidential
+# private overlay — never commit org-confidential context (your real KPIs, stack, priorities)
+agents/_overlay.md
+# legacy name — kept here so any pre-rename copies stay gitignored
 agents/_rokt-overlay.md
 # run artifacts
 /tmp-council-*

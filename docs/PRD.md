@@ -4,10 +4,10 @@
 
 **SEPRD-ID**: SEPRD-20260612-agent-fleet-council
 **Status**: Draft — Pending Team Ratification (self-ratified; personal tooling) · **Rev 2** (post-aggressive-review)
-**Domain**: Personal developer tooling (global `~/.claude`, Rokt overlay optional)
+**Domain**: Personal developer tooling (global `~/.claude`, private overlay optional)
 **Last updated**: 2026-06-12
 **DRI**: Zhach Volker
-**Related**: Reuses the *file format* (only) of `ROKT/ai-workflows` `agent-chat` (calvin-pietersen)
+**Related**: Reuses the *file format* (only) of an internal `agent-chat` JSONL room transcript
 
 > **Rev 2 changelog** (from adversarial review): mode-B execution model corrected (orchestrator
 > sequences rounds; personas are stateless one-shots) · agent-chat reuse downgraded to write-only
@@ -29,7 +29,7 @@ single Claude context**. Gaps:
 
 * **Single-perspective blind spots.** The errors that hurt most when wrong ("AUC up but
   calibration worse," "this A/B has interference so the readout is invalid," "this PR touches the
-  bid path," "this design couples two bounded contexts") are exactly what a *specialist second
+  hot path," "this design couples two bounded contexts") are exactly what a *specialist second
   opinion from a different lens* catches and a single generalist pass misses.
 * **No structured adversarial check.** No cheap way to get N independent specialists to
   pressure-test a decision and *disagree* before I commit.
@@ -46,14 +46,14 @@ that are made to **disagree**, and that **follow me across every repo**.
 
 ## Context & Strategic Alignment
 
-Personal-productivity tool; no Rokt OKR dependency. Indirectly serves **FY27 Engineering Quality**
+Personal-productivity tool; no org-OKR dependency. Indirectly serves engineering-quality goals
 and is a pattern shareable to the team later. Reuses the `agent-chat` JSONL *format* (not its
 runtime) so a future real-time peer-session mode could layer on.
 
 ## User Persona & Use Case
 
-* **Persona:** Me — Staff SWE / ML lead / director-track at Rokt. Secondary: a teammate who later
-  installs it (must work with the Rokt overlay **absent**, zero coupling).
+* **Persona:** Me — Staff SWE / ML lead. Secondary: a teammate who later installs it (must work
+  with the private overlay **absent**, zero coupling).
 * **Scenario:** High-stakes decision (review this model change / is this experiment valid / tear
   apart this DD / is this PR safe / build-vs-buy this). I run `/council <task>`. It selects 2–4
   relevant personas, runs a bounded debate, synthesizes one decision-grade answer with **named
@@ -85,7 +85,7 @@ linter and gets cut to a single-context prompt.
 | **False-alarm rate** = council-raised issues I dismiss as noise/wrong on reflection | 0 (n/a) | **> 50% dismissed ⇒ fleet declared noise.** Logged per run alongside catches. |
 | **False-consensus rate** = runs where council unanimously agreed and I later found them collectively wrong | 0 | Tracked + reported; any unanimous run is flagged in synthesis as a *warning*, not a green light. |
 | **Input-token cost / run** (the real driver: artifact × personas × rounds) | 0 | Bounded by artifact-passing rules (FR9) + ≤4 personas + ≤2 rounds; no unbounded loop. |
-| **Portability** (overlay absent) | n/a | MUST run on a non-Rokt machine with zero coupling errors and **zero dependency** on the agent-chat plugin. |
+| **Portability** (overlay absent) | n/a | MUST run on a machine with no private overlay, zero coupling errors and **zero dependency** on the agent-chat plugin. |
 
 ## Baselines & Targets
 
@@ -135,8 +135,8 @@ linter and gets cut to a single-context prompt.
   If the council reached unanimous agreement, synthesis MUST flag it as a *false-consensus risk*.
 * **FR6 — Trigger: slash-command only (v1).** `/council <task>`. **Auto-suggest is OUT for v1**
   (own sub-project, own false-positive failure mode, zero core value over the slash command).
-* **FR7 — Generic core + Rokt overlay.** Persona bodies are pure generic. If sibling
-  `_rokt-overlay.md` (ads metrics, KFP/Trino/Datadog/dopp/LAL) exists, persona loads it for
+* **FR7 — Generic core + private overlay.** Persona bodies are pure generic. If sibling
+  `_overlay.md` (your org's KPIs, stack, hot paths, current priorities) exists, persona loads it for
   domain sharpening; absent ⇒ runs generic, no error. Overlay is gitignored / private.
 * **FR8 — Install/uninstall.** Reversible: symlink/copy `agents/` → `~/.claude/agents/`. No global
   state beyond `~/.claude/agents/` + the user-scoped room dir.
@@ -151,8 +151,8 @@ linter and gets cut to a single-context prompt.
 * **NFR1 — Reversible & inspectable.** Symlink/copy install; clean uninstall.
 * **NFR2 — Bounded cost.** Hard caps: ≤4 personas, ≤2 rounds, artifact-size rules. No
   loop-until-converged.
-* **NFR3 — Zero Rokt coupling in core.** No Rokt-confidential content in persona bodies
-  (Rokt Brain internals, Transaction Moment, OKRs, advertiser/PII data) — all in the private
+* **NFR3 — Zero org-coupling in core.** No org-confidential content in persona bodies
+  (internal product internals, OKRs, customer/PII data) — all in the private
   overlay. (Ref: scrub-before-public-repo standard.)
 * **NFR4 — Reuse the format, not the machinery.** Same `{ts,from,text}` JSONL lines; do **not**
   inherit markers/cursors/listen-loop/Stop-hook built for the opposite (peer-session) model.
@@ -191,7 +191,7 @@ context prompted with the selected lenses and retire the orchestration apparatus
 | Stakeholder | Role | Level |
 |---|---|---|
 | Zhach Volker | DRI / sole user | Approve |
-| `agent-chat` (calvin-pietersen) | upstream format we borrow | Inform (no fork, no runtime dep) |
+| `agent-chat` (internal JSONL room format) | upstream format we borrow | Inform (no fork, no runtime dep) |
 
 ## Staged Timeline (honest)
 

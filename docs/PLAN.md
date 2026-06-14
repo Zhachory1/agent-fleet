@@ -14,7 +14,7 @@
 
 - Repo root: `~/code/agent-fleet`. All paths relative to it unless absolute.
 - Commit after each task. Conventional commits.
-- Persona/agent loadable format = YAML frontmatter (`name`, `description`, `model`, `tools`) + body (verified against Rokt `code-reviewer` agent).
+- Persona/agent loadable format = YAML frontmatter (`name`, `description`, `model`, `tools`) + body (verified against an internal `code-reviewer` agent format).
 - Tests are bash scripts in `test/`, runnable standalone, exit non-zero on fail.
 
 ---
@@ -22,13 +22,13 @@
 ## File Structure (locks decomposition)
 
 ```
-agents/        6 persona defs + _rokt-overlay.md.example   — one lens each
+agents/        6 persona defs + _overlay.md.example   — one lens each
 skills/council/SKILL.md                                    — orchestrator
 lib/transcript.sh                                          — serial JSONL append
 lib/journal.sh                                             — counterfactual log append
 install.sh                                                 — symlink in/out of ~/.claude
 test/*.sh                                                  — contract tests
-.gitignore                                                 — _rokt-overlay.md, /tmp runs
+.gitignore                                                 — _overlay.md, /tmp runs
 ```
 
 ---
@@ -39,37 +39,37 @@ test/*.sh                                                  — contract tests
 
 **Files:**
 - Create: `.gitignore`
-- Create: `agents/_rokt-overlay.md.example`
+- Create: `agents/_overlay.md.example`
 
 - [ ] **Step 1: Write `.gitignore`**
 
 ```
-# private overlay — never commit Rokt-confidential
-agents/_rokt-overlay.md
+# private overlay — never commit org-confidential context (real KPIs, stack, priorities)
+agents/_overlay.md
 # run artifacts
 /tmp-council-*
 *.local
 ```
 
-- [ ] **Step 2: Write `agents/_rokt-overlay.md.example`** (template; real one private)
+- [ ] **Step 2: Write `agents/_overlay.md.example`** (template; real one private)
 
 ```markdown
-# Rokt Overlay (example — copy to _rokt-overlay.md and fill; that copy is gitignored)
+# Overlay (example — copy to _overlay.md and fill; that copy is gitignored)
 
-When reviewing, apply these domain specifics:
-- Ads metrics: APT, CoPI, VPT, YER, CVR, eCPM, value-based bidding.
-- Experiment caveats: auction interference (SUTVA violation), pacing, holdout hygiene.
-- Stack: KFP pipelines, Trino/Iceberg datalake, Datadog, K8s (blue=experiments, green=scheduled).
-- Hot paths: bid path, selection/serving — latency + blast-radius sensitive.
-- Current priorities: doppelganger / LAL / CoPI.
-# NOTE: keep real overlay free of PII and confidential internals beyond what you need.
+When reviewing, apply YOUR org's domain specifics:
+- Headline KPIs / metrics: what "model improved" means in your business; known proxy-vs-objective gotchas.
+- Experiment caveats: known interference / SUTVA-violation patterns; pacing/budget effects; holdout-hygiene rules.
+- Stack: orchestrator (Airflow / KFP / Argo / Prefect), warehouse (Snowflake / BigQuery / Trino), observability, runtime.
+- Hot paths: which code paths are latency- and blast-radius-sensitive (serving, bidding, ranking).
+- Current priorities: 1-3 named initiatives the team is shipping now.
+# NOTE: keep this file free of PII / customer identifiers; gitignored is the SECOND line of defense.
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
 cd ~/code/agent-fleet
-git add .gitignore agents/_rokt-overlay.md.example
+git add .gitignore agents/_overlay.md.example
 git commit -m "chore: scaffold agent-fleet repo + gitignore + overlay template"
 ```
 
@@ -228,7 +228,7 @@ Stay in your lane — other personas cover other lenses. Be terse, evidence-base
 
 ## How to work
 1. Read the artifact at the path given in your prompt (or the inline excerpt).
-2. If `~/.claude/agents/_rokt-overlay.md` exists, read it and apply its domain specifics. If absent, proceed generic — no error.
+2. If `~/.claude/agents/_overlay.md` exists, read it and apply its domain specifics. If absent, proceed generic — no error.
 3. If peer positions are included (round 2), engage them: agree, refute, or sharpen.
 
 ## Output contract (return EXACTLY this structure)
@@ -269,7 +269,7 @@ for name in "${EXPECTED[@]}"; do
   grep -q "^name: $name$" "$f" || { echo "FAIL: $name name field wrong"; fail=1; }
   grep -q "^tools:" "$f" || { echo "FAIL: $name no tools"; fail=1; }
   grep -q "strongest_counterargument" "$f" || { echo "FAIL: $name missing mandatory dissent"; fail=1; }
-  grep -q "_rokt-overlay.md" "$f" || { echo "FAIL: $name no overlay hook"; fail=1; }
+  grep -q "_overlay.md" "$f" || { echo "FAIL: $name no overlay hook"; fail=1; }
 done
 [ "$fail" = "0" ] && echo "PASS test_agents_load" || exit 1
 ```
@@ -420,7 +420,7 @@ AGENTS_DST="$HOME/.claude/agents"
 SKILL_DST="$HOME/.claude/skills/council"
 if [ "${1:-}" = "--uninstall" ]; then
   for f in "$SRC"/agents/*.md; do
-    [ "$(basename "$f")" = "_rokt-overlay.md.example" ] && continue
+    [ "$(basename "$f")" = "_overlay.md.example" ] && continue
     rm -f "$AGENTS_DST/$(basename "$f")"
   done
   rm -f "$SKILL_DST"
@@ -429,12 +429,12 @@ if [ "${1:-}" = "--uninstall" ]; then
 fi
 mkdir -p "$AGENTS_DST" "$HOME/.claude/skills"
 for f in "$SRC"/agents/*.md; do
-  [ "$(basename "$f")" = "_rokt-overlay.md.example" ] && continue
+  [ "$(basename "$f")" = "_overlay.md.example" ] && continue
   ln -sf "$f" "$AGENTS_DST/$(basename "$f")"
 done
 ln -sfn "$SRC/skills/council" "$SKILL_DST"
 echo "agent-fleet: installed. Agents → $AGENTS_DST ; skill → $SKILL_DST"
-echo "Optional: cp agents/_rokt-overlay.md.example agents/_rokt-overlay.md and edit (stays private)."
+echo "Optional: cp agents/_overlay.md.example agents/_overlay.md and edit (stays private)."
 ```
 
 - [ ] **Step 2: Write `test/test_overlay_absent.sh`** (portability NFR3 — persona body resolves clean with no overlay)
@@ -445,10 +445,10 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # overlay hook must be conditional ("if exists") so absence is not an error
 for f in "$DIR"/agents/ml-scientist.md "$DIR"/agents/red-team.md; do
-  grep -qi "if .*_rokt-overlay.md exists" "$f" || grep -qi "If \`~/.claude/agents/_rokt-overlay.md\` exists" "$f" \
+  grep -qi "if .*_overlay.md exists" "$f" || grep -qi "If \`~/.claude/agents/_overlay.md\` exists" "$f" \
     || { echo "FAIL: $(basename $f) overlay hook not conditional"; exit 1; }
 done
-[ ! -e "$DIR/agents/_rokt-overlay.md" ] || echo "(note: real overlay present locally — fine)"
+[ ! -e "$DIR/agents/_overlay.md" ] || echo "(note: real overlay present locally — fine)"
 echo "PASS test_overlay_absent"
 ```
 

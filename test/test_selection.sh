@@ -11,4 +11,6 @@ grep -q "design doc / architecture / new service / build-vs-buy | software-archi
 grep -q "false-consensus risk" "$S" || { echo "FAIL: no false-consensus guard"; exit 1; }
 grep -q "Solo first" "$S" || { echo "FAIL: no counterfactual step"; exit 1; }
 grep -qi "parallel" "$S" || { echo "FAIL: round-1 not parallel"; exit 1; }
+grep -qiE 'red-team.*(auto|force).*(includ|multi-iter|iterations)|force-include red-team' "$DIR/skills/council/SKILL.md" \
+  || { echo "FAIL: red-team auto-include rule missing"; exit 1; }
 echo "PASS test_selection"
