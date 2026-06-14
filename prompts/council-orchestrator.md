@@ -31,11 +31,26 @@ Pick by task (cap 4; add `red-team` when stakes are high):
 | model change / new model input / training pipeline | ml-scientist, ab-critic, reliability-sentinel |
 | experiment / A-B / readout / holdout | ab-critic, ml-scientist |
 | design doc / architecture / new service / build-vs-buy | software-architect, red-team, generalist-swe |
-| PR / serving-path / latency change | reliability-sentinel, generalist-swe, software-architect |
+| PR / serving-path / latency change | reliability-sentinel, perf-engineer, generalist-swe |
 | refactor / simplify / code quality | generalist-swe, software-architect |
+| latency / throughput / perf regression | perf-engineer, reliability-sentinel, generalist-swe |
+| ETL / schema migration / warehouse / event pipeline | data-engineer, reliability-sentinel, software-architect |
+| PRD / scope / "should we build this" / feature def | product-pm, ceo, red-team |
+| build-vs-buy / vendor / capacity / cost | cost-finops, software-architect, cto |
+| SDK / library / CLI / public API / platform tooling | docs-dx, software-architect, generalist-swe |
+| high-stakes ship / one-way door / catastrophic-risk lens | pre-mortem, red-team, reliability-sentinel |
+| platform bet / tech-stack adoption / 3-5yr direction | cto, software-architect, ceo |
+| company-strategy / roadmap / opportunity-cost / staffing | ceo, vp-eng, product-pm |
+| multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
 | default / unmatched | pick 2-4 + justify each in one line |
 
 State the selection + why before convening.
+
+**Overlap check:** consult `agents/INDEX.md`'s `Tends to agree with` column. If 2 of your picks
+overlap (`ml-scientist`+`ab-critic`, `software-architect`+`cto`, `ceo`+`product-pm`,
+`reliability-sentinel`+`perf-engineer`), flag it explicitly — the council will lean toward that
+lens and false-consensus pressure rises. Prefer an orthogonal swap unless the task calls for the
+doubled weight.
 
 **red-team auto-include:** when `iterations>1`, force-include `red-team` in the selected set even if
 the table did not pick it — the standing dissenter against convergence pressure. If that exceeds 4,
@@ -125,8 +140,13 @@ The journal REFUSES unless the transcript was captured (Step 3) — that's the a
 ```
 bash "$AGENT_FLEET_HOME/lib/journal.sh" append "council-<slug>" "<slug>" "<solo_decision>" \
   "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> \
-  <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised>
+  <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised> \
+  <run_kind: code|investigation|design>
 ```
+
+`run_kind` matters: `investigation` runs naturally surface many hypotheses that don't all get
+pursued, so they are reported separately (no acted-on gate). `code` and `design` runs share the
+actionable gate. Default is `code` if omitted (backward compat).
 View later: `bash "$AGENT_FLEET_HOME/lib/transcript.sh" show council-<slug>` ·
 gate: `bash "$AGENT_FLEET_HOME/lib/journal.sh" stats`.
 

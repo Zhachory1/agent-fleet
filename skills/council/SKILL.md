@@ -42,11 +42,27 @@ non-red-team pick.)
 | model change / new model input / training pipeline | ml-scientist, ab-critic, reliability-sentinel |
 | experiment / A-B / readout / holdout | ab-critic, ml-scientist |
 | design doc / architecture / new service / build-vs-buy | software-architect, red-team, generalist-swe |
-| PR / serving-path / bid-path / latency change | reliability-sentinel, generalist-swe, software-architect |
+| PR / serving-path / bid-path / latency change | reliability-sentinel, perf-engineer, generalist-swe |
 | refactor / simplify / code quality | generalist-swe, software-architect |
+| latency / throughput / perf regression | perf-engineer, reliability-sentinel, generalist-swe |
+| ETL / schema migration / warehouse / event pipeline | data-engineer, reliability-sentinel, software-architect |
+| PRD / scope / "should we build this" / feature def | product-pm, ceo, red-team |
+| build-vs-buy / vendor / capacity / cost | cost-finops, software-architect, cto |
+| SDK / library / CLI / public API / platform tooling | docs-dx, software-architect, generalist-swe |
+| high-stakes ship / one-way door / catastrophic-risk lens | pre-mortem, red-team, reliability-sentinel |
+| platform bet / tech-stack adoption / 3-5yr direction | cto, software-architect, ceo |
+| company-strategy / roadmap / opportunity-cost / staffing | ceo, vp-eng, product-pm |
+| multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
 | DEFAULT / unmatched | LLM picks 2-4 + justify |
 
 State the selected personas + why (one line each) to the user before spawning.
+
+**Overlap check (FR5):** before finalizing the set, consult `agents/INDEX.md`'s `Tends to agree
+with` column. If 2 of your picks are flagged as same-group (e.g. `ml-scientist` + `ab-critic`,
+`software-architect` + `cto`, `ceo` + `product-pm`, `reliability-sentinel` + `perf-engineer`),
+that is fine if INTENTIONAL but flag it explicitly to the user — the council will skew toward
+that group's lens and false-consensus pressure rises. Prefer swapping one for an orthogonal pick
+unless the task genuinely calls for the doubled weight.
 
 ## Step 3 — Iteration loop (`--iterations N`, default 2, clamp 1..4)
 
@@ -160,10 +176,13 @@ captured transcript. If it refuses, you skipped `capture` — go do it, then ret
 a run whose thinking wasn't persisted; this is structural, not a reminder.
 
 Ask the user: did the council surface a net-new issue you'd have missed (Y/N), did you act on it
-(Y/N), how many issues did the council raise total, and how many did you dismiss as noise? For
-validation runs also ask: did the council beat the lens-baseline from Step 0.5 (Y/N)? Then (note
-the room slug is the FIRST arg):
-`bash ~/code/agent-fleet/lib/journal.sh append "council-<slug>" "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised>`
+(Y/N), how many issues did the council raise total, and how many did you dismiss as noise? Also
+classify the run: `code` (review of a diff/PR), `design` (design doc/architecture), or
+`investigation` (debugging/hypothesis-generation/audit). Investigations are scored on a separate
+track — they surface many hypotheses by design and most won't be pursued, so they don't share the
+acted-on gate with code/design runs. For validation runs also ask: did the council beat the
+lens-baseline from Step 0.5 (Y/N)? Then (note the room slug is the FIRST arg):
+`bash ~/code/agent-fleet/lib/journal.sh append "council-<slug>" "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised> <run_kind: code|investigation|design>`
 
 Then tell the user where to read the full transcript + the running gate stats (Visibility below).
 
