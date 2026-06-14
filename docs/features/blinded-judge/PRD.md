@@ -1,12 +1,27 @@
 # PRD — Blinded-judge sample mechanism
 
 **ID**: PRD-20260614-blinded-judge
-**Status**: Draft — **Rev 2** (post council gate #1)
+**Status**: Draft — **Rev 3** (post NFR6 external-context review)
 **Domain**: agent-fleet
 **DRI**: Zhach Volker
 **Last updated**: 2026-06-14
-**Closes**: GitHub issue #1
+**Addresses**: GitHub issue #1 (close after metrics-gate per Next Steps; shipping the helper is
+NOT closing the issue)
 
+> **Rev 3 changelog** (NFR6 external-context review by Gemini in fresh context, 1 BLOCKER + 5
+> MAJOR): n=5 dual-judge calibration **rescoped from quantitative to qualitative** — statistical
+> power on n=5 is so low any disagreement falls inside the CI, structurally defaulting to
+> retaining self-report. **Replacement threshold raised to n≥50 with named CI**; until then BOTH
+> metrics are diagnostics, neither is canonical · FR8 step-3-when-step-2-failed case made explicit
+> (judge-only row vs in-place update) · header changed: "Addresses #1", not "Closes #1" ·
+> `judge_model_family` renamed `judge_model_family_self_reported` everywhere — the field name
+> carries the warning that the operator's incentive to inflate noise floor is unprevented ·
+> `judge_prompt_sha256` rescoped — documents helper output for rubric-drift only; paste-time
+> tampering is an unsolvable-in-paste-and-record gap, deferred to v1.1 CLI shell-out ·
+> "materiality" rubric-tuning defense is **process not technical**: rubric changes require a PR
+> with rationale + version bump + version-partitioned agreement reporting; the attack is made
+> visible in git history, not prevented.
+>
 > **Rev 2 changelog** (council gate #1, SPLIT, red-team BLOCK, product-pm NEED-MORE-INFO):
 > agreement bands DERIVED-not-asserted via DD calibration · KPI-replacement decision process named ·
 > meta-recursion gate added: PRD requires external-context review before DD merges · #13 named-
@@ -58,49 +73,62 @@ answers go on the dashboard. Disagreement is itself signal.
 **Self-vs-blind agreement rate**: fraction of judged runs where the operator's `net_new_catch`
 answer matches the blinded judge's `judge_blinded_catch` answer.
 
-### Agreement-band calibration (BLOCKER from council gate #1)
-The PRD does NOT assert numeric bands. The natural disagreement rate between two competent
-reviewers on the binary question "did this synthesis add anything net-new" is unknown and could
-plausibly sit at 20-30% from honest semantic ambiguity alone. Asserting "<80% means catch-rate
-over-reports" before that noise floor is measured would convert normal noise into a false alarm.
+### Calibration is qualitative, not quantitative (Rev 3 — BLOCKER from external review)
+The PRD does NOT assert numeric bands AND does NOT use n=5 to derive any. Gemini's external review
+correctly observed that n=5 binary outcomes yield ~±44pp CIs at 95%; any disagreement falls
+inside the band, structurally defaulting to "retain self-report". Asserting a quantitative
+calibration on that sample size IS a self-flattering shortcut.
 
-**Calibration strategy (deliverable in DD):**
-1. Run the first 5 judged councils with TWO independent fresh-context judges each (`judge_A`
-   and `judge_B`, recorded as separate fields).
-2. Measure judge-vs-judge agreement on the same 5 inputs. That is the **noise floor**: the
-   ambiguity that two competent reviewers exhibit even when both are blind.
-3. Set the interpretation bands relative to the noise floor:
-   - Self-vs-blind agreement *not statistically different from* judge-vs-judge → catch rate is
-     within the noise floor; self-report is trustworthy at population level.
-   - Self-vs-blind agreement *meaningfully worse than* judge-vs-judge → self-report has signal
-     beyond noise that disfavors it; canonical KPI switches to the blinded number.
-4. The thresholds themselves (e.g. 1σ, 2σ) are DD-level decisions, not PRD-level.
+**Calibration is now two phases:**
+
+**Phase 1 — qualitative shape (n=5 dual-judged councils):**
+1. First 5 judged councils run with TWO independent fresh-context judges each (`judge_A` and
+   `judge_B`, recorded as separate fields).
+2. Analysis is **descriptive only**: *where* do disagreements concentrate? Long synthesis vs
+   short? Specific personas? Specific issue severities? Same model family vs cross-family?
+3. The output is a paragraph in `docs/features/blinded-judge/calibration-phase1.md` — not a
+   number, not a band. No KPI replacement decision is made here.
+
+**Phase 2 — quantitative bands (n≥50 single-judged councils):**
+1. After Phase 1, run ≥50 more judged councils (single judge each, cadence per FR4).
+2. At n=50 the 95% CI on a binary agreement rate narrows to ~±14pp — enough to distinguish 70%
+   from 90% but NOT 80% from 85%. Threshold for KPI replacement is therefore set wide: bands
+   are 90%+ / 70-90% / <70% (DD finalizes exact cuts).
+3. The Phase 2 sample is what triggers the Decision Process below.
+
+**Honest disclosure:** even at n=50 we cannot detect small biases; the mechanism distinguishes
+gross over-reporting from honest noise, not fine differences.
 
 ### Decision Process for KPI replacement
-Per FR5 the blinded number is shadow-only until ≥10 judged runs land. Replacement triggers:
+Per FR5 the blinded number is shadow-only until BOTH (a) Phase 2 sample lands AND (b) the DRI
+has executed the process below:
 
-- **When:** after ≥10 judged runs AND the calibration above has named the noise floor.
+- **When:** after ≥50 judged runs in Phase 2 (not 10 — corrected Rev 3) AND Phase 1 has produced
+  the descriptive paragraph.
 - **Who:** the DRI on a written one-pager committed to `docs/features/blinded-judge/decision-<date>.md`.
 - **What replaces what:** the README's headline catch rate switches from self-report to the
-  blinded number. The self-report stays in the journal and stats output as a diagnostic.
-- **Reversal:** if a later batch of 10 runs shifts the band by ≥10pp, the DRI revisits.
+  blinded number IF Phase 2 agreement falls in the <70% band. The self-report stays in the
+  journal and stats output as a diagnostic. **In the 70-90% band BOTH metrics remain diagnostics;
+  neither is canonical** — README publishes both with their CIs.
+- **Reversal:** if a later batch of ≥25 runs shifts the agreement rate by ≥10pp, the DRI
+  revisits.
 
 ## Guardrails (numeric)
 | Metric | Limit |
 |---|---|
 | Latency per judge call | ≤ 60s end-to-end (paste prompt + read response) |
 | Operator cognitive overhead per judged run | ≤ 2 minutes (single command, two visible context switches) |
-| % of runs judged | ≥ 20% (first 10 unconditionally as a *calibration sample*, then every 5th) |
+| % of runs judged | ≥ 20% (first 5 dual-judged for Phase 1, then every 5th — dual-judging may slow Phase 1 if cadence allows it; otherwise sequential) |
 | Self-vs-blind agreement rate | report it; no hard gate — it IS the metric |
 | Parse rate of judge response | 100% — record refuses on parse failure (no silent garbage) |
 
 ## Baseline / Target
 | Metric | Baseline | Target |
 |---|---|---|
-| Judged runs in journal | 0 | first 10 unconditionally (calibration sample), then ≥20% |
-| Self-vs-blind agreement rate | unknown | publish it; act per Decision Process above |
-| Judge-vs-judge agreement rate | unknown | calibrated in DD via first 5 dual-judged runs |
-| Operator friction | n/a | low enough that the mechanism survives past run 10 |
+| Judged runs in journal | 0 | first 5 dual-judged (Phase 1), then ≥20% single-judged toward n≥50 (Phase 2) |
+| Self-vs-blind agreement rate | unknown | publish with CI; act per Decision Process; do NOT switch KPI before n=50 |
+| Judge-vs-judge agreement rate | unknown | descriptive paragraph from Phase 1 n=5; NO numeric calibration claimed |
+| Operator friction | n/a | low enough that the mechanism survives past Phase 1 |
 
 ---
 
@@ -179,14 +207,21 @@ Per FR5 the blinded number is shadow-only until ≥10 judged runs land. Replacem
   - `judge_blinded`: bool — was this run judged? Default `false` if missing.
   - `judge_blinded_catch`: bool|null — judge's NET_NEW_CATCH answer (null if not judged).
   - `judge_why`: string — judge's WHY one-liner.
-  - `judge_model_family`: string — `claude` | `gpt` | `gemini` | `local-llama` | `mistral` |
-    `grok` | `deepseek` | `other`. Operator-supplied. Free-string accepted; canonical list above
-    is what stats groups; anything unrecognized rolls into `other`.
-  - `judge_prompt_version`: string (e.g. `v1`) — pins which rubric was used. Rubric revisions
-    bump the version; stats can filter or partition by it. Mandatory; null counts as "before
-    blinded judge existed".
-  - `judge_prompt_sha256`: string — SHA256 of the *full prepared prompt* (rubric + sentinels +
-    artifact + synthesis + persona_list). Detects rubric drift OR operator paraphrasing on paste.
+  - `judge_model_family_self_reported`: string — `claude` | `gpt` | `gemini` | `local-llama` |
+    `mistral` | `grok` | `deepseek` | `other`. **Operator-supplied. The field name carries the
+    warning** (Rev 3): the operator could pick a deliberately weak model to inflate the noise
+    floor; the helper cannot prevent this. Free-string accepted; canonical list above is what
+    stats groups; anything unrecognized rolls into `other`. Stats output prefixes the metric
+    with `[self-reported]` so the reader sees the gap.
+  - `judge_prompt_version`: string (e.g. `v1`) — pins which rubric was used. **Rubric changes
+    require a PR with a one-paragraph rationale + version bump**; this makes any "tune the
+    materiality threshold until LLM agrees with me" attack visible in git history. Stats
+    partitions agreement rates by version (cross-version pooling is forbidden).
+  - `judge_prompt_sha256`: string — SHA256 of the *helper-produced prepared prompt* (rubric +
+    sentinels + artifact + synthesis + persona_list as the helper emits them). **Detects
+    rubric drift in the HELPER ONLY** (Rev 3 — corrected from Rev 2's overscoped claim). Does
+    NOT detect operator paraphrasing in the browser between copy and paste; that is an
+    unsolvable-in-paste-and-record gap, partial mitigation only via CLI shell-out (v1.1).
 
   **Backward compat:** rows without these fields are treated as `judge_blinded=false`. Stats
   arm reports `n/a` when no judged runs exist. Test_journal.sh asserts both legacy and
@@ -211,10 +246,19 @@ Per FR5 the blinded number is shadow-only until ≥10 judged runs land. Replacem
      updates the existing journal row's `judge_*` fields (idempotent: re-running with the same
      room overwrites, but only the `judge_*` fields).
 
-  Failure semantics:
+  Failure semantics (Rev 3 — step-3-when-step-2-failed case made explicit):
   - If 1 fails → 2 refuses (existing guard).
-  - If 2 fails → 3 still possible (record-only without journal update), printed warning.
-  - If 3 fails parse → no row mutation; error exit 1; user re-runs after fixing.
+  - If 2 fails → 3 still possible. Two sub-cases:
+      (a) **No journal row exists for this room.** Step 3 writes a NEW row with all
+          self-report fields set to `null` and only the `judge_*` fields populated. This is
+          a "judge-only" row; it counts in `judged_runs` but is excluded from
+          self-vs-blind-agreement calculations (no self-report to compare against). Stats
+          surfaces these as a separate count: `judge-only rows: N` so the operator sees the
+          journal-append failures piling up.
+      (b) **Journal row exists from a previous successful step 2.** Step 3 updates the
+          `judge_*` fields in place.
+    The helper detects which sub-case applies by checking for the room in the journal.
+  - If 3 fails parse → no row mutation OR write; error exit 1; user re-runs after fixing.
   - No orphaned state: a judged row always has `judge_blinded=true` AND the transcript
     `@@from: blind-judge` line; either both or neither.
 
@@ -233,10 +277,17 @@ Per FR5 the blinded number is shadow-only until ≥10 judged runs land. Replacem
 * **NFR2 — Bounded operator friction.** ≤2 min per judged run. If that bound is consistently
   exceeded the cadence will drop; revisit FR3 or add a forcing gate per FR4.
 
-* **NFR3 — Honest blinding.** The canonical prompt explicitly states what the judge does NOT
-  have access to so a future reader can audit blinding integrity. The operator MUST switch
-  contexts (new chat, ideally different model family); the helper records `judge_model_family`
-  so same-family vs cross-family agreement can be separated post-hoc.
+* **NFR3 — Honest blinding, with unprevented operator-attack surface (Rev 3).** The canonical
+  prompt explicitly states what the judge does NOT have access to so a future reader can audit
+  blinding integrity. The operator MUST switch contexts (new chat, ideally different model
+  family). **Unprevented attacks** (operator self-interest to inflate noise floor / drop the
+  cadence / paraphrase the prompt in-browser / iteratively tune the rubric to match their
+  intuition) are documented HERE, not silently glossed:
+    - `judge_model_family_self_reported` is exactly what the name says — unverifiable.
+    - `judge_prompt_sha256` does not catch paste-time edits.
+    - Rubric-tuning is countered by git-history-visibility (versioned + PR-required), not
+      technical prevention.
+  These gaps are partially closed in v1.1 via CLI shell-out; in v1 they are disclosed.
 
 * **NFR4 — Tier-3 disclosure (canonical sentence, repeat verbatim).** "This feature narrows the
   bias channel from author-judges-author to LLM-judges-LLM. It does not upgrade the evidence
