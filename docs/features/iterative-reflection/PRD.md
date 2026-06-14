@@ -2,7 +2,7 @@
 
 **SEPRD-ID**: SEPRD-20260612-council-iterative-reflection
 **Status**: Draft — Pending Team Ratification · **Rev 2** (post council gate #1)
-**Domain**: agent-fleet (personal tooling) · GitHub issue ROKT/agent-fleet#1
+**Domain**: agent-fleet (personal tooling)
 **DRI**: Zhach Volker
 **Last updated**: 2026-06-12
 

@@ -29,7 +29,7 @@ your decision  ──▶  /council <task>
 | `generalist-swe` | pragmatic IC | simplicity, over-engineering, correctness, edge cases, test gaps |
 | `red-team` | adversary | strongest case against, hand-waved assumptions, what breaks first |
 
-Personas are generic. A private, gitignored `agents/_rokt-overlay.md` (see the `.example`) adds
+Personas are generic. A private, gitignored `agents/_overlay.md` (see the `.example`) adds
 domain specifics when present; absent, they run generic with no error.
 
 ## What you get depends on your tool
