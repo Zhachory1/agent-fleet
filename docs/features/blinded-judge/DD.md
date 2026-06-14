@@ -1,9 +1,20 @@
 # DD — Blinded-judge sample mechanism
 
 **DD ID:** 20260614-blinded-judge
-**Status:** In progress · **Rev 2** (post council gate #1) · implements PRD Rev 3 · issue #1
+**Status:** In progress · **Rev 3** (post rubric-file external review) · implements PRD Rev 3 · issue #1
 **DRI:** Zhach Volker
 
+> **Rev 3 changelog** (rubric-file external review by Gemini, 1 BLOCKER + 4 MAJOR + 2 MINOR):
+> rubric bumped to **v2** (filename `lib/blind-judge-prompt.v2.txt`) per its own version-bump
+> rule. v1 was never shipped; v2 is the first impl-ready version. Findings absorbed: EVIDENCE
+> must quote PERSONA POSITIONS (not operator synthesis) — prevents self-validating loop where
+> operator's framing validates itself; rubric ships REASONING + DISSENT_DIFF scratchpad fields
+> inside sentinels (zero-shot binary on multi-step task was crippling the LLM); materiality
+> clause 2 reworded "would notice" → "would change a future decision or be cited in a postmortem"
+> (anchors to outcome events, not subjective reactions); "closely implied" claims require the
+> judge to quote the implying SOLO_DECISION line (parallel-shape defense to EVIDENCE); WHY
+> contradiction with dissent-erasure resolved (two named cases); typo fixed.
+>
 > **Rev 2 changelog** (council gate #1: SPLIT 3xSHIP-WITH-CHANGES / 1xBLOCK; CONVERGED at r2;
 > 4 BLOCKERs, 11 MAJORs, 6 MINORs absorbed):
 > Materiality test EVIDENCE-field fix (docs-dx counter-fixed red-team; judge MUST emit verbatim
@@ -72,28 +83,31 @@ agent-fleet/
     └── test_journal.sh                      # extend for new fields
 ```
 
-## Three-input + persona-list + per-persona-positions blinded brief
+## Five-blob blinded brief (Rev 3: split COUNCIL_SYNTHESIS into PERSONA_POSITIONS + OPERATOR_SYNTHESIS)
 
-The judge sees exactly four blobs (Rev 2: COUNCIL_SYNTHESIS now includes full per-persona
-positions, not just the operator's synthesis — fixes dissent-erasure invisibility):
+The judge sees exactly five blobs. **Rev 3 splits** what was a single COUNCIL_SYNTHESIS blob in
+Rev 2 into PERSONA_POSITIONS and OPERATOR_SYNTHESIS, so the EVIDENCE-source check can prevent
+the operator's framing from self-validating (Gemini's rubric-file review BLOCKER):
 
 ```
-ARTIFACT              ← ~/.claude/agent-chat/rooms/council-<slug>/artifact.txt   (FR9, new)
+ARTIFACT              ← ~/.claude/agent-chat/rooms/council-<slug>/artifact.txt   (FR9)
 SOLO_DECISION         ← extracted from the journal row's solo_decision field
-COUNCIL_SYNTHESIS     ← (Rev 2) FULL room transcript: all @@from: <persona>#r<N> blocks + the
-                         operator's @@from: synthesis block. The judge sees both what each
-                         persona actually said AND what the operator summarized — enables
-                         dissent-erasure detection.
+PERSONA_POSITIONS     ← (Rev 3) the @@from: <persona>#r<N> blocks from the room transcript ONLY.
+                         Each persona's POSITION block per round, unedited. These are what each
+                         reviewer actually said.
+OPERATOR_SYNTHESIS    ← (Rev 3) the @@from: synthesis block from the room transcript. This is
+                         what the operator wrote AFTER reading the POSITIONS. The judge sees
+                         this separately from the POSITIONS so the EVIDENCE field can be
+                         constrained to PERSONA_POSITIONS only.
 PERSONA_LIST          ← extracted from the journal row's personas field (comma-separated)
 ```
 
 What the judge does NOT see: the operator's post-hoc catch note (`catch_note` in the journal),
-the operator identity, any prior journal state, the prompt that produced the council, any chain
-of thought, prior council output, or any earlier version of this rubric. **Note (Rev 2):** the
-judge DOES now see per-persona positions (with attribution), trading some blinding for the
-ability to catch the operator under-representing a dissenting persona in the synthesis. This
-tradeoff was named in council gate #1 — detection of the actual sycophancy failure mode this
-feature exists to address requires the judge see the source material, not just the summary.
+the operator identity, any prior journal state, the prompt that produced the council, or any
+earlier version of this rubric. **Note (Rev 2 origin, Rev 3 hardened):** the judge DOES see
+per-persona positions (with attribution). Rev 2 traded blinding for the ability to catch
+dissent-erasure. Rev 3 hardens the tradeoff by separating PERSONA_POSITIONS from
+OPERATOR_SYNTHESIS so the operator's own framing cannot be quoted as evidence of itself.
 
 ## Canonical rubric (`lib/blind-judge-prompt.v1.txt`)
 
@@ -115,49 +129,90 @@ edit it.
 # This file is git-history-visible by design. Tuning the materiality threshold
 # to match the author's intuition will be visible in the diff and in the
 # version-partitioned agreement-rate breakdown.
+# ----------------------------------------------------------------------------
+# v2 changelog: EVIDENCE must quote PERSONA_POSITIONS (not operator synthesis) —
+# prevents self-validating loop. REASONING + DISSENT_DIFF scratchpads added
+# inside sentinels so the LLM can actually run multi-step analysis. Materiality
+# clause 2 reworded to anchor on outcome events (future-decision-change or
+# postmortem-cite) rather than subjective reactions. "Closely implied" claims
+# now require quoting the implying SOLO_DECISION line.
 # ============================================================================
 
 You are a blinded auditor of an AI-assisted decision review.
 
-You see exactly four blobs and NOTHING ELSE:
-  1. ARTIFACT         — the proposal under review
-  2. SOLO_DECISION    — what the operator decided + risks they said they already saw
-  3. COUNCIL_SYNTHESIS — the full room transcript: each persona's POSITION block per round,
-                          plus the operator's synthesis (verdict + ranked issues + dissents)
-  4. PERSONA_LIST     — which review lenses ran (e.g. "ml-scientist, ab-critic, red-team")
+You see FIVE blobs and NOTHING ELSE:
+  1. ARTIFACT          — the proposal under review
+  2. SOLO_DECISION     — what the operator decided + risks they said they already saw
+  3. PERSONA_POSITIONS — the raw per-persona POSITION blocks from each round of the council
+                          (these are what each reviewer actually said, unedited)
+  4. OPERATOR_SYNTHESIS— what the operator wrote as the council's synthesis (verdict + ranked
+                          issues + named dissents). The operator wrote this AFTER reading the
+                          POSITIONS. It may under-represent dissent.
+  5. PERSONA_LIST      — which review lenses ran (e.g. "ml-scientist, ab-critic, red-team")
 
-You do NOT see: the operator's post-hoc note, the operator's identity, prior reviews,
-any chain of thought, or any earlier version of this rubric.
+You do NOT see: the operator's post-hoc note, the operator's identity, prior reviews, or
+any earlier version of this rubric.
 
 Answer ONE binary question:
 
-  Does COUNCIL_SYNTHESIS contain at least one issue, risk, or recommendation that:
-    (a) is NOT already named or closely implied in SOLO_DECISION's "risks I already see", AND
+  Does the council (PERSONA_POSITIONS + OPERATOR_SYNTHESIS taken together) contain at least
+  one issue, risk, or recommendation that:
+    (a) is NOT already named in SOLO_DECISION's "risks I already see" — OR is named there in a
+        way so vague that a reasonable engineer would not act on the SOLO_DECISION line alone,
+        AND
     (b) is material to the decision?
 
 Materiality test (apply BOTH):
   - Would a reasonable engineer change a non-trivial decision (verdict, design, sequencing,
     rollout plan) based on this issue?
-  - Would omitting this issue from the synthesis make the synthesis worse in a way that
-    someone other than the author would notice?
+  - If this issue were omitted and the decision shipped, would it plausibly be the kind of
+    issue that a future postmortem or follow-up review would cite as a missed risk?
 
-Use PERSONA_LIST to spot synthesis confabulation: if the synthesis attributes findings to
-lenses that did not run, flag that — it counts as a parsing failure of the synthesis, not as
-net-new content.
+Use PERSONA_LIST to spot synthesis confabulation: if OPERATOR_SYNTHESIS attributes findings
+to lenses that did not run, flag that — it counts as a parsing failure of the synthesis, not
+as net-new content.
 
-Use PER-PERSONA POSITIONS to spot dissent-erasure: if a persona's POSITION block contains a
-claim that is not represented (or is materially under-represented) in the operator's @@from:
-synthesis block, that under-represented dissent COUNTS as net-new content — the operator's
-synthesis failed to surface it. The judge's WHY should call this out explicitly.
+Use PERSONA_POSITIONS to spot dissent-erasure: claims that appear in a POSITION block but are
+missing or materially under-represented in OPERATOR_SYNTHESIS COUNT as net-new content (the
+operator's synthesis failed to surface them). You will enumerate these in the DISSENT_DIFF
+scratchpad below.
 
-Return EXACTLY this format. No preamble, no scoring, no commentary outside the sentinels:
+--- HOW TO WORK ---
+
+You are required to produce REASONING and DISSENT_DIFF scratchpads inside the sentinel block
+BEFORE emitting the binary decision. The scratchpads exist because the materiality test and
+the dissent-diff are multi-step analyses the LLM cannot do well zero-shot.
+
+Return EXACTLY this format. No preamble, no commentary outside the sentinels. The scratchpads
+are REQUIRED — a missing REASONING or DISSENT_DIFF field is a parse failure.
 
 ===JUDGE OUTPUT===
+REASONING: <2-5 sentences. Walk through the two-part materiality test against the strongest
+            candidate issue. State which clause(s) hold and which do not. If the candidate
+            issue is "closely implied" by SOLO_DECISION, this is where you weigh that.>
+
+DISSENT_DIFF: <one bullet per claim in PERSONA_POSITIONS that is missing or under-represented
+               in OPERATOR_SYNTHESIS. Format: "- <persona-name>: <claim summary>". Empty list
+               is fine — write "- (none)". Missing field is a parse failure.>
+
 NET_NEW_CATCH: true|false
-WHY: <one sentence. If true: name the specific net-new issue. If false: name the closest
-      solo↔synthesis pair so the operator can see why you gave no credit.>
-EVIDENCE: <required when NET_NEW_CATCH=true; a verbatim line copied from COUNCIL_SYNTHESIS that
-           contains the net-new issue. Omit when NET_NEW_CATCH=false.>
+
+WHY: <one sentence. Two cases:
+      (a) If true due to a content finding: name the specific net-new issue.
+      (b) If true due to dissent-erasure: name the persona whose dissent was erased AND the
+          specific claim that was under-represented.
+      If false: name the closest SOLO_DECISION line that already covers the strongest council
+      finding.>
+
+EVIDENCE: <required when NET_NEW_CATCH=true. A verbatim line copied from PERSONA_POSITIONS
+           (NOT from OPERATOR_SYNTHESIS) that contains the net-new issue or the erased dissent.
+           Quoting OPERATOR_SYNTHESIS here is a parse failure: the synthesis is the operator's
+           framing and cannot self-validate. Omit when NET_NEW_CATCH=false.>
+
+IMPLIED_BY: <required ONLY when you claim a council finding was "closely implied" by
+             SOLO_DECISION (i.e., when NET_NEW_CATCH=false because the operator already named it).
+             A verbatim line copied from SOLO_DECISION that does the implying. Omit otherwise.>
+
 ===END===
 
 ==== ARTIFACT ====
@@ -166,41 +221,66 @@ EVIDENCE: <required when NET_NEW_CATCH=true; a verbatim line copied from COUNCIL
 ==== SOLO_DECISION ====
 {SOLO_DECISION}
 
-==== COUNCIL_SYNTHESIS ====
-{COUNCIL_SYNTHESIS}
+==== PERSONA_POSITIONS ====
+{PERSONA_POSITIONS}
+
+==== OPERATOR_SYNTHESIS ====
+{OPERATOR_SYNTHESIS}
 
 ==== PERSONA_LIST ====
 {PERSONA_LIST}
 ```
 
-**EVIDENCE field rationale (Rev 2, council BLOCKER #2 fix):** the materiality test's two clauses
-are both operator-defined ("reasonable engineer" and "someone other than the author" are
-operator-calibrated). docs-dx's fix: require the judge to QUOTE a verbatim synthesis line when
-claiming net-new. This makes operator-side rubric-tuning *visible* in the journal as WHY+EVIDENCE
-drift (e.g. if the rubric is iteratively tuned to match the operator's intuition, the EVIDENCE
-field will start citing increasingly trivial lines). It preserves the judge's utility on design-doc
-councils (where red-team's alternative third-clause fix — "quantitative metric / go-no-go /
-rollback criterion" — would have killed the judge). The defense is process not technical, but
-the EVIDENCE field makes the process VISIBLE.
+**EVIDENCE field rationale (Rev 2 origin, Rev 3 hardened):** the materiality test's clauses are
+operator-defined. docs-dx's Rev 2 fix: require the judge to QUOTE a verbatim line when claiming
+net-new — makes operator-side rubric-tuning visible as WHY+EVIDENCE drift. **Gemini's rubric-file
+review found the Rev 2 EVIDENCE rule was self-validating**: because both POSITIONS and the
+operator's synthesis lived in one COUNCIL_SYNTHESIS blob, the judge could satisfy the requirement
+by quoting the operator's own synthesis line, validating the operator's framing with the
+operator's framing. **Rev 3 fix:** split the blob into PERSONA_POSITIONS and OPERATOR_SYNTHESIS;
+EVIDENCE MUST quote from PERSONA_POSITIONS only. Parser rejects an EVIDENCE line that matches any
+line in OPERATOR_SYNTHESIS. The defense remains process-not-technical (PR + version + cross-
+version-pooling-forbidden), but the EVIDENCE source restriction closes the self-validating loop.
+
+**REASONING + DISSENT_DIFF rationale (Rev 3):** the v1 rubric banned all reasoning outside the
+sentinels, then asked the LLM to apply a two-part materiality test AND a cross-reference dissent
+diff zero-shot. Gemini correctly identified this as crippling — the LLM cannot do multi-step
+analysis without a scratchpad. Rev 3 adds REASONING (free-form walk-through of the materiality
+test) and DISSENT_DIFF (enumerated list of claims-in-POSITIONS-missing-from-SYNTHESIS) inside
+the sentinels, before NET_NEW_CATCH. Both are REQUIRED — missing field is a parse failure. The
+content is stored in the journal as `judge_reasoning` and `judge_dissent_diff` for audit but
+does not affect the binary KPI.
+
+**IMPLIED_BY field (Rev 3, parallel-shape defense):** "closely implied" claims in clause (a)
+of the main question are subjective the same way "material" is. Gemini's finding: operator can
+argue vague solo-risks cover specific council findings. Fix: when judge claims NET_NEW_CATCH=false
+BECAUSE a council finding was already implied in SOLO_DECISION, the judge MUST quote the implying
+SOLO_DECISION line in IMPLIED_BY. Same defense shape as EVIDENCE; same visibility property.
 
 ## `lib/blind-judge.sh` — surface
 
 ```
 blind-judge.sh prepare <room> [--synthesis <path>] [--phase1 judge-a|judge-b]
-   ↳ assemble the four blobs, render against blind-judge-prompt.v<latest>.txt,
+   ↳ assemble the FIVE blobs (Rev 3: PERSONA_POSITIONS extracted from @@from:<persona>#r<N>
+     blocks, OPERATOR_SYNTHESIS extracted from @@from:synthesis block), render against
+     blind-judge-prompt.v<latest>.txt (currently v2),
      print full prepared prompt to stdout AND copy to clipboard (pbcopy/xclip/SSH-fallback),
      print BOTH SHA256s: judge_template_sha256 (rubric+sentinels only) and
      judge_render_sha256 (full prepared prompt this call),
      print the context-switch banner.
 
 blind-judge.sh record <room> --catch true|false --why "..." [--evidence "..."] \
+                              [--implied-by "..."] [--reasoning "..."] [--dissent-diff "..."] \
                               --model-family <claude|gpt|gemini|local-llama|mistral|grok|deepseek|other> \
                               [--template-sha256 <hex>] [--render-sha256 <hex>] \
                               [--phase1 judge-a|judge-b] [--force]
-   ↳ validate inputs strictly (FR2 parser, Rev 2 EVIDENCE required when catch=true);
+   ↳ validate inputs strictly (FR2 parser, Rev 3 fields: REASONING + DISSENT_DIFF required,
+     EVIDENCE required when catch=true AND must not match any line in OPERATOR_SYNTHESIS);
      flock on journal+transcript; write @@from: blind-judge#judge-N to transcript;
      update existing row's judge_* fields OR write judge-only row per FR8;
      warn-and-confirm if row already has DIFFERENT judge answer (unless --force).
+   ↳ When invoked via `judge`, the parser does the work; `record` direct invocation accepts
+     the parsed fields as flags (for testing + future CLI-shell-out automation).
 
 blind-judge.sh judge <room> [--phase1 judge-a|judge-b]   # PRD FR3 single-command UX
    ↳ prepare + 10min stdin wait (5min reminder offers [r]ecopy/[w]ait/[c]ancel) + parse + record.
@@ -250,68 +330,105 @@ figures it out" design was a UX trap).
 Visible-but-cheap. Two context switches, not four commands. The blinding is in the operator's
 action (switching), not in the helper's UX friction.
 
-## Parser (FR2 strict; Rev 2: shellcheck-clean + EVIDENCE field)
+## Parser (FR2 strict; Rev 3: REASONING + DISSENT_DIFF + IMPLIED_BY fields, EVIDENCE-source check)
 
 Bash-grep, no jq for parsing the response (jq is for journal append/read). The response is
-small and structured; jq for that is overkill.
+structured but larger than Rev 2 — still small enough that jq is overkill, but the parser
+is now multi-section.
 
 ```bash
 # die: write a one-line error to stderr and exit 1. Used throughout the helper.
 die() { printf 'blind-judge: %s\n' "$*" >&2; exit 1; }
 
+# extract_field BLOCK FIELD STOP_REGEX  -> captures the BLOCK lines between "FIELD:" and the
+# first line matching STOP_REGEX (or ===END===). Collapses internal newlines into single spaces.
+extract_field() {
+    local block="$1" field="$2" stop_re="$3"
+    local raw
+    raw=$(awk -v F="^${field}:" -v S="^(${stop_re}|===END===):?" '
+        $0 ~ F {flag=1; sub(F"[ \t]*", ""); print; next}
+        $0 ~ S {flag=0}
+        flag {print}' <<<"$block")
+    printf '%s' "$raw" | tr '\n' ' ' | tr -s '[:space:]' ' ' | sed 's/[[:space:]]*$//'
+}
+
 parse_response() {
-    local resp="$1"
-    # 1. must contain ===JUDGE OUTPUT=== AND ===END=== sentinels
+    local resp="$1" operator_synthesis="$2"  # Rev 3: operator_synthesis passed for self-quote check
+    # 1. sentinels
     grep -q '^===JUDGE OUTPUT===$' <<<"$resp" || die "missing ===JUDGE OUTPUT=== sentinel"
     grep -q '^===END===$' <<<"$resp"           || die "missing ===END=== sentinel"
-    # 2. extract just the block between sentinels (defends against the synthesis containing
-    #    a literal NET_NEW_CATCH: true substring)
     local block
-    block=$(sed -n '/^===JUDGE OUTPUT===$/,/^===END===$/p' <<<"$resp" |
-            sed '1d;$d')
-    # 3. NET_NEW_CATCH line must exist and be true|false (Rev 2: tolerate whitespace + case)
+    block=$(sed -n '/^===JUDGE OUTPUT===$/,/^===END===$/p' <<<"$resp" | sed '1d;$d')
+
+    # 2. REASONING required (Rev 3)
+    local reasoning
+    reasoning=$(extract_field "$block" REASONING 'DISSENT_DIFF|NET_NEW_CATCH|WHY|EVIDENCE|IMPLIED_BY')
+    [ -n "$reasoning" ] || die "REASONING field required (multi-step materiality test cannot be zero-shot)"
+
+    # 3. DISSENT_DIFF required (may be "- (none)")
+    local dissent_diff
+    dissent_diff=$(extract_field "$block" DISSENT_DIFF 'NET_NEW_CATCH|WHY|EVIDENCE|IMPLIED_BY')
+    [ -n "$dissent_diff" ] || die "DISSENT_DIFF field required (use '- (none)' if no erasures found)"
+
+    # 4. NET_NEW_CATCH true|false (whitespace + case tolerant)
     local catch
     catch=$(awk -F'[: \t]+' '/^NET_NEW_CATCH:/ {print tolower($2); exit}' <<<"$block" |
             tr -d '[:space:]')
     [[ "$catch" =~ ^(true|false)$ ]] || die "NET_NEW_CATCH must be 'true' or 'false', got: $catch"
-    # 4. WHY must exist; collapse any wrap-newlines inside the WHY value into spaces
-    #    (Rev 2: pbcopy/pbpaste wraps long lines; legitimate single-sentence WHY can arrive
-    #     multi-line; we collapse rather than reject)
-    local why_raw why
-    why_raw=$(awk '/^WHY:/{flag=1; sub(/^WHY:[ \t]*/, ""); print; next}
-                   /^(EVIDENCE|===END===):?/{flag=0}
-                   flag{print}' <<<"$block")
-    why=$(printf '%s' "$why_raw" | tr '\n' ' ' | tr -s '[:space:]' ' ' | sed 's/[[:space:]]*$//')
-    [ -n "$why" ] || die "WHY line missing or empty"
-    # 5. EVIDENCE required if catch=true; omitted if catch=false (Rev 2: BLOCKER #2 fix)
-    local evidence_raw evidence
-    evidence_raw=$(awk '/^EVIDENCE:/{flag=1; sub(/^EVIDENCE:[ \t]*/, ""); print; next}
-                        /^===END===$/{flag=0}
-                        flag{print}' <<<"$block")
-    evidence=$(printf '%s' "$evidence_raw" | tr '\n' ' ' | tr -s '[:space:]' ' ' | sed 's/[[:space:]]*$//')
+
+    # 5. WHY required
+    local why
+    why=$(extract_field "$block" WHY 'EVIDENCE|IMPLIED_BY')
+    [ -n "$why" ] || die "WHY field required"
+
+    # 6. EVIDENCE required iff catch=true; MUST quote from PERSONA_POSITIONS, NOT OPERATOR_SYNTHESIS
+    local evidence
+    evidence=$(extract_field "$block" EVIDENCE 'IMPLIED_BY')
     if [ "$catch" = "true" ] && [ -z "$evidence" ]; then
-        die "EVIDENCE required when NET_NEW_CATCH=true (must quote verbatim line from COUNCIL_SYNTHESIS)"
+        die "EVIDENCE required when NET_NEW_CATCH=true (must quote verbatim line from PERSONA_POSITIONS)"
     fi
     if [ "$catch" = "false" ] && [ -n "$evidence" ]; then
         die "EVIDENCE must be empty when NET_NEW_CATCH=false (got: $evidence)"
     fi
-    printf '%s\n%s\n%s\n' "$catch" "$why" "$evidence"
+    # Rev 3 self-validation guard: EVIDENCE must NOT appear verbatim in OPERATOR_SYNTHESIS.
+    # Quoting the operator's own synthesis to validate the operator's framing is the
+    # Rev 2 self-validating-loop failure mode Gemini caught.
+    if [ -n "$evidence" ] && grep -qFx -- "$evidence" <<<"$operator_synthesis"; then
+        die "EVIDENCE quotes OPERATOR_SYNTHESIS verbatim ('$evidence'); must quote PERSONA_POSITIONS only"
+    fi
+
+    # 7. IMPLIED_BY required when catch=false AND WHY references implication; optional otherwise.
+    # Heuristic check: if WHY contains the substring 'implied' or 'already' and catch=false,
+    # IMPLIED_BY must be present and non-empty. This is a soft check; operator can override
+    # by phrasing WHY differently, but the rubric instructs the judge to use IMPLIED_BY when
+    # claiming implication so the heuristic catches the common case.
+    local implied_by
+    implied_by=$(extract_field "$block" IMPLIED_BY '')
+    if [ "$catch" = "false" ] && [[ "$why" =~ (implied|already.named|already.covered) ]]; then
+        [ -n "$implied_by" ] || die "IMPLIED_BY required when WHY claims SOLO_DECISION already covered the finding"
+    fi
+
+    printf '%s\n%s\n%s\n%s\n%s\n%s\n' "$catch" "$why" "$evidence" "$implied_by" "$reasoning" "$dissent_diff"
 }
 ```
 
-Test fixtures under `test/fixtures/blind-judge/` for the parser golden bad cases:
+Test fixtures under `test/fixtures/blind-judge/` for the parser golden bad cases (Rev 3 list):
 - `missing-sentinel.txt` — no `===JUDGE OUTPUT===`
 - `missing-end.txt` — no `===END===`
-- `no-space.txt` — `NET_NEW_CATCH:true` (no space after colon)
+- `missing-reasoning.txt` — **Rev 3:** no REASONING field
+- `missing-dissent-diff.txt` — **Rev 3:** no DISSENT_DIFF field
+- `no-space.txt` — `NET_NEW_CATCH:true` (no space)
 - `caps.txt` — `NET_NEW_CATCH: True`
-- `trailing-ws.txt` — `NET_NEW_CATCH: true   ` (trailing whitespace)
+- `trailing-ws.txt` — `NET_NEW_CATCH: true   `
 - `bad-value.txt` — `NET_NEW_CATCH: yes`
-- `multi-line-why-wrapped.txt` — legitimate single-sentence wrapped by pbcopy (must PASS)
-- `multi-line-why-actual.txt` — two distinct sentences with explicit newlines (must FAIL,
-  detected because EVIDENCE: or ===END=== appears mid-WHY block)
+- `multi-line-why-wrapped.txt` — legitimate single-sentence wrapped (must PASS)
+- `multi-line-why-actual.txt` — two distinct sentences (must FAIL)
 - `missing-evidence.txt` — `NET_NEW_CATCH: true` without EVIDENCE
-- `evidence-on-false.txt` — `NET_NEW_CATCH: false` with EVIDENCE present
-- `valid-true.txt` and `valid-false.txt` — golden good
+- `evidence-on-false.txt` — `NET_NEW_CATCH: false` with EVIDENCE
+- `evidence-quotes-synthesis.txt` — **Rev 3:** EVIDENCE line appears verbatim in
+  OPERATOR_SYNTHESIS (must FAIL with self-validation error)
+- `implied-without-implied-by.txt` — **Rev 3:** WHY says "already implied" but no IMPLIED_BY
+- `valid-true.txt` and `valid-false.txt` and `valid-erasure.txt` (Rev 3: dissent-erasure WHY+EVIDENCE pattern) — golden good
 
 No row mutation, no silent garbage. PRD guard rate: 100%.
 
@@ -357,27 +474,31 @@ and-confirm path. Stress test under `test/test_blind_judge.sh::concurrency`.
 
 ## Journal schema changes (PRD FR6, run_kind-style backward compat)
 
-Six PRD fields + two DD additions on each row. Default-when-missing makes legacy rows continue
-to work. **Rev 2: dropped `council_mode`** (was scope drift past PRD's committed 6).
+Six PRD fields + six DD additions on each row. Default-when-missing makes legacy rows continue
+to work. **Rev 3: added `judge_reasoning`, `judge_dissent_diff`, `judge_implied_by`** (the
+rubric's new scratchpad + IMPLIED_BY outputs). **Rev 2 dropped `council_mode`** (was scope
+drift past PRD's committed 6).
 
 | Field | Type | Default-if-missing | Notes |
 |---|---|---|---|
 | `judge_blinded` | bool | `false` | was this run judged? |
 | `judge_blinded_catch` | bool\|null | `null` | judge's NET_NEW_CATCH answer |
 | `judge_why` | string | `""` | judge's WHY one-liner |
-| `judge_evidence` | string | `""` | **Rev 2:** judge's EVIDENCE verbatim quote (when catch=true) |
+| `judge_evidence` | string | `""` | **Rev 2:** verbatim quote from PERSONA_POSITIONS (Rev 3: source restricted) |
+| `judge_implied_by` | string | `""` | **Rev 3:** verbatim quote from SOLO_DECISION when claiming "closely implied" |
+| `judge_reasoning` | string | `""` | **Rev 3:** scratchpad walking through materiality test; audit-only, no KPI impact |
+| `judge_dissent_diff` | string | `""` | **Rev 3:** enumerated claims-in-POSITIONS-missing-from-SYNTHESIS; audit-only |
 | `judge_model_family_self_reported` | string | `""` | operator-supplied; name carries the warning |
-| `judge_prompt_version` | string | `null` | e.g. `v1`; null = "before blinded-judge existed" |
-| `judge_template_sha256` | string | `""` | **Rev 2:** SHA256 of rubric+sentinels ONLY — drift detection (constant across runs of same version) |
+| `judge_prompt_version` | string | `null` | e.g. `v2`; null = "before blinded-judge existed" |
+| `judge_template_sha256` | string | `""` | **Rev 2:** SHA256 of rubric+sentinels ONLY — drift detection |
 | `judge_render_sha256` | string | `""` | **Rev 2:** SHA256 of full prepared prompt this call — per-call audit |
 | `solo_decision_word_count` | int | `0` | PRD-OQ3: confound recording |
 | `synthesis_word_count` | int | `0` | **Rev 2:** symmetric to solo_decision_word_count |
 
-(8 new fields, not 6. Rev 2 added `judge_evidence`, split `judge_prompt_sha256` into
-`judge_template_sha256`+`judge_render_sha256`, added `synthesis_word_count`. The PRD's "6
-fields" commitment is updated by this DD; if you read this and PRD FR6's number disagree, the
-DD wins for v1 because PRD was written before the EVIDENCE field, hash-split, and symmetric
-word-count were discovered in council gate #1.)
+(13 new fields total, not 6. PRD FR6's "6 fields" commitment is updated by this DD across
+two revisions. If PRD FR6 and this table disagree, the DD wins for v1 — PRD predates the
+EVIDENCE field, hash-split, symmetric word-count [Rev 2], reasoning, dissent_diff, and
+implied_by [Rev 3] discovered through council + external review.)
 
 Schema migration script remains OUT-of-v1 per PRD. Tests assert both legacy rows and
 fully-populated rows parse correctly.
@@ -462,9 +583,10 @@ limitation; documented.
 
 # Acceptance
 
-* `lib/blind-judge.sh prepare|record|judge|backfill-artifact` implemented; parser rejects all 11
-  golden bad fixtures enumerated in the Parser section.
-* `lib/blind-judge-prompt.v1.txt` committed verbatim, with the in-place attack-warning frontmatter.
+* `lib/blind-judge.sh prepare|record|judge|backfill-artifact` implemented; parser rejects all
+  golden bad fixtures enumerated in the Parser section (14 fixtures per Rev 3).
+* `lib/blind-judge-prompt.v2.txt` committed verbatim, with the in-place attack-warning frontmatter
+  (v1 was never shipped; v2 is the first impl-ready rubric per Rev 3 external review).
 * `lib/journal.sh` schema extended (8 new fields per Rev 2); backward-compat preserved; `stats`
   prints the two-phase arm; `judge-only rows` surfaced when present; `stats --judged` lists
   last 5 judged rows.
