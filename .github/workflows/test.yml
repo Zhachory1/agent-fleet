@@ -1,0 +1,46 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install deps
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: bash + jq versions
+        run: |
+          bash --version | head -1
+          jq --version
+
+      - name: syntax check
+        run: |
+          for f in install.sh lib/*.sh test/*.sh; do
+            bash -n "$f" || { echo "FAIL: $f failed bash -n"; exit 1; }
+          done
+
+      - name: run tests
+        run: |
+          fail=0
+          for t in test/test_*.sh; do
+            echo "=== $t ==="
+            bash "$t" || fail=1
+          done
+          exit $fail
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: shellcheck (advisory)
+        # advisory for now — wire into hard CI after issue #14's MAJOR item lands
+        continue-on-error: true
+        run: shellcheck -S warning lib/*.sh install.sh test/*.sh
