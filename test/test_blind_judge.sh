@@ -216,6 +216,24 @@ EVIDENCE: train/serve skew detected
 EOF
 expect_fail_msg "fixture-evidence-substring-of-synthesis" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-quotes-synthesis-substring.txt' '$OP_SYNTH_FILE'" "EVIDENCE appears in OPERATOR_SYNTHESIS"
 
+# Post-/council hardening: EVIDENCE must also not match SOLO_DECISION (the operator's
+# pre-decision risks cannot self-validate either). Same attack shape, separate guard.
+SOLO_FILE="$FIXDIR/solo.txt"
+cat > "$SOLO_FILE" <<'EOF'
+there are calibration risks I already see
+feature drift could be a problem
+EOF
+cat > "$FIXDIR/evidence-quotes-solo.txt" <<'EOF'
+===JUDGE OUTPUT===
+REASONING: r.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: true
+WHY: phrase from solo.
+EVIDENCE: calibration risks I already see
+===END===
+EOF
+expect_fail_msg "fixture-evidence-quotes-solo" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-quotes-solo.txt' '$OP_SYNTH_FILE' '$SOLO_FILE'" "EVIDENCE appears in SOLO_DECISION"
+
 # Post-/code-review hardening: IMPLIED_BY may legitimately contain colon-prefixed text;
 # the extract_field regex must not stop at a literal "foo:" inside the value.
 cat > "$FIXDIR/valid-false-implied-by-colon.txt" <<'EOF'

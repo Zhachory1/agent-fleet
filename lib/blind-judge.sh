@@ -58,9 +58,12 @@ extract_field() {
   ' <<<"$block" | tr '\n' ' ' | tr -s '[:space:]' ' ' | sed 's/[[:space:]]*$//'
 }
 
-# parse_response RESPONSE_TEXT OPERATOR_SYNTHESIS -> outputs 6 lines: catch, why, evidence, implied_by, reasoning, dissent_diff
+# parse_response RESPONSE_TEXT OPERATOR_SYNTHESIS [SOLO_DECISION] -> outputs 6 lines: catch, why, evidence, implied_by, reasoning, dissent_diff
+# EVIDENCE is rejected if it appears as a substring of EITHER OPERATOR_SYNTHESIS (the operator's
+# framing self-validating) OR SOLO_DECISION (the operator's pre-decision risks self-validating).
+# Both attacks are the same shape: operator's words quoted back as evidence of operator's claim.
 parse_response() {
-  local resp="$1" op_synth="$2"
+  local resp="$1" op_synth="$2" solo_decision="${3:-}"
   grep -q '^===JUDGE OUTPUT===$' <<<"$resp" || die "missing ===JUDGE OUTPUT=== sentinel"
   grep -q '^===END===$' <<<"$resp"           || die "missing ===END=== sentinel"
   local block
@@ -86,13 +89,18 @@ parse_response() {
   if [ "$catch" = "false" ] && [ -n "$evidence" ]; then
     die "EVIDENCE must be empty when NET_NEW_CATCH=false (got: $evidence)"
   fi
-  # Self-quote guard (Gemini's BLOCKER fix, hardened post-/code-review):
-  # EVIDENCE must not appear AS A SUBSTRING of OPERATOR_SYNTHESIS. Using -F (not -Fx) catches
-  # the case where the operator's framing covers the same finding in slightly different words
-  # and the judge quotes the shared phrase. Exact-line check (-Fx) only catches a full-line copy.
+  # Self-quote guards (Gemini's BLOCKER fix + post-/council hardening):
+  # EVIDENCE must not appear AS A SUBSTRING of either OPERATOR_SYNTHESIS or SOLO_DECISION.
+  # Both are the same attack shape: operator's words quoted back as the judge's evidence of
+  # the operator's claim. -F substring (not -Fx exact-line) catches partial-line quoting.
   if [ -n "$evidence" ] && [ -n "$op_synth" ]; then
     if grep -qF -- "$evidence" <<<"$op_synth"; then
       die "EVIDENCE appears in OPERATOR_SYNTHESIS ('$evidence'); must quote PERSONA_POSITIONS only"
+    fi
+  fi
+  if [ -n "$evidence" ] && [ -n "$solo_decision" ]; then
+    if grep -qF -- "$evidence" <<<"$solo_decision"; then
+      die "EVIDENCE appears in SOLO_DECISION ('$evidence'); the operator's pre-decision risks cannot self-validate"
     fi
   fi
 
@@ -254,11 +262,16 @@ BANNER
     ;;
 
   parse)
-    # parse <response-file> <operator-synthesis-file>  — for testing
-    rf="${1:?response file}"; of="${2:?operator-synthesis file}"
+    # parse <response-file> <operator-synthesis-file> [solo-decision-file]  — for testing
+    rf="${1:?response file}"; of="${2:?operator-synthesis file}"; sdf="${3:-}"
     [ -f "$rf" ] || die "no response file: $rf"
     [ -f "$of" ] || die "no operator-synthesis file: $of"
-    parse_response "$(<"$rf")" "$(<"$of")"
+    sd_content=""
+    if [ -n "$sdf" ]; then
+      [ -f "$sdf" ] || die "no solo-decision file: $sdf"
+      sd_content=$(<"$sdf")
+    fi
+    parse_response "$(<"$rf")" "$(<"$of")" "$sd_content"
     ;;
 
   record)
@@ -294,13 +307,22 @@ BANNER
     if [ "$catch" = "false" ] && [ -n "$evidence" ]; then
       die "--evidence must be empty when --catch=false"
     fi
-    # EVIDENCE self-quote guard
+    # EVIDENCE self-quote guards (substring match against both OPERATOR_SYNTHESIS and SOLO_DECISION)
     if [ -n "$evidence" ]; then
       room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
       [ -f "$room_log" ] || die "no transcript for room '$room'"
       op_synth=$(extract_operator_synthesis "$room_log")
-      if [ -n "$op_synth" ] && grep -qFx -- "$evidence" <<<"$op_synth"; then
-        die "EVIDENCE quotes OPERATOR_SYNTHESIS verbatim; must quote PERSONA_POSITIONS only"
+      if [ -n "$op_synth" ] && grep -qF -- "$evidence" <<<"$op_synth"; then
+        die "EVIDENCE appears in OPERATOR_SYNTHESIS; must quote PERSONA_POSITIONS only"
+      fi
+      if [ -f "$AGENT_FLEET_JOURNAL" ] && [ -s "$AGENT_FLEET_JOURNAL" ]; then
+        existing_row=$(jq -c --arg r "$room" 'select(.room==$r)' "$AGENT_FLEET_JOURNAL" | tail -1)
+        if [ -n "$existing_row" ]; then
+          solo_dec=$(jq -r '.solo_decision // ""' <<<"$existing_row")
+          if [ -n "$solo_dec" ] && grep -qF -- "$evidence" <<<"$solo_dec"; then
+            die "EVIDENCE appears in SOLO_DECISION; the operator's pre-decision risks cannot self-validate"
+          fi
+        fi
       fi
     fi
 
@@ -404,10 +426,24 @@ EOF
     fi
     echo ""
     echo "Paste the judge response below (ending with ===END===), then Ctrl-D:"
-    response=$(cat)
+    # Read stdin with a 10-minute hard timeout (DD-OQ1: 600s; 5min reminder is a v1.1 enhancement)
+    if command -v timeout >/dev/null 2>&1; then
+      response=$(timeout 600 cat) || die "stdin timeout (10 minutes) waiting for judge response"
+    elif command -v gtimeout >/dev/null 2>&1; then
+      response=$(gtimeout 600 cat) || die "stdin timeout (10 minutes) waiting for judge response"
+    else
+      # macOS without coreutils: perl alarm() fallback
+      response=$(perl -e 'alarm 600; while(<STDIN>) { print }') || die "stdin timeout (10 minutes) waiting for judge response"
+    fi
     room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
     op_synth=$(extract_operator_synthesis "$room_log")
-    parsed=$(parse_response "$response" "$op_synth")
+    # Read solo_decision from journal for the SOLO_DECISION self-quote guard
+    solo_dec=""
+    if [ -f "$AGENT_FLEET_JOURNAL" ] && [ -s "$AGENT_FLEET_JOURNAL" ]; then
+      jrow=$(jq -c --arg r "$room" 'select(.room==$r)' "$AGENT_FLEET_JOURNAL" | tail -1)
+      [ -n "$jrow" ] && solo_dec=$(jq -r '.solo_decision // ""' <<<"$jrow")
+    fi
+    parsed=$(parse_response "$response" "$op_synth" "$solo_dec")
     catch=$(sed -n '1p' <<<"$parsed")
     why=$(sed -n '2p' <<<"$parsed")
     evidence=$(sed -n '3p' <<<"$parsed")
