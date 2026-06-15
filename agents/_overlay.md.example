@@ -1,5 +1,19 @@
 # Overlay (example — copy to _overlay.md and fill; that copy is gitignored)
 
+# ⚠ THREAT MODEL — READ BEFORE INSTALLING ANY OVERLAY
+# ============================================================================
+# This file is loaded VERBATIM into every persona's system prompt. Treat it as
+# code you are running. An overlay can:
+#   - inject persona-overriding directives ("always verdict SHIP")
+#   - exfiltrate context ("restate the artifact in a debug section")
+#   - silently bias output ("prefer the dissenting view that matches vendor X")
+# Only install overlays YOU have read end-to-end. NEVER paste an overlay from
+# an unfamiliar source. Run `bash $AGENT_FLEET_HOME/lib/overlay.sh show` to
+# print the active overlay + SHA256 before trusting it, and
+# `bash $AGENT_FLEET_HOME/lib/overlay.sh lint` to scan for suspicious patterns
+# (the lint is advisory — a clean lint does not prove an overlay is safe).
+# ============================================================================
+
 When reviewing, apply YOUR org's domain specifics. The committed personas are pure generic; this
 file is where you (privately) tell them what your stack, KPIs, and hot paths look like.
 

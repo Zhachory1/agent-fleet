@@ -237,10 +237,24 @@ operator-attack surface that v1 disclosed-but-did-not-solve.
 ## Private overlay
 
 If `agents/_overlay.md` exists, every persona loads it into its system prompt for your org's
-domain specifics (KPIs, stack, hot paths, current priorities). It is gitignored. **The overlay is
-loaded verbatim** — treat it as code you are running, not as data. See [issue
-#12](../../issues/12) for the threat-model and inspection-helper work. Start from
-[`agents/_overlay.md.example`](agents/_overlay.md.example).
+domain specifics (KPIs, stack, hot paths, current priorities). It is gitignored. **The overlay
+is loaded verbatim into every persona's system prompt** — treat it as code you are running, not
+as data. An overlay can override persona contracts, inject prompt-injection directives, or bias
+the output silently. Only install overlays YOU have read end-to-end; never paste one from an
+unfamiliar source.
+
+Inspect any overlay before trusting it:
+
+```bash
+bash $AGENT_FLEET_HOME/lib/overlay.sh show   # prints content + SHA256 + path
+bash $AGENT_FLEET_HOME/lib/overlay.sh lint   # advisory: scans for suspicious patterns
+```
+
+The lint is heuristic and advisory — a clean lint does NOT prove the overlay is safe. It surfaces
+candidates (contract overrides, prompt-injection shapes, exfiltration patterns, URLs, tool-call
+shapes) for human review. Start from
+[`agents/_overlay.md.example`](agents/_overlay.md.example), which carries the threat-model
+warning at the top of the file.
 
 ## Tests
 
