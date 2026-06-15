@@ -1,7 +1,14 @@
 # DD — Blinded-judge sample mechanism
 
 **DD ID:** 20260614-blinded-judge
-**Status:** In progress · **Rev 3** (post rubric-file external review) · implements PRD Rev 3 · issue #1
+**Status:** In progress · **Rev 4** (post PR B /council + PR C correctness fixes) · implements PRD Rev 3 · issue #1
+
+> **Rev 4 footnote** (post PR B /council + PR C MAJOR-absorption): documented `judge_phase1`
+> as the 14th journal field (issue #23 MAJOR; used by `count_judge_b_rows` for the
+> sequencing-exploit guard); clarified `synthesis_word_count` semantics (it captures the LATEST
+> `@@from: synthesis` block's word count, not aggregate across rounds — matches the `| last` pick
+> in `extract_operator_synthesis`); noted PR C correctness fixes to `enforce_phase1` (distinct
+> rooms boundary, not total rows) and `judge` subcommand (per-room lock spanning prepare→record).
 **DRI:** Zhach Volker
 
 > **Rev 3 changelog** (rubric-file external review by Gemini, 1 BLOCKER + 4 MAJOR + 2 MINOR):
@@ -493,12 +500,14 @@ drift past PRD's committed 6).
 | `judge_template_sha256` | string | `""` | **Rev 2:** SHA256 of rubric+sentinels ONLY — drift detection |
 | `judge_render_sha256` | string | `""` | **Rev 2:** SHA256 of full prepared prompt this call — per-call audit |
 | `solo_decision_word_count` | int | `0` | PRD-OQ3: confound recording |
-| `synthesis_word_count` | int | `0` | **Rev 2:** symmetric to solo_decision_word_count |
+| `synthesis_word_count` | int | `0` | **Rev 2:** symmetric to solo_decision_word_count. **Rev 4 clarification**: captures the LATEST `@@from: synthesis` block's word count (matches `| last` pick), not aggregate across rounds. Document accordingly; rename deferred to v1.1 if it bites. |
+| `judge_phase1` | string | `""` | **Rev 4 (post PR B /council):** operator-supplied flag (`judge-a` / `judge-b`) for Phase 1 dual-judging; written by `record` and read by `count_judge_b_rows` for the >=3 judge-b-of-5 sequencing-exploit guard. Empty/missing for Phase 2 runs. |
 
-(13 new fields total, not 6. PRD FR6's "6 fields" commitment is updated by this DD across
-two revisions. If PRD FR6 and this table disagree, the DD wins for v1 — PRD predates the
+(14 new fields total, not 6. PRD FR6's "6 fields" commitment is updated by this DD across
+revisions. If PRD FR6 and this table disagree, the DD wins for v1 — PRD predates the
 EVIDENCE field, hash-split, symmetric word-count [Rev 2], reasoning, dissent_diff, and
-implied_by [Rev 3] discovered through council + external review.)
+implied_by [Rev 3] discovered through council + external review; `judge_phase1` [Rev 4]
+emerged from PR B impl as required for the council-mandated uniqueness exploit guard.)
 
 Schema migration script remains OUT-of-v1 per PRD. Tests assert both legacy rows and
 fully-populated rows parse correctly.
