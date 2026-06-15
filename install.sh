@@ -5,6 +5,10 @@
 #   install.sh                      # default: --tool claude
 #   install.sh --tool claude        # symlink personas -> ~/.claude/agents, skill -> ~/.claude/skills/council
 #   install.sh --tool claude --uninstall
+#   install.sh --tool cursor        # COPY personas + orchestrator -> ./.cursor/rules/ (current repo)
+#   install.sh --tool opencode      # COPY personas + orchestrator -> ./.agent-fleet/ (current repo)
+#   install.sh --tool codex         # COPY personas + orchestrator -> ./.agent-fleet/ (current repo);
+#                                   #   point your AGENTS.md at ./.agent-fleet/council-orchestrator.md
 #   install.sh --target DIR [--copy]# place personas + orchestrator prompt into DIR (any tool)
 #                                   #   symlink by default; --copy to copy instead (for tools that
 #                                   #   don't follow symlinks, or sandboxed dirs)
@@ -29,8 +33,14 @@ Options:
   --tool claude              Default. Symlink personas → ~/.claude/agents,
                              skill → ~/.claude/skills/council
   --tool claude --uninstall  Reverse a Claude Code install
+  --tool cursor              COPY personas + orchestrator → ./.cursor/rules/
+                             (Cursor reads .cursor/rules/, not AGENTS.md)
+  --tool opencode            COPY personas + orchestrator → ./.agent-fleet/
+                             (opencode reads AGENTS.md from repo root + subagents)
+  --tool codex               COPY personas + orchestrator → ./.agent-fleet/
+                             (Codex reads AGENTS.md from repo root)
   --target DIR               Place personas + orchestrator prompt into DIR
-                             (any tool: opencode / Codex / Cursor / generic)
+                             (any tool; explicit override of --tool defaults)
   --copy                     Used with --target: copy files instead of symlinking
                              (for tools that don't follow symlinks or sandboxed dirs)
   --print                    Print the portable orchestrator prompt to stdout
@@ -40,8 +50,9 @@ Options:
 
 Examples:
   install.sh                                  # Claude Code, default symlinks
-  install.sh --target ./.cursor/rules --copy  # Cursor: copy into rules dir
-  install.sh --target ./.agent-fleet --copy   # opencode / Codex / generic
+  install.sh --tool cursor                    # Cursor: copy into ./.cursor/rules/
+  install.sh --tool opencode                  # opencode/Codex: copy into ./.agent-fleet/
+  install.sh --target ./custom/path --copy    # explicit target override
   install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
 
 Requirements: bash, jq (and git for full functionality).
@@ -99,6 +110,33 @@ if [ -n "$TARGET" ]; then
   echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
   exit 0
 fi
+
+# Tool shortcuts for tools without a native dir layout: set sensible TARGET defaults and
+# re-enter the generic --target path. Each is a thin alias; no new install logic.
+case "$TOOL" in
+  cursor)
+    [ -n "$TARGET" ] || TARGET="./.cursor/rules"
+    COPY=1  # Cursor's rules dir doesn't follow symlinks reliably
+    for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
+    place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
+    echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
+    echo "Cursor will auto-load .cursor/rules/. Set AGENT_FLEET_HOME=$SRC so the lib/ helpers resolve."
+    exit 0
+    ;;
+  opencode|codex)
+    [ -n "$TARGET" ] || TARGET="./.agent-fleet"
+    COPY=1
+    for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
+    place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
+    echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
+    echo ""
+    echo "Next: ensure your project's AGENTS.md references the orchestrator at:"
+    echo "  $TARGET/council-orchestrator.md"
+    echo "opencode also picks up subagents from $TARGET/<persona>.md automatically."
+    echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
+    exit 0
+    ;;
+esac
 
 # Claude Code (default): native agents + skill dirs.
 case "$TOOL" in

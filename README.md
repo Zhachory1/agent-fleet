@@ -25,10 +25,11 @@ git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
 cd ~/code/agent-fleet
 export AGENT_FLEET_HOME=$PWD
 # Read the maturity disclaimer above before relying on output as decision-grade.
-bash install.sh                            # Claude Code (default; symlinks)
-# OR: bash install.sh --target ./.agent-fleet --copy   # opencode / Codex / generic
-# OR: bash install.sh --target ./.cursor/rules --copy  # Cursor
-# OR: bash install.sh --print | pbcopy                 # any chat: paste the prompt
+bash install.sh                # Claude Code (default; symlinks)
+# OR: bash install.sh --tool cursor    # Cursor   (→ ./.cursor/rules/)
+# OR: bash install.sh --tool opencode  # opencode (→ ./.agent-fleet/)
+# OR: bash install.sh --tool codex     # Codex    (→ ./.agent-fleet/)
+# OR: bash install.sh --print | pbcopy  # any chat: paste the prompt
 bash examples/first-council/run.sh         # see a real run end-to-end (isolated tmpdir)
 ```
 
@@ -153,15 +154,14 @@ bash install.sh --uninstall         # reversible
 ### Codex CLI / opencode
 ```bash
 export AGENT_FLEET_HOME=~/code/agent-fleet
-bash "$AGENT_FLEET_HOME/install.sh" --target ./.agent-fleet --copy
+bash "$AGENT_FLEET_HOME/install.sh" --tool opencode  # or --tool codex; both → ./.agent-fleet/
 # then ask the agent: "act as the council orchestrator in ./.agent-fleet/council-orchestrator.md"
 ```
 
 ### Cursor
 ```bash
 export AGENT_FLEET_HOME=~/code/agent-fleet
-bash "$AGENT_FLEET_HOME/install.sh" --target ./.cursor/rules --copy
-# Cursor reads .cursor/rules
+bash "$AGENT_FLEET_HOME/install.sh" --tool cursor    # → ./.cursor/rules/
 ```
 
 ### Any AI editor / chat
