@@ -70,8 +70,11 @@ because stakes are catastrophic').
 | high-stakes ship / one-way door / catastrophic-risk lens | pre-mortem, red-team, reliability-sentinel |
 | feature in Rev 3+ / 2+ council rounds / suspected severity-inflation | mvp, red-team, generalist-swe |
 | MVP / first-release / prototype / "what's the smallest thing" | mvp, product-pm, generalist-swe |
-| acceptance creep / scope bloat / "while we're at it" | mvp, vp-eng, software-architect |
+| acceptance creep / scope bloat / "while we're at it" | mvp, occams-razor, software-architect |
 | time-pressured ship / deadline-binding / reversible-deploy (two-way door) | mvp, reliability-sentinel, generalist-swe |
+| new abstraction / new layer / new framework / interface-for-one-caller | occams-razor, software-architect, generalist-swe |
+| diff bigger than the change / "while we're here" refactor / over-engineered | occams-razor, mvp, generalist-swe |
+| recent work "gigantic for no reason" / bloat audit (double-edge attack) | mvp, occams-razor, red-team |
 | platform bet / tech-stack adoption / 3-5yr direction | cto, software-architect, ceo |
 | company-strategy / roadmap / opportunity-cost / staffing | ceo, vp-eng, product-pm |
 | multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
@@ -81,10 +84,14 @@ State the selected personas + why (one line each) to the user before spawning.
 
 **Overlap check (FR5):** before finalizing the set, consult `agents/INDEX.md`'s `Tends to agree
 with` column. If 2 of your picks are flagged as same-group (e.g. `ml-scientist` + `ab-critic`,
-`software-architect` + `cto`, `ceo` + `product-pm`, `reliability-sentinel` + `perf-engineer`),
-that is fine if INTENTIONAL but flag it explicitly to the user — the council will skew toward
-that group's lens and false-consensus pressure rises. Prefer swapping one for an orthogonal pick
-unless the task genuinely calls for the doubled weight.
+`software-architect` + `cto`, `ceo` + `product-pm`, `reliability-sentinel` + `perf-engineer`,
+`mvp` + `occams-razor` for same-direction bloat-cutting), that is fine if INTENTIONAL but flag
+it explicitly to the user — the council will skew toward that group's lens and false-consensus
+pressure rises. Prefer swapping one for an orthogonal pick unless the task genuinely calls for
+the doubled weight. **Note:** `mvp` + `occams-razor` is a deliberate doubled-weight pick when
+the artifact is suspected of being bloated in BOTH scope AND complexity — they attack different
+axes (what-to-build vs how-it's-built), so the "agreement" is real evidence rather than
+false-consensus. Justify the pick in one line when you make it.
 
 ## Step 3 — Iteration loop (`--iterations N`, default 2, clamp 1..4)
 

@@ -48,8 +48,11 @@ Pick by task (minimum 3, maximum 6, default target 4; add `red-team` when stakes
 | high-stakes ship / one-way door / catastrophic-risk lens | pre-mortem, red-team, reliability-sentinel |
 | feature in Rev 3+ / 2+ council rounds / suspected severity-inflation | mvp, red-team, generalist-swe |
 | MVP / first-release / prototype / "what's the smallest thing" | mvp, product-pm, generalist-swe |
-| acceptance creep / scope bloat / "while we're at it" | mvp, vp-eng, software-architect |
+| acceptance creep / scope bloat / "while we're at it" | mvp, occams-razor, software-architect |
 | time-pressured ship / deadline-binding / reversible-deploy (two-way door) | mvp, reliability-sentinel, generalist-swe |
+| new abstraction / new layer / new framework / interface-for-one-caller | occams-razor, software-architect, generalist-swe |
+| diff bigger than the change / "while we're here" refactor / over-engineered | occams-razor, mvp, generalist-swe |
+| recent work "gigantic for no reason" / bloat audit (double-edge attack) | mvp, occams-razor, red-team |
 | platform bet / tech-stack adoption / 3-5yr direction | cto, software-architect, ceo |
 | company-strategy / roadmap / opportunity-cost / staffing | ceo, vp-eng, product-pm |
 | multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
@@ -59,9 +62,12 @@ State the selection + why before convening.
 
 **Overlap check:** consult `agents/INDEX.md`'s `Tends to agree with` column. If 2 of your picks
 overlap (`ml-scientist`+`ab-critic`, `software-architect`+`cto`, `ceo`+`product-pm`,
-`reliability-sentinel`+`perf-engineer`), flag it explicitly — the council will lean toward that
-lens and false-consensus pressure rises. Prefer an orthogonal swap unless the task calls for the
-doubled weight.
+`reliability-sentinel`+`perf-engineer`, `mvp`+`occams-razor` for same-direction bloat-cutting),
+flag it explicitly — the council will lean toward that lens and false-consensus pressure rises.
+Prefer an orthogonal swap unless the task calls for the doubled weight. **Note:** `mvp`+`occams-razor`
+is a deliberate doubled-weight pick when the artifact is suspected of being bloated in BOTH scope
+AND complexity — they attack different axes, so the "agreement" is real evidence rather than
+false-consensus. Justify the pick in one line when you make it.
 
 **red-team auto-include:** when `iterations>1`, force-include `red-team` in the selected set even if
 the table did not pick it — the standing dissenter against convergence pressure. If that exceeds 6

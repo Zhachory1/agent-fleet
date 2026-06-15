@@ -36,7 +36,8 @@ council (Rev 3: was 2–4; raised); **cap 6**. When `iterations>1`, the orchestr
 | Persona | Lens | Picks up | Tends to agree with | Deliberately opposes |
 |---|---|---|---|---|
 | `pre-mortem` *(experimental)* | Reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors | `red-team` (both adversarial, **methods differ**) | — |
-| `mvp` *(experimental)* | Smallest-real-signal advocate; pushes for cuts | scope creep, polish-creep, severity inflation across review rounds, two-way-door reversibility | — | **`red-team`** and **`pre-mortem`** (oppositional by design — they find more, mvp cuts; pick both for high-stakes decisions where the reflection round is the point) |
+| `mvp` *(experimental)* | **Aggressive** smallest-real-signal advocate; default skews BLOCK; cuts SCOPE | scope creep, polish-creep, severity inflation across review rounds, two-way-door reversibility, acceptance bloat | `occams-razor` (same direction, different axis — see note below) | **`red-team`** and **`pre-mortem`** (oppositional by design — they find more, mvp cuts; pick both for high-stakes decisions where the reflection round is the point) |
+| `occams-razor` *(experimental)* | **Aggressive** complexity-cutter; default skews BLOCK; cuts COMPLEXITY of the chosen solution | premature abstraction, speculative flexibility, indirection without payoff, layering for its own sake, "while we're here" refactors, framework-itis, rule-of-three violations | `mvp` (same direction, different axis); `generalist-swe` (overlapping — occams is over-engineering-FIRST) | **`software-architect`** (oppositional by design — architect adds seams for evolvability; occams demands the third caller exists first) |
 
 > `red-team` vs `pre-mortem`: red-team attacks the artifact as written. Pre-mortem assumes it
 > shipped and failed, then reasons backward. They are genuinely orthogonal methods — picking both
@@ -48,6 +49,23 @@ council (Rev 3: was 2–4; raised); **cap 6**. When `iterations>1`, the orchestr
 > reflection debate between "add more rigor" and "cut for speed" is the point. mvp will not
 > attack genuine BLOCKERs (it stays in its lane on severity-inflation and scope-bloat); it does
 > attack ROUND-N-escalation where Rev 3's BLOCKER was Rev 2's MAJOR that drifted up.
+>
+> `occams-razor` vs `software-architect`: deliberately oppositional. software-architect adds
+> boundaries, interfaces, and contracts for evolvability; occams-razor demands the third caller
+> exist before any abstraction lands (rule of three). Picking both is recommended whenever a
+> design doc or PR introduces new abstractions — the reflection debate between "this seam buys
+> us X" and "inline it until X actually exists" is the point. occams-razor will not attack
+> abstractions that already have ≥3 callers (rule already fired) and will not deny real failure
+> modes that complexity exists to prevent — it demands the simplest fix that still prevents them.
+>
+> `mvp` + `occams-razor` together: the **double-edge bloat attack**. mvp cuts SCOPE (acceptance
+> items, requirements, what to build); occams cuts COMPLEXITY (layers, abstractions, how it's
+> built). They are NOT redundant — a tight-scope MVP can still be over-engineered, and a
+> simply-built solution can still have scope creep. Pick both whenever a recent PR / design /
+> proposal feels "gigantic for no reason." Both have aggressive defaults (skew BLOCK), so
+> picking both alongside `red-team` or `pre-mortem` produces a real fight in reflection rounds:
+> two cut-it voices vs. two find-more-risk voices, with `software-architect` or `generalist-swe`
+> often holding the middle.
 
 ## Executive (experimental — zero validation runs)
 
@@ -66,6 +84,8 @@ Reviewing CODE (diff, PR, serving path):
   refactor / code quality      → generalist-swe + software-architect
   SDK / public API / CLI       → docs-dx + software-architect + generalist-swe
   ETL / schema / pipeline      → data-engineer + reliability-sentinel + software-architect
+  new abstraction / new layer / new framework / diff-bigger-than-the-change → occams-razor + software-architect + generalist-swe
+  "this feels gigantic for the change" / bloated PR / over-engineered  → mvp + occams-razor + generalist-swe
 
 Reviewing a MODEL or EXPERIMENT:
   model change / pipeline      → ml-scientist + ab-critic + reliability-sentinel
