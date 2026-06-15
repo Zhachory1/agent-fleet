@@ -1,5 +1,7 @@
 # agent-fleet
 
+![agent-fleet banner](assets/fleet.jpg)
+
 [![tests](https://github.com/Zhachory1/agent-fleet/actions/workflows/test.yml/badge.svg)](https://github.com/Zhachory1/agent-fleet/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
