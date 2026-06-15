@@ -10,6 +10,10 @@
 #
 # Bash + jq + flock + sha256sum. No new runtime dep.
 set -euo pipefail
+if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
+  cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo unknown; exit 0
+fi
+command -v jq >/dev/null 2>&1 || { echo "blind-judge.sh: jq required (install: brew install jq | apt-get install jq)" >&2; exit 1; }
 DIR="$(cd "$(dirname "$0")" && pwd)"
 # Default paths: env var > legacy ~/.claude > XDG (same precedence as journal.sh + transcript.sh).
 if [ -z "${AGENT_CHAT_ROOT:-}" ]; then

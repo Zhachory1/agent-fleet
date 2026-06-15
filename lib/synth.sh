@@ -6,6 +6,10 @@
 #   SPLIT-NO-MAJORITY    — top two verdicts tie; lists VERDICT: lines (no arbitrary "majority")
 #   NO-INPUT (exit 1)    — empty/blank input
 set -euo pipefail
+if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
+  cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo unknown; exit 0
+fi
+# synth.sh is pure bash/awk/sort — no jq dependency
 cmd="${1:-}"; shift || true
 case "$cmd" in
   flag)

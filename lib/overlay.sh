@@ -13,6 +13,10 @@
 # Default overlay location: $AGENT_FLEET_HOME/agents/_overlay.md
 #   If AGENT_FLEET_HOME unset, falls back to the script's parent-of-parent (a clone of agent-fleet).
 set -euo pipefail
+if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
+  cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo unknown; exit 0
+fi
+# overlay.sh uses sha256sum + grep — no jq dependency
 
 # Resolve script location -> AGENT_FLEET_HOME if env var unset.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
