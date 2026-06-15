@@ -480,7 +480,45 @@ EOF
     ;;
 
   backfill-artifact)
-    die "not implemented in PR B; see PR C / Chunk 5"
+    # Rescue legacy rooms predating FR9 (rooms without artifact.txt).
+    # --from must be git-tracked OR the operator passes --i-confirm-this-is-the-original
+    # (confabulation surface guard per DD Rev 2: arbitrary paths could let the operator paste
+    # a fabricated artifact and have the future judge treat it as the original).
+    room="${1:?room}"; shift || true
+    from_path=""; confirmed=0
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --from) from_path="$2"; shift 2;;
+        --i-confirm-this-is-the-original) confirmed=1; shift;;
+        *) die "unknown flag '$1' (usage: backfill-artifact <room> --from <path> [--i-confirm-this-is-the-original])";;
+      esac
+    done
+    [ -n "$from_path" ] || die "--from <path> required"
+    [ -f "$from_path" ] || die "--from path does not exist: $from_path"
+
+    # Verify git-tracked OR operator confirmed
+    git_tracked=0
+    if git ls-files --error-unmatch -- "$from_path" >/dev/null 2>&1; then
+      git_tracked=1
+    fi
+    if [ "$git_tracked" != "1" ] && [ "$confirmed" != "1" ]; then
+      die "refuse: --from is not a git-tracked file. Either commit it first OR pass --i-confirm-this-is-the-original (paste-time confabulation surface)"
+    fi
+
+    room_dir="$AGENT_CHAT_ROOT/rooms/$room"
+    mkdir -p "$room_dir"
+    target="$room_dir/artifact.txt"
+    if [ -f "$target" ]; then
+      if cmp -s "$from_path" "$target"; then
+        echo "backfill-artifact: $room artifact.txt already matches $from_path (idempotent)"
+      else
+        cp -f "$from_path" "$target"
+        echo "backfill-artifact: $room artifact.txt REPLACED (existing content differed from $from_path)" >&2
+      fi
+    else
+      cp "$from_path" "$target"
+      echo "backfill-artifact: $room artifact.txt written from $from_path"
+    fi
     ;;
 
   *)

@@ -429,5 +429,47 @@ n=$(jq -s --arg r "$ROOM_J" '[.[] | select(.room==$r)] | length' "$AGENT_FLEET_J
 [ ! -d "$AGENT_CHAT_ROOT/rooms/$ROOM_J/.judge.lockdir" ] \
   && note "PASS judge-race-lock-cleaned-up" || { note "FAIL judge-race-lock-orphaned"; fail=1; }
 
+echo "## backfill-artifact (Chunk 5)"
+
+ROOM_BF=council-backfill-test
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_BF"
+# Use a git-tracked file in this repo as the legitimate --from source
+GIT_TRACKED_SOURCE="$DIR/lib/blind-judge-prompt.v2.txt"
+UNTRACKED_SOURCE=$(mktemp); echo "fabricated artifact content" > "$UNTRACKED_SOURCE"
+
+# Refuses without --from
+expect_fail_msg "backfill-without-from" \
+  "bash '$DIR/lib/blind-judge.sh' backfill-artifact '$ROOM_BF'" \
+  "required"
+# Refuses if --from path doesn't exist
+expect_fail_msg "backfill-from-nonexistent" \
+  "bash '$DIR/lib/blind-judge.sh' backfill-artifact '$ROOM_BF' --from /nonexistent/path" \
+  "path does not exist"
+# Refuses untracked file without --i-confirm
+expect_fail_msg "backfill-untracked-without-confirm" \
+  "bash '$DIR/lib/blind-judge.sh' backfill-artifact '$ROOM_BF' --from '$UNTRACKED_SOURCE'" \
+  "not a git-tracked file"
+# Succeeds with --i-confirm on untracked
+bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF" --from "$UNTRACKED_SOURCE" --i-confirm-this-is-the-original >/dev/null \
+  && note "PASS backfill-untracked-with-confirm" || { note "FAIL backfill-untracked-with-confirm"; fail=1; }
+[ -f "$AGENT_CHAT_ROOT/rooms/$ROOM_BF/artifact.txt" ] \
+  && note "PASS backfill-artifact-file-created" || { note "FAIL backfill-artifact-file-created"; fail=1; }
+grep -q "fabricated artifact content" "$AGENT_CHAT_ROOT/rooms/$ROOM_BF/artifact.txt" \
+  && note "PASS backfill-content-matches" || { note "FAIL backfill-content-matches"; fail=1; }
+# Idempotent on same content
+bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF" --from "$UNTRACKED_SOURCE" --i-confirm-this-is-the-original 2>&1 \
+  | grep -q "idempotent" && note "PASS backfill-idempotent" || { note "FAIL backfill-idempotent"; fail=1; }
+# Succeeds without --i-confirm on git-tracked file (different room)
+ROOM_BF2=council-backfill-tracked
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_BF2"
+bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF2" --from "$GIT_TRACKED_SOURCE" >/dev/null \
+  && note "PASS backfill-git-tracked-no-confirm-needed" || { note "FAIL backfill-git-tracked-no-confirm-needed"; fail=1; }
+# Replace with different content prints a warning to stderr
+UNTRACKED_SOURCE2=$(mktemp); echo "different content" > "$UNTRACKED_SOURCE2"
+rout=$(bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF" --from "$UNTRACKED_SOURCE2" --i-confirm-this-is-the-original 2>&1 >/dev/null || true)
+echo "$rout" | grep -q "REPLACED" \
+  && note "PASS backfill-warns-on-replace" || { note "FAIL backfill-warns-on-replace (got: $rout)"; fail=1; }
+rm -f "$UNTRACKED_SOURCE" "$UNTRACKED_SOURCE2"
+
 echo "---"
 if [ "$fail" = "0" ]; then echo "PASS test_blind_judge"; else echo "FAIL test_blind_judge"; exit 1; fi
