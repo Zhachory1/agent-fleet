@@ -17,7 +17,8 @@ Personas:
   throughput), `product-pm` (user value / scope), `cost-finops` ($/req / TCO / build-vs-buy),
   `docs-dx` (API ergonomics / onboarding friction).
 - **Adversarial complement** — `pre-mortem` (work backward from imagined catastrophe; complement to
-  red-team's attack-the-artifact lens).
+  red-team's attack-the-artifact lens), `mvp` (smallest-real-signal advocate; deliberately
+  oppositional to red-team and pre-mortem — cuts scope where they add).
 - **Executive** — `cto` (3-5yr platform/tech arc), `ceo` (strategy / narrative / opportunity cost),
   `vp-eng` (capacity / sequencing / staffing reality).
 

@@ -31,13 +31,21 @@ council; **cap 4**. When `iterations>1`, the orchestrator force-includes `red-te
 
 ## Adversarial complement (experimental)
 
-| Persona | Lens | Picks up | Tends to agree with |
-|---|---|---|---|
-| `pre-mortem` *(experimental)* | Reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors | `red-team` (both adversarial, **methods differ**) |
+| Persona | Lens | Picks up | Tends to agree with | Deliberately opposes |
+|---|---|---|---|---|
+| `pre-mortem` *(experimental)* | Reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors | `red-team` (both adversarial, **methods differ**) | — |
+| `mvp` *(experimental)* | Smallest-real-signal advocate; pushes for cuts | scope creep, polish-creep, severity inflation across review rounds, two-way-door reversibility | — | **`red-team`** and **`pre-mortem`** (oppositional by design — they find more, mvp cuts; pick both for high-stakes decisions where the reflection round is the point) |
 
 > `red-team` vs `pre-mortem`: red-team attacks the artifact as written. Pre-mortem assumes it
 > shipped and failed, then reasons backward. They are genuinely orthogonal methods — picking both
 > is reasonable for high-stakes ships, but it doubles the adversarial weight in a 4-persona set.
+>
+> `mvp` vs `red-team`/`pre-mortem`: deliberately oppositional. red-team and pre-mortem expand
+> scope by finding risks; mvp contracts scope by cutting non-blocking items. Picking mvp WITH
+> either of them is recommended for any decision that's been through 2+ review rounds — the
+> reflection debate between "add more rigor" and "cut for speed" is the point. mvp will not
+> attack genuine BLOCKERs (it stays in its lane on severity-inflation and scope-bloat); it does
+> attack ROUND-N-escalation where Rev 3's BLOCKER was Rev 2's MAJOR that drifted up.
 
 ## Executive (experimental — zero validation runs)
 

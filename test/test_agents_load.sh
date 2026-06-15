@@ -2,7 +2,8 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 EXPECTED=(ml-scientist ab-critic reliability-sentinel software-architect generalist-swe red-team \
-  data-engineer perf-engineer product-pm cost-finops docs-dx pre-mortem cto ceo vp-eng)
+  data-engineer perf-engineer product-pm cost-finops docs-dx pre-mortem cto ceo vp-eng \
+  mvp)
 fail=0
 for name in "${EXPECTED[@]}"; do
   f="$DIR/agents/$name.md"

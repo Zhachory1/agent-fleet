@@ -1,0 +1,7 @@
+===JUDGE OUTPUT===
+REASONING: r.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: true
+WHY: phrase from solo.
+EVIDENCE: calibration risks I already see
+===END===
