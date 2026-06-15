@@ -35,7 +35,25 @@
 #                       — separating them keeps the acted-on rate honest. Code/design runs are
 #                       counted in the actionable arm; investigations are tracked separately.
 set -euo pipefail
-JOURNAL="${AGENT_FLEET_JOURNAL:-$HOME/.claude/agent-fleet-journal.jsonl}"
+
+# Resolve agent-chat transcript root with the same precedence as the journal:
+# AGENT_CHAT_ROOT env var > legacy ~/.claude/agent-chat (if it exists) > XDG.
+_agent_chat_root() {
+  if [ -n "${AGENT_CHAT_ROOT:-}" ]; then printf '%s' "$AGENT_CHAT_ROOT"
+  elif [ -d "$HOME/.claude/agent-chat" ]; then printf '%s' "$HOME/.claude/agent-chat"
+  else printf '%s' "${XDG_DATA_HOME:-$HOME/.local/share}/agent-fleet/agent-chat"
+  fi
+}
+# Default journal location: XDG_DATA_HOME if set, else ~/.local/share/agent-fleet/.
+# Legacy ~/.claude/agent-fleet-journal.jsonl is auto-detected if it exists (back-compat
+# for installations that predate the XDG move). AGENT_FLEET_JOURNAL env var wins over both.
+if [ -n "${AGENT_FLEET_JOURNAL:-}" ]; then
+  JOURNAL="$AGENT_FLEET_JOURNAL"
+elif [ -f "$HOME/.claude/agent-fleet-journal.jsonl" ]; then
+  JOURNAL="$HOME/.claude/agent-fleet-journal.jsonl"
+else
+  JOURNAL="${XDG_DATA_HOME:-$HOME/.local/share}/agent-fleet/journal.jsonl"
+fi
 ac_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 cmd="${1:-}"; shift || true
 
@@ -181,7 +199,7 @@ case "$cmd" in
     # Auto-compute word counts if not provided (per council MAJOR, data-engineer)
     [ "$solo_wc" -gt 0 ] || solo_wc=$(echo "$solo" | wc -w | tr -d ' ')
     if [ "$synth_wc" -eq 0 ]; then
-      ACR="${AGENT_CHAT_ROOT:-$HOME/.claude/agent-chat}"; rlog="$ACR/rooms/$room/log.jsonl"
+      ACR="$(_agent_chat_root)"; rlog="$ACR/rooms/$room/log.jsonl"
       if [ -f "$rlog" ]; then
         synth_wc=$(jq -r 'select(.from=="synthesis") | .text' "$rlog" 2>/dev/null | wc -w | tr -d ' ' || echo 0)
       fi
@@ -208,7 +226,7 @@ case "$cmd" in
     case "$kind" in code|investigation|design) ;; *) echo "journal: invalid run_kind '$kind' (want code|investigation|design)" >&2; exit 1;; esac
     # GUARD: no transcript -> no journal. Prevents the 'journaled but skipped capture' data loss.
     if [ "${AGENT_FLEET_REQUIRE_TRANSCRIPT:-1}" = "1" ]; then
-      ACR="${AGENT_CHAT_ROOT:-$HOME/.claude/agent-chat}"; rlog="$ACR/rooms/$room/log.jsonl"
+      ACR="$(_agent_chat_root)"; rlog="$ACR/rooms/$room/log.jsonl"
       if [ ! -s "$rlog" ]; then
         {
           echo "journal: REFUSING — no transcript for room '$room' ($rlog)."
