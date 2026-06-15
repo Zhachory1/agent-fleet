@@ -18,12 +18,14 @@ done
 echo "PASS test_overlay_absent"
 
 # #6 acceptance: grep ~/code/agent-fleet in skills/ prompts/ agents/ must be 0
+# shellcheck disable=SC2088 # intentional literal tilde: searching for hardcoded user paths in committed files
 bad_paths=$(grep -rln '~/code/agent-fleet' "$DIR"/skills "$DIR"/prompts "$DIR"/agents 2>/dev/null || true)
 if [ -n "$bad_paths" ]; then
   echo "FAIL: hardcoded ~/code/agent-fleet found in:"; echo "$bad_paths"; exit 1
 fi
 
 # #6 acceptance: grep ~/.claude/agents/_overlay.md in agents/ must be 0
+# shellcheck disable=SC2088 # intentional literal tilde: searching for legacy hardcoded paths
 legacy_overlay=$(grep -rln '~/\.claude/agents/_overlay\.md' "$DIR"/agents 2>/dev/null || true)
 if [ -n "$legacy_overlay" ]; then
   echo "FAIL: legacy ~/.claude overlay path found in agents/:"; echo "$legacy_overlay"; exit 1
