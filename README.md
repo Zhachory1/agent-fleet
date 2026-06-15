@@ -114,7 +114,15 @@ Full design rationale: [`docs/PRD.md`](docs/PRD.md) and [`docs/DD.md`](docs/DD.m
 
 **Experimental** (added together; promote per `agents/INDEX.md` after ≥3 logged runs):
 `data-engineer`, `perf-engineer`, `product-pm`, `cost-finops`, `docs-dx`, `pre-mortem`, `cto`,
-`ceo`, `vp-eng`.
+`ceo`, `vp-eng`, `mvp`.
+
+> **Note on persona frontmatter:** each persona's YAML frontmatter carries a `model: sonnet`
+> field. This is **Claude-Code-specific metadata** — Claude Code's agent loader uses it to pin
+> a model. Other tools (Cursor / Codex / opencode / generic chat) ignore unknown frontmatter
+> fields. If your tool errors on the field rather than ignoring it, strip the line from your
+> local copy of the persona files (it's safe to remove) or file an issue. The `description:`
+> field uses a `[experimental]` prefix to mark unvalidated personas — visible in any selection
+> UI that reads frontmatter (issue #9).
 
 ---
 
