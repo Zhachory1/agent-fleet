@@ -46,6 +46,10 @@ Pick by task (cap 4; add `red-team` when stakes are high):
 | build-vs-buy / vendor / capacity / cost | cost-finops, software-architect, cto |
 | SDK / library / CLI / public API / platform tooling | docs-dx, software-architect, generalist-swe |
 | high-stakes ship / one-way door / catastrophic-risk lens | pre-mortem, red-team, reliability-sentinel |
+| feature in Rev 3+ / 2+ council rounds / suspected severity-inflation | mvp, red-team, generalist-swe |
+| MVP / first-release / prototype / "what's the smallest thing" | mvp, product-pm, generalist-swe |
+| acceptance creep / scope bloat / "while we're at it" | mvp, vp-eng, software-architect |
+| time-pressured ship / deadline-binding / reversible-deploy (two-way door) | mvp, reliability-sentinel, generalist-swe |
 | platform bet / tech-stack adoption / 3-5yr direction | cto, software-architect, ceo |
 | company-strategy / roadmap / opportunity-cost / staffing | ceo, vp-eng, product-pm |
 | multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
