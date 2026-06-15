@@ -1,8 +1,8 @@
 # AGENTS.md — agent-fleet
 
 This repo is a portable **council of specialist review personas** + an orchestrator that convenes
-2-4 of them, runs a bounded N-iteration reflection debate (critique-before-concede; default 2,
-cap 4), and synthesizes a decision-grade answer with named dissents.
+3-6 of them, runs a bounded N-iteration reflection debate (critique-before-concede; default 2,
+cap 4 iterations), and synthesizes a decision-grade answer with named dissents.
 Tools that read `AGENTS.md` (Codex, opencode, …) pick this up automatically. Cursor reads
 `.cursor/rules/` instead — `install.sh --target ./.cursor/rules --copy` places the personas +
 orchestrator prompt where Cursor will find them.
@@ -24,8 +24,10 @@ Personas:
 - **Executive** — `cto` (3-5yr platform/tech arc), `ceo` (strategy / narrative / opportunity cost),
   `vp-eng` (capacity / sequencing / staffing reality).
 
-Pick 2-4 by task — see `agents/INDEX.md` for the catalog + decision tree (including overlap flags),
-and the orchestrator prompt's selection table for the routing rules.
+Pick 3-6 by task (Rev 3: was 2-4) — see `agents/INDEX.md` for the catalog + decision tree (including
+overlap flags), and the orchestrator prompt's selection table for the routing rules. At >4 personas,
+the overlap check is mandatory: high persona counts amplify false-consensus pressure if multiple picks
+share a same-group lens.
 
 ## What you get depends on your tool
 - **Subagent-capable** (Claude Code Task tool, opencode subagents): each persona's round-1

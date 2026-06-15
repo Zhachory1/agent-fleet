@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A portable **council of specialist review personas** for high-stakes engineering decisions.
-You convene 2–4 orthogonal reviewers, they critique your artifact from independent angles, and
+You convene 3–6 orthogonal reviewers, they critique your artifact from independent angles, and
 an orchestrator runs a bounded reflection debate (critique-before-concede, ≤4 rounds), then
 synthesizes one decision-grade answer with **ranked issues, named dissents, and a
 false-consensus flag**. Built to *disagree with you* — catch what a single pass misses.
@@ -56,7 +56,7 @@ deciding whether to install.
 your decision  ──▶  /council <task>
                       ├─ Step 0   — write your solo decision + risks you already see
                       ├─ Step 0.5 — same-lenses single-pass baseline (validation arm)
-                      ├─ Step 2   — pick 2-4 personas by task (15 in catalog)
+                      ├─ Step 2   — pick 3-6 personas by task (16 in catalog)
                       ├─ Step 3   — round 1: each persona reviews in isolation, blind
                       │             rounds 2..N (default 2, cap 4): each persona sees peers'
                       │             FULL prior positions and must REFUTE-FIRST before conceding
@@ -167,7 +167,7 @@ bash "$AGENT_FLEET_HOME/install.sh" --target ./.cursor/rules --copy
 ### Any AI editor / chat
 ```bash
 bash ~/code/agent-fleet/install.sh --print   # prints the orchestrator prompt — paste into chat
-# then paste 2-4 relevant agents/*.md persona prompts when asked
+# then paste 3-6 relevant agents/*.md persona prompts when asked
 ```
 
 ## Lib helpers (all environments with `bash` + `jq`)

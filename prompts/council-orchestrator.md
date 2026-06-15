@@ -30,8 +30,8 @@ may be a one-line pointer (`@file: <abs-path>` or `@diff: <git-ref>`); the helpe
 judge-time and refuses if unresolvable (prevents confabulation). For pasted text, write the
 actual content. The room directory should be created with `mkdir -p` before writing.
 
-## Step 2 — Select 2-4 personas
-Pick by task (cap 4; add `red-team` when stakes are high):
+## Step 2 — Select 3-6 personas
+Pick by task (minimum 3, maximum 6, default target 4; add `red-team` when stakes are high):
 
 | Task signal | Personas |
 |---|---|
@@ -53,7 +53,7 @@ Pick by task (cap 4; add `red-team` when stakes are high):
 | platform bet / tech-stack adoption / 3-5yr direction | cto, software-architect, ceo |
 | company-strategy / roadmap / opportunity-cost / staffing | ceo, vp-eng, product-pm |
 | multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
-| default / unmatched | pick 2-4 + justify each in one line |
+| default / unmatched | pick 3-6 + justify each in one line |
 
 State the selection + why before convening.
 
@@ -64,8 +64,13 @@ lens and false-consensus pressure rises. Prefer an orthogonal swap unless the ta
 doubled weight.
 
 **red-team auto-include:** when `iterations>1`, force-include `red-team` in the selected set even if
-the table did not pick it — the standing dissenter against convergence pressure. If that exceeds 4,
-drop the lowest-priority non-red-team pick.
+the table did not pick it — the standing dissenter against convergence pressure. If that exceeds 6
+(the new max as of Rev 3), drop the lowest-priority non-red-team pick.
+
+**Overlap check at >4 personas (Rev 3):** with the cap raised, picking 5-6 from the 16-persona catalog
+makes flagged-overlap pairs (per `agents/INDEX.md`'s `Tends to agree with` column) more likely. Overlap
+check is MANDATORY at >4 personas. If 2+ flagged pairs land in the same set, either swap one for an
+orthogonal pick OR explicitly justify the doubled weight.
 
 ## Step 3 — Iteration loop (`--iterations N`, default 2, clamp 1..4)
 `N` is the **target** (default 2, `<!-- ITER_DEFAULT=2 -->`), clamped to `[1,4]`. **4 is the
@@ -167,4 +172,4 @@ View later: `bash "$AGENT_FLEET_HOME/lib/transcript.sh" show council-<slug>` ·
 gate: `bash "$AGENT_FLEET_HOME/lib/journal.sh" stats`.
 
 ## Hard limits
-≤4 personas, ≤4 iterations (default 2), cap absolute, no unbounded loop. Personas are read-only advisors.
+3-6 personas (Rev 3: was ≤4; raised), ≤4 iterations (default 2), cap absolute, no unbounded loop. Personas are read-only advisors.

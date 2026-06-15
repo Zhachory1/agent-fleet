@@ -1,6 +1,6 @@
 ---
 name: council
-description: "Convene a council of 2-4 specialist personas to review a high-stakes decision (model change, experiment readout, design doc, serving-path PR, architecture/build-vs-buy). Picks personas, runs a bounded debate, synthesizes a decision-grade answer with named dissents. Triggers /council, council review, get a second opinion, tear this apart, is this safe to ship, review this model/experiment/design."
+description: "Convene a council of 3-6 specialist personas to review a high-stakes decision (model change, experiment readout, design doc, serving-path PR, architecture/build-vs-buy). Picks personas, runs a bounded debate, synthesizes a decision-grade answer with named dissents. Triggers /council, council review, get a second opinion, tear this apart, is this safe to ship, review this model/experiment/design."
 ---
 
 # Council Orchestrator
@@ -39,13 +39,21 @@ How:
 
 Hold the path. <2KB may be inlined; else pass the path.
 
-## Step 2 — Select 2-4 personas (rules table → LLM fallback)
-Match task to this table; if no row matches, use judgment to pick 2-4 + one-line justification each. Always cap at 4. Add `red-team` when stakes are high.
+## Step 2 — Select 3-6 personas (rules table → LLM fallback)
+Match task to this table; if no row matches, use judgment to pick 3-6 + one-line justification each. **Minimum 3, maximum 6.** Default target: 4 (gives room for the auto-included red-team without losing a task-driven pick).
 
 **red-team auto-include (FR4):** when `iterations>1` (any multi-iteration run), force-include
 `red-team` in the selected set even if the rules table did not pick it — it is the standing dissenter
-against convergence pressure. (If adding it would exceed 4 personas, drop the lowest-priority
+against convergence pressure. (If adding it would exceed 6 personas, drop the lowest-priority
 non-red-team pick.)
+
+**Overlap pressure at higher persona counts** (Rev 3): with the cap raised from 4 to 6, picking 5-6 personas
+from the 16-persona catalog increases the probability that 2+ picks are flagged as same-group in
+`agents/INDEX.md`'s `Tends to agree with` column. When picking >4, the overlap check is MANDATORY (not
+optional). If 2+ flagged-overlap pairs land in the same set, the council will skew toward that group's lens
+and false-consensus pressure rises sharply. Either swap an orthogonal persona in, OR explicitly justify the
+doubled weight (e.g., 'red-team + pre-mortem both adversarial; deliberately doubling adversarial weight
+because stakes are catastrophic').
 
 | Task signal | Personas |
 |---|---|
@@ -67,7 +75,7 @@ non-red-team pick.)
 | platform bet / tech-stack adoption / 3-5yr direction | cto, software-architect, ceo |
 | company-strategy / roadmap / opportunity-cost / staffing | ceo, vp-eng, product-pm |
 | multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
-| DEFAULT / unmatched | LLM picks 2-4 + justify |
+| DEFAULT / unmatched | LLM picks 3-6 + justify |
 
 State the selected personas + why (one line each) to the user before spawning.
 
@@ -229,4 +237,4 @@ Then tell the user where to read the full transcript + the running gate stats (V
 - **Live, this session:** the synthesis you print in Step 5.
 
 ## Hard limits
-≤4 personas, ≤4 iterations (default 2), cap absolute, no unbounded loop. Personas are read-only advisors.
+**3-6 personas** (Rev 3: was ≤4; raised to allow more lens-coverage on high-stakes decisions), ≤4 iterations (default 2), cap absolute, no unbounded loop. Personas are read-only advisors.
