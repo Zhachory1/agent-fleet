@@ -206,7 +206,6 @@ case "$cmd" in
     while [ $# -gt 0 ]; do
       case "$1" in
         --phase1) phase1="$2"; shift 2;;
-        --synthesis) shift 2;;
         *) die "unknown flag '$1'";;
       esac
     done

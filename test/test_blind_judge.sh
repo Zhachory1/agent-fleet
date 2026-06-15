@@ -17,9 +17,16 @@ expect_fail_msg() {
   if grep -qF "$expected" <<<"$out"; then note "PASS $name"; else note "FAIL $name (missing '$expected' in: $out)"; fail=1; fi
 }
 
+# Test temp-dir tracking: mktemp_d() creates a dir under a per-test parent so the trap
+# can rm -rf the whole parent in one shot. Avoids subshell-pollution issues (subshell
+# appends to an array don't escape; we use a directory-tree approach instead).
+TEST_PARENT_TMP=$(mktemp -d)
+trap 'rm -rf "$TEST_PARENT_TMP"' EXIT
+mktemp_d() { mktemp -d "$TEST_PARENT_TMP/d.XXXXXX"; }
+
 # Set up isolated env
-export AGENT_CHAT_ROOT="$(mktemp -d)"
-export AGENT_FLEET_JOURNAL="$(mktemp -d)/j.jsonl"
+export AGENT_CHAT_ROOT="$(mktemp_d)"
+export AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"
 ROOM=council-prepare-test
 mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM"
 echo "diff text here" > "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
@@ -33,7 +40,7 @@ Council verdict: BLOCK
 1. [BLOCKER] train/serve skew
 EOF
 bash "$DIR/lib/journal.sh" append "$ROOM" "prepare-test" "ship as-is" "ml-scientist" \
-  true "" true 0 false null 1 design --synthesis-word-count 8 >/dev/null
+  true "" true 0 false null 1 design --synthesis-word-count 7 >/dev/null
 
 echo "## prepare (Chunk 2)"
 
@@ -70,7 +77,7 @@ expect_fail_msg "prepare-without-phase1-refuses" \
 # PR C correctness fix: distinct-rooms boundary (not total-rows).
 # Old code would refuse --phase1 on a 6th distinct room if 5 calls hit 4 rooms.
 # New code: phase boundary is distinct rooms judged, repeats on the same room don't tip.
-PHASE_JOURNAL=$(mktemp -d)/phase.jsonl
+PHASE_JOURNAL=$(mktemp_d)/phase.jsonl
 export AGENT_FLEET_JOURNAL="$PHASE_JOURNAL"
 for i in 1 2 3 4; do
   R=phase-room-$i
@@ -111,8 +118,8 @@ expect_fail_msg "phase1-required-on-new-5th-room" "bash '$DIR/lib/blind-judge.sh
 bash "$DIR/lib/blind-judge.sh" prepare "$R5" --phase1 judge-b >/dev/null 2>&1 \
   && note "PASS phase1-judge-b-ok-on-5th-room" || { note "FAIL phase1-judge-b-ok-on-5th-room"; fail=1; }
 # Reset env for downstream tests
-export AGENT_CHAT_ROOT="$(mktemp -d)"
-export AGENT_FLEET_JOURNAL="$(mktemp -d)/j.jsonl"
+export AGENT_CHAT_ROOT="$(mktemp_d)"
+export AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"
 ROOM=council-prepare-test
 mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM"
 echo "diff text here" > "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
@@ -125,7 +132,7 @@ Council verdict: BLOCK
 1. [BLOCKER] train/serve skew
 EOF
 bash "$DIR/lib/journal.sh" append "$ROOM" "prepare-test" "ship as-is" "ml-scientist" \
-  true "" true 0 false null 1 design --synthesis-word-count 8 >/dev/null
+  true "" true 0 false null 1 design --synthesis-word-count 7 >/dev/null
 
 echo "## parser fixtures (Chunk 3)"
 
@@ -228,10 +235,10 @@ in pre-decision risks.
 EVIDENCE: - [BLOCKER] calibration drift in ranker after retraining
 ===END===
 EOF
-# multi-line-why-actual: WHY has EVIDENCE: appearing mid-block due to multi-sentence WHY confusion
-# (we test this implicitly via missing-evidence behavior; here we ensure that a WHY block which
-# breaks the field discipline still parses something sane)
-cat > "$FIXDIR/multi-line-why-actual.txt" <<'EOF'
+# false-with-evidence: catch=false has a non-empty EVIDENCE field (the WHY structure is loose
+# but the rejection path is 'EVIDENCE must be empty when false', not a WHY-parse issue).
+# Originally named multi-line-why-actual which misleadingly suggested a WHY-parse test.
+cat > "$FIXDIR/false-with-evidence.txt" <<'EOF'
 ===JUDGE OUTPUT===
 REASONING: r.
 DISSENT_DIFF: - (none)
@@ -308,7 +315,7 @@ EOF
 expect_pass "fixture-implied-by-with-colon" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/valid-false-implied-by-colon.txt' '$OP_SYNTH_FILE'"
 expect_fail_msg "fixture-implied-without-implied-by" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/implied-without-implied-by.txt' '$OP_SYNTH_FILE'" "IMPLIED_BY required"
 # multi-line-why-actual: has EVIDENCE field present but NET_NEW_CATCH=false → "EVIDENCE must be empty"
-expect_fail_msg "fixture-multi-line-why-actual" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/multi-line-why-actual.txt' '$OP_SYNTH_FILE'" "EVIDENCE must be empty"
+expect_fail_msg "fixture-false-with-evidence" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/false-with-evidence.txt' '$OP_SYNTH_FILE'" "EVIDENCE must be empty"
 
 echo "## record (Chunk 4) — in-place update on existing row"
 
@@ -433,7 +440,7 @@ echo "## end-to-end smoke (Chunk 8)"
 
 # Fresh state: orchestrator writes durable artifact, captures transcript, journal appends,
 # operator runs blind-judge.sh judge, journal row updates, transcript gets blind-judge#judge-N line.
-SMOKE_DIR=$(mktemp -d); SMOKE_J="$SMOKE_DIR/j.jsonl"
+SMOKE_DIR=$(mktemp_d); SMOKE_J="$SMOKE_DIR/j.jsonl"
 export AGENT_CHAT_ROOT="$SMOKE_DIR/agent-chat"
 export AGENT_FLEET_JOURNAL="$SMOKE_J"
 SMOKE_ROOM=council-e2e-smoke
@@ -465,8 +472,8 @@ echo "$stats" | grep -q 'blinded-judge sample : 1 of 1' \
   && note "PASS smoke-stats-reports-judged" || { note "FAIL smoke-stats-reports-judged (got: $stats)"; fail=1; }
 
 # Reset env for downstream tests (none after smoke today, but keep the discipline)
-export AGENT_CHAT_ROOT="$(mktemp -d)"
-export AGENT_FLEET_JOURNAL="$(mktemp -d)/j.jsonl"
+export AGENT_CHAT_ROOT="$(mktemp_d)"
+export AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"
 
 echo "## backfill-artifact (Chunk 5)"
 
