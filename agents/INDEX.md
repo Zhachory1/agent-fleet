@@ -1,12 +1,14 @@
 # Persona index
 
-Each `agents/<name>.md` is a self-contained system prompt — one judgment lens. Pick **2–4** per
-council; **cap 4**. When `iterations>1`, the orchestrator force-includes `red-team`.
+Each `agents/<name>.md` is a self-contained system prompt — one judgment lens. Pick **3–6** per
+council (Rev 3: was 2–4; raised); **cap 6**. When `iterations>1`, the orchestrator force-includes `red-team`.
 
-> ⚠ **Overlap matters.** Personas in the same group often raise similar issues, which inflates
-> false-consensus pressure. When the selection table suggests 4 personas, prefer ones from
-> **different groups**. The `Tends to agree with` column flags pairs whose lenses partially
-> overlap — picking both is fine if intentional, but you're not getting two independent reads.
+> ⚠ **Overlap matters more at higher persona counts.** Personas in the same group often raise
+> similar issues, which inflates false-consensus pressure. The `Tends to agree with` column
+> flags pairs whose lenses partially overlap — picking both is fine if intentional, but you're not
+> getting two independent reads. **At 5–6 personas, the overlap check is MANDATORY**: with 6
+> picks from a 16-persona catalog, the probability that 2+ picks are flagged-overlap pairs is
+> high. Either swap orthogonal OR explicitly justify the doubled weight.
 
 ## Core six (the original lens-fleet, n≥18 validation runs)
 
