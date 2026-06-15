@@ -1,0 +1,7 @@
+===JUDGE OUTPUT===
+REASONING: solo named this risk explicitly with a quoted line.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: false
+WHY: closest pair: synthesis was already implied by the solo's line about regression
+IMPLIED_BY: solo line about regression: we already considered model drift between v1 and v2
+===END===
