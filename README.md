@@ -185,6 +185,36 @@ $AGENT_FLEET_HOME/lib/journal.sh stats [N]                  # catch rate / false
 `journal.sh append` **refuses** unless the run's transcript was captured first — you cannot record
 a council whose thinking was not persisted.
 
+## Blinded judge (validation, optional)
+
+Every catch-rate number in `journal.sh stats` is **self-reported by the operator** who ran the
+council. The blinded judge mechanism narrows that bias channel: after a council runs, you (or a
+fresh-context LLM in a different account / different model family) judges whether the council's
+synthesis contains a net-new issue the solo decision missed — seeing only the artifact, the solo
+decision, the per-persona positions + operator's synthesis, and the persona list. The judge
+emits one binary line (`NET_NEW_CATCH: true|false`) plus a verbatim `EVIDENCE` quote (when
+`true`) and `REASONING` + `DISSENT_DIFF` scratchpads. Both the operator's self-report and the
+blinded judge's answer are stored side-by-side in the journal; `stats` reports agreement-rate
+separately.
+
+> ⚠ **This feature narrows the bias channel from author-judges-author to LLM-judges-LLM. It does
+> not upgrade the evidence tier. The only upgrade is human-judges-human ([issue #13](../../issues/13)).**
+
+```bash
+# After a council, prepare the blinded brief (copies prompt to clipboard, prints banner):
+$AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug> --phase1 judge-a    # Phase 1 (first 5 rooms)
+$AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug>                      # Phase 2 (>=5 rooms)
+
+# For legacy rooms that predate the FR9 durable-artifact change:
+$AGENT_FLEET_HOME/lib/blind-judge.sh backfill-artifact council-<slug> --from <path>
+```
+
+The canonical rubric is `lib/blind-judge-prompt.v2.txt` (visible by design — any change to it
+bumps the filename version and is git-history-visible). See
+[`docs/features/blinded-judge/PRD.md`](docs/features/blinded-judge/PRD.md) for the full design,
+including the two-phase calibration (qualitative n=5, then quantitative n≥50) and the explicit
+operator-attack surface that v1 disclosed-but-did-not-solve.
+
 ## Private overlay
 
 If `agents/_overlay.md` exists, every persona loads it into its system prompt for your org's

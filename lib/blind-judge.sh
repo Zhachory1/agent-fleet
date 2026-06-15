@@ -130,6 +130,15 @@ count_judge_b_rows() {
   jq -s '[.[] | select((.judge_blinded // false) == true and (.judge_phase1 // "") == "judge-b")] | length' "$AGENT_FLEET_JOURNAL" 2>/dev/null || echo 0
 }
 
+# room_already_judged ROOM -> "true" if any row exists for ROOM with judge_blinded=true, else "false"
+room_already_judged() {
+  local room="$1"
+  [ -f "$AGENT_FLEET_JOURNAL" ] || { echo false; return; }
+  local found
+  found=$(jq -s --arg r "$room" '[.[] | select((.judge_blinded // false) == true and .room == $r)] | length' "$AGENT_FLEET_JOURNAL" 2>/dev/null || echo 0)
+  if [ "${found:-0}" -gt 0 ]; then echo true; else echo false; fi
+}
+
 # resolve_artifact ROOM -> stdout the artifact content; die on unresolvable pointer.
 resolve_artifact() {
   local room="$1"
@@ -161,27 +170,31 @@ extract_operator_synthesis() {
   jq -rs '[.[] | select(.from=="synthesis")] | last | (.text // "")' "$room_log" 2>/dev/null
 }
 
-# enforce_phase1 PHASE1_FLAG  -> die if forcing rule violated
+# enforce_phase1 ROOM PHASE1_FLAG  -> die if forcing rule violated.
+# Rev 2 (PR C): Phase boundary is DISTINCT ROOMS judged, not total rows. Phase 1 covers the
+# first 5 distinct councils each dual-judged (so 5 rooms x 2 judges = 10 total rows possible).
+# The room being judged matters: if this room is ALREADY in the judged set, it counts as a
+# repeat (judge-b on a room that has judge-a, or vice versa) and does not tip the boundary.
 enforce_phase1() {
-  local phase1="$1"
-  local judged_count distinct_rooms judge_b_count
-  judged_count=$(count_judged_rows)
-  if [ "$judged_count" -lt 5 ]; then
+  local room="$1" phase1="$2"
+  local distinct_rooms room_already_judged judge_b_count
+  distinct_rooms=$(count_distinct_judged_rooms)
+  room_already_judged=$(room_already_judged "$room")
+  if [ "$distinct_rooms" -lt 5 ] || { [ "$distinct_rooms" -eq 5 ] && [ "$room_already_judged" = "true" ]; }; then
+    # In Phase 1 (or finishing the 5th room's dual-judge)
     if [ -z "$phase1" ] || { [ "$phase1" != "judge-a" ] && [ "$phase1" != "judge-b" ]; }; then
-      die "REFUSES: --phase1 judge-a|judge-b required during Phase 1 (judged_count=$judged_count/5)"
+      die "REFUSES: --phase1 judge-a|judge-b required during Phase 1 (distinct_rooms=$distinct_rooms/5)"
     fi
-    if [ "$judged_count" -eq 4 ]; then
-      distinct_rooms=$(count_distinct_judged_rooms)
+    if [ "$distinct_rooms" -eq 4 ] && [ "$room_already_judged" = "false" ]; then
+      # This call would tip distinct_rooms from 4 to 5 (the last new room of Phase 1).
       judge_b_count=$(count_judge_b_rows)
-      if [ "$distinct_rooms" -lt 4 ]; then
-        echo "blind-judge: WARNING after this run Phase 1 has <5 distinct rooms (sequencing-exploit shape)" >&2
-      fi
       if [ "$phase1" = "judge-a" ] && [ "$judge_b_count" -lt 3 ]; then
-        die "REFUSES: Phase 1 needs >=3 judge-b runs by run 5; you passed --phase1 judge-a with only $judge_b_count judge-b so far"
+        die "REFUSES: Phase 1 needs >=3 judge-b runs across the 5 distinct rooms; this is the 5th distinct room and you passed --phase1 judge-a with only $judge_b_count judge-b so far"
       fi
     fi
   else
-    [ -n "$phase1" ] && die "REFUSES: --phase1 may not be used after Phase 1 (judged_count=$judged_count, max 5)"
+    # Phase 2 (>=5 distinct rooms judged AND this isn't a repeat)
+    [ -n "$phase1" ] && die "REFUSES: --phase1 may not be used after Phase 1 (distinct_rooms=$distinct_rooms; this room is new — Phase 2)"
   fi
 }
 
@@ -193,11 +206,10 @@ case "$cmd" in
     while [ $# -gt 0 ]; do
       case "$1" in
         --phase1) phase1="$2"; shift 2;;
-        --synthesis) shift 2;;
         *) die "unknown flag '$1'";;
       esac
     done
-    enforce_phase1 "$phase1"
+    enforce_phase1 "$room" "$phase1"
 
     artifact_content=$(resolve_artifact "$room")
     room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
@@ -418,6 +430,13 @@ EOF
         *) die "unknown flag '$1'";;
       esac
     done
+    # PR C correctness fix (#23 MAJOR #2): hold a per-room lock spanning prepare→record so two
+    # terminals can't both pass enforce_phase1 simultaneously. Lock is on the room directory
+    # (separate from journal lock to avoid double-locking when record runs in this same process).
+    room_dir="$AGENT_CHAT_ROOT/rooms/$room"
+    [ -d "$room_dir" ] || die "room '$room' does not exist (no transcript directory)"
+    judge_lockdir="$room_dir/.judge.lockdir"
+    acquire_lock "$judge_lockdir"
     # Prepare prints to stdout; we want it printed PLUS the operator pastes the response on stdin
     if [ -n "$phase1" ]; then
       "$0" prepare "$room" --phase1 "$phase1"
@@ -454,12 +473,51 @@ EOF
     rec_args=("$room" --catch "$catch" --why "$why" --reasoning "$reasoning" --dissent-diff "$dissent_diff")
     [ -n "$evidence" ]   && rec_args+=(--evidence "$evidence")
     [ -n "$implied_by" ] && rec_args+=(--implied-by "$implied_by")
+    # judge_lockdir is released by trap-on-EXIT in acquire_lock; we keep holding it through record
     [ -n "$phase1" ]     && rec_args+=(--phase1 "$phase1")
     "$0" record "${rec_args[@]}"
     ;;
 
   backfill-artifact)
-    die "not implemented in PR B; see PR C / Chunk 5"
+    # Rescue legacy rooms predating FR9 (rooms without artifact.txt).
+    # --from must be git-tracked OR the operator passes --i-confirm-this-is-the-original
+    # (confabulation surface guard per DD Rev 2: arbitrary paths could let the operator paste
+    # a fabricated artifact and have the future judge treat it as the original).
+    room="${1:?room}"; shift || true
+    from_path=""; confirmed=0
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --from) from_path="$2"; shift 2;;
+        --i-confirm-this-is-the-original) confirmed=1; shift;;
+        *) die "unknown flag '$1' (usage: backfill-artifact <room> --from <path> [--i-confirm-this-is-the-original])";;
+      esac
+    done
+    [ -n "$from_path" ] || die "--from <path> required"
+    [ -f "$from_path" ] || die "--from path does not exist: $from_path"
+
+    # Verify git-tracked OR operator confirmed
+    git_tracked=0
+    if git ls-files --error-unmatch -- "$from_path" >/dev/null 2>&1; then
+      git_tracked=1
+    fi
+    if [ "$git_tracked" != "1" ] && [ "$confirmed" != "1" ]; then
+      die "refuse: --from is not a git-tracked file. Either commit it first OR pass --i-confirm-this-is-the-original (paste-time confabulation surface)"
+    fi
+
+    room_dir="$AGENT_CHAT_ROOT/rooms/$room"
+    mkdir -p "$room_dir"
+    target="$room_dir/artifact.txt"
+    if [ -f "$target" ]; then
+      if cmp -s "$from_path" "$target"; then
+        echo "backfill-artifact: $room artifact.txt already matches $from_path (idempotent)"
+      else
+        cp -f "$from_path" "$target"
+        echo "backfill-artifact: $room artifact.txt REPLACED (existing content differed from $from_path)" >&2
+      fi
+    else
+      cp "$from_path" "$target"
+      echo "backfill-artifact: $room artifact.txt written from $from_path"
+    fi
     ;;
 
   *)
