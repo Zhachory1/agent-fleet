@@ -130,6 +130,15 @@ count_judge_b_rows() {
   jq -s '[.[] | select((.judge_blinded // false) == true and (.judge_phase1 // "") == "judge-b")] | length' "$AGENT_FLEET_JOURNAL" 2>/dev/null || echo 0
 }
 
+# room_already_judged ROOM -> "true" if any row exists for ROOM with judge_blinded=true, else "false"
+room_already_judged() {
+  local room="$1"
+  [ -f "$AGENT_FLEET_JOURNAL" ] || { echo false; return; }
+  local found
+  found=$(jq -s --arg r "$room" '[.[] | select((.judge_blinded // false) == true and .room == $r)] | length' "$AGENT_FLEET_JOURNAL" 2>/dev/null || echo 0)
+  if [ "${found:-0}" -gt 0 ]; then echo true; else echo false; fi
+}
+
 # resolve_artifact ROOM -> stdout the artifact content; die on unresolvable pointer.
 resolve_artifact() {
   local room="$1"
@@ -161,27 +170,31 @@ extract_operator_synthesis() {
   jq -rs '[.[] | select(.from=="synthesis")] | last | (.text // "")' "$room_log" 2>/dev/null
 }
 
-# enforce_phase1 PHASE1_FLAG  -> die if forcing rule violated
+# enforce_phase1 ROOM PHASE1_FLAG  -> die if forcing rule violated.
+# Rev 2 (PR C): Phase boundary is DISTINCT ROOMS judged, not total rows. Phase 1 covers the
+# first 5 distinct councils each dual-judged (so 5 rooms x 2 judges = 10 total rows possible).
+# The room being judged matters: if this room is ALREADY in the judged set, it counts as a
+# repeat (judge-b on a room that has judge-a, or vice versa) and does not tip the boundary.
 enforce_phase1() {
-  local phase1="$1"
-  local judged_count distinct_rooms judge_b_count
-  judged_count=$(count_judged_rows)
-  if [ "$judged_count" -lt 5 ]; then
+  local room="$1" phase1="$2"
+  local distinct_rooms room_already_judged judge_b_count
+  distinct_rooms=$(count_distinct_judged_rooms)
+  room_already_judged=$(room_already_judged "$room")
+  if [ "$distinct_rooms" -lt 5 ] || { [ "$distinct_rooms" -eq 5 ] && [ "$room_already_judged" = "true" ]; }; then
+    # In Phase 1 (or finishing the 5th room's dual-judge)
     if [ -z "$phase1" ] || { [ "$phase1" != "judge-a" ] && [ "$phase1" != "judge-b" ]; }; then
-      die "REFUSES: --phase1 judge-a|judge-b required during Phase 1 (judged_count=$judged_count/5)"
+      die "REFUSES: --phase1 judge-a|judge-b required during Phase 1 (distinct_rooms=$distinct_rooms/5)"
     fi
-    if [ "$judged_count" -eq 4 ]; then
-      distinct_rooms=$(count_distinct_judged_rooms)
+    if [ "$distinct_rooms" -eq 4 ] && [ "$room_already_judged" = "false" ]; then
+      # This call would tip distinct_rooms from 4 to 5 (the last new room of Phase 1).
       judge_b_count=$(count_judge_b_rows)
-      if [ "$distinct_rooms" -lt 4 ]; then
-        echo "blind-judge: WARNING after this run Phase 1 has <5 distinct rooms (sequencing-exploit shape)" >&2
-      fi
       if [ "$phase1" = "judge-a" ] && [ "$judge_b_count" -lt 3 ]; then
-        die "REFUSES: Phase 1 needs >=3 judge-b runs by run 5; you passed --phase1 judge-a with only $judge_b_count judge-b so far"
+        die "REFUSES: Phase 1 needs >=3 judge-b runs across the 5 distinct rooms; this is the 5th distinct room and you passed --phase1 judge-a with only $judge_b_count judge-b so far"
       fi
     fi
   else
-    [ -n "$phase1" ] && die "REFUSES: --phase1 may not be used after Phase 1 (judged_count=$judged_count, max 5)"
+    # Phase 2 (>=5 distinct rooms judged AND this isn't a repeat)
+    [ -n "$phase1" ] && die "REFUSES: --phase1 may not be used after Phase 1 (distinct_rooms=$distinct_rooms; this room is new — Phase 2)"
   fi
 }
 
@@ -197,7 +210,7 @@ case "$cmd" in
         *) die "unknown flag '$1'";;
       esac
     done
-    enforce_phase1 "$phase1"
+    enforce_phase1 "$room" "$phase1"
 
     artifact_content=$(resolve_artifact "$room")
     room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"

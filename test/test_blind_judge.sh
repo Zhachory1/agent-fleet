@@ -67,6 +67,66 @@ expect_fail_msg "prepare-without-phase1-refuses" \
 
 # (After 5 judged rows we'd test the no-flag case; tested below after Chunk 4 lands records.)
 
+# PR C correctness fix: distinct-rooms boundary (not total-rows).
+# Old code would refuse --phase1 on a 6th distinct room if 5 calls hit 4 rooms.
+# New code: phase boundary is distinct rooms judged, repeats on the same room don't tip.
+PHASE_JOURNAL=$(mktemp -d)/phase.jsonl
+export AGENT_FLEET_JOURNAL="$PHASE_JOURNAL"
+for i in 1 2 3 4; do
+  R=phase-room-$i
+  mkdir -p "$AGENT_CHAT_ROOT/rooms/$R"
+  echo "a" > "$AGENT_CHAT_ROOT/rooms/$R/artifact.txt"
+  bash "$DIR/lib/transcript.sh" capture "$R" <<EOF >/dev/null
+@@from: x#r1
+p
+@@from: synthesis
+s
+EOF
+  bash "$DIR/lib/journal.sh" append "$R" "t" "s" "x" true "" true 0 false null 1 design \
+    --synthesis-word-count 1 >/dev/null
+done
+# Add 4 judge_blinded=true rows across 4 distinct rooms (via record).
+# Mix in 3 judge-b's so the run-5-needs-3-judge-b guard passes.
+bash "$DIR/lib/blind-judge.sh" record "phase-room-1" --catch true --why w1 --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-a >/dev/null
+bash "$DIR/lib/blind-judge.sh" record "phase-room-2" --catch true --why w2 --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b >/dev/null
+bash "$DIR/lib/blind-judge.sh" record "phase-room-3" --catch true --why w3 --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b >/dev/null
+bash "$DIR/lib/blind-judge.sh" record "phase-room-4" --catch true --why w4 --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b >/dev/null
+# Now distinct_rooms=4. Repeat-record on phase-room-1 with judge-b: room_already_judged=true, distinct stays 4.
+bash "$DIR/lib/blind-judge.sh" record "phase-room-1" --catch true --why w1b --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b --force >/dev/null
+# Setup a 5th room (the boundary case) — prepare should require --phase1 (still in Phase 1).
+R5=phase-room-5
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$R5"
+echo "a" > "$AGENT_CHAT_ROOT/rooms/$R5/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$R5" <<EOF >/dev/null
+@@from: x#r1
+p
+@@from: synthesis
+s
+EOF
+bash "$DIR/lib/journal.sh" append "$R5" "t" "s" "x" true "" true 0 false null 1 design \
+  --synthesis-word-count 1 >/dev/null
+# distinct_rooms=4, R5 is new -> prepare on R5 should REQUIRE --phase1
+expect_fail_msg "phase1-required-on-new-5th-room" "bash '$DIR/lib/blind-judge.sh' prepare '$R5'" "required during Phase 1"
+# Same R5 + --phase1 judge-b: should succeed (judge_b_count=4 already, so the >=3 guard passes)
+bash "$DIR/lib/blind-judge.sh" prepare "$R5" --phase1 judge-b >/dev/null 2>&1 \
+  && note "PASS phase1-judge-b-ok-on-5th-room" || { note "FAIL phase1-judge-b-ok-on-5th-room"; fail=1; }
+# Reset env for downstream tests
+export AGENT_CHAT_ROOT="$(mktemp -d)"
+export AGENT_FLEET_JOURNAL="$(mktemp -d)/j.jsonl"
+ROOM=council-prepare-test
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM"
+echo "diff text here" > "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM" <<EOF >/dev/null
+@@from: ml-scientist#r1
+verdict: BLOCK
+- [BLOCKER] train/serve skew
+@@from: synthesis
+Council verdict: BLOCK
+1. [BLOCKER] train/serve skew
+EOF
+bash "$DIR/lib/journal.sh" append "$ROOM" "prepare-test" "ship as-is" "ml-scientist" \
+  true "" true 0 false null 1 design --synthesis-word-count 8 >/dev/null
+
 echo "## parser fixtures (Chunk 3)"
 
 # Fixtures dir is populated below. For now, programmatically build & test each fixture.
