@@ -193,8 +193,27 @@ classify the run: `code` (review of a diff/PR), `design` (design doc/architectur
 `investigation` (debugging/hypothesis-generation/audit). Investigations are scored on a separate
 track — they surface many hypotheses by design and most won't be pursued, so they don't share the
 acted-on gate with code/design runs. For validation runs also ask: did the council beat the
-lens-baseline from Step 0.5 (Y/N)? Then (note the room slug is the FIRST arg):
-`bash ~/code/agent-fleet/lib/journal.sh append "council-<slug>" "<slug>" "<solo_decision>" "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised> <run_kind: code|investigation|design>`
+lens-baseline from Step 0.5 (Y/N)? Then call `journal.sh append` (kw-args form preferred):
+
+```
+bash ~/code/agent-fleet/lib/journal.sh append \
+  --room council-<slug> \
+  --task <slug> \
+  --solo "<solo_decision>" \
+  --personas <personas_csv> \
+  --net-new-catch <true|false> \
+  --note "<note>" \
+  --acted-on <true|false> \
+  --dismissed-count <int> \
+  --lens-baseline <true|false> \
+  --council-beat-baseline <true|false|null> \
+  --issues-raised <int> \
+  --run-kind <code|design|investigation>
+```
+
+The legacy 12-positional form still works (back-compat for older orchestrators):
+`journal.sh append "council-<slug>" "<slug>" "<solo>" "<personas>" <catch> "<note>" <acted> <dis> <lens> <beat> <raised> <kind>` — but kw-args is safer (bool args at position 5 and 7 are indistinguishable when misordered).
+Run `journal.sh --help` for the full flag list.
 
 Then tell the user where to read the full transcript + the running gate stats (Visibility below).
 

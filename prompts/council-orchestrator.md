@@ -148,12 +148,17 @@ Then produce:
 
 ## Step 6 — Journal (enforced)
 The journal REFUSES unless the transcript was captured (Step 3) — that's the anti-skip guard.
+Prefer the kw-args form (positional bool args at positions 5 and 7 are easy to misorder):
 ```
-bash "$AGENT_FLEET_HOME/lib/journal.sh" append "council-<slug>" "<slug>" "<solo_decision>" \
-  "<personas_csv>" <true|false> "<note>" <true|false> <dismissed_count> \
-  <lens_baseline_run true|false> <council_beat_baseline true|false|null> <issues_raised> \
-  <run_kind: code|investigation|design>
+bash "$AGENT_FLEET_HOME/lib/journal.sh" append \
+  --room council-<slug> --task <slug> \
+  --solo "<solo_decision>" --personas "<personas_csv>" \
+  --net-new-catch <true|false> --note "<note>" \
+  --acted-on <true|false> --dismissed-count <int> \
+  --lens-baseline <true|false> --council-beat-baseline <true|false|null> \
+  --issues-raised <int> --run-kind <code|investigation|design>
 ```
+Legacy 12-positional form is still supported (run `journal.sh --help` for both shapes).
 
 `run_kind` matters: `investigation` runs naturally surface many hypotheses that don't all get
 pursued, so they are reported separately (no acted-on gate). `code` and `design` runs share the

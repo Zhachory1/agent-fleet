@@ -97,3 +97,51 @@ verdict: SHIP"
 jq -se '.[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and .room=="'"$ROOM_K"'"' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
   || { echo "FAIL: judge-only row should have judge_blinded=true and self-report fields=null"; exit 1; }
+
+# Issue #3: kw-args form (PREFERRED entry path).
+ROOM_KW=council-kwargs-row
+"$DIR/lib/transcript.sh" capture "$ROOM_KW" <<<"@@from: a
+verdict: SHIP"
+"$DIR/lib/journal.sh" append \
+  --room "$ROOM_KW" \
+  --task "kwargs-test" \
+  --solo "ship as-is" \
+  --personas "ml-scientist,red-team" \
+  --net-new-catch true \
+  --note "a finding" \
+  --acted-on true \
+  --dismissed-count 2 \
+  --lens-baseline true \
+  --council-beat-baseline true \
+  --issues-raised 4 \
+  --run-kind design
+jq -se --arg r "$ROOM_KW" '.[-1] | .room==$r and .task=="kwargs-test" and .net_new_catch==true and .acted_on==true and .dismissed_count==2 and .lens_baseline_run==true and .council_beat_baseline==true and .issues_raised==4 and .run_kind=="design"' \
+  "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: kw-args write didn't populate all fields correctly"; exit 1; }
+
+# kw-args: missing required field MUST error
+set +e
+"$DIR/lib/journal.sh" append --room "$ROOM_KW" --task t --personas p --net-new-catch true --acted-on true 2>/dev/null
+rc=$?; set -e
+[ "$rc" = "1" ] || { echo "FAIL: kw-args without --solo should reject (exit 1), got $rc"; exit 1; }
+
+# kw-args: unknown flag MUST error
+set +e
+"$DIR/lib/journal.sh" append --room x --task t --solo s --personas p --net-new-catch true --acted-on true --not-a-real-flag yes 2>/dev/null
+rc=$?; set -e
+[ "$rc" = "1" ] || { echo "FAIL: kw-args with unknown flag should reject (exit 1), got $rc"; exit 1; }
+
+# --help works at top level and prints kw-args usage
+"$DIR/lib/journal.sh" --help | grep -q -- "--net-new-catch" || { echo "FAIL: --help missing kw-args usage"; exit 1; }
+
+# Mixed-style: positional + judge-* trailing kw-args still works (back-compat)
+ROOM_MIXED=council-mixed-row
+"$DIR/lib/transcript.sh" capture "$ROOM_MIXED" <<<"@@from: a
+verdict: SHIP"
+"$DIR/lib/journal.sh" append "$ROOM_MIXED" mixed s a true "" true 0 false null 1 code \
+  --judge-blinded true --judge-catch false --judge-why "covered" \
+  --judge-reasoning "r" --judge-dissent-diff "- (none)" \
+  --judge-model-family claude --judge-prompt-version v2
+jq -se --arg r "$ROOM_MIXED" '.[-1] | .room==$r and .judge_blinded==true and .judge_blinded_catch==false' \
+  "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: mixed positional + judge-* kw-args broke"; exit 1; }

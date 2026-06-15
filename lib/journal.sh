@@ -38,39 +38,146 @@ set -euo pipefail
 JOURNAL="${AGENT_FLEET_JOURNAL:-$HOME/.claude/agent-fleet-journal.jsonl}"
 ac_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 cmd="${1:-}"; shift || true
+
+print_help() {
+  cat <<'HELP'
+Usage: journal.sh <subcommand> [args]
+
+Subcommands:
+  append [options]            record a council run (see below)
+  append-judge-only ...       record a judge-only row (used when journal.sh append failed but
+                              blind-judge.sh judge ran; writes self-report fields as NULL)
+  stats [N]                   print catch-rate / false-alarm / gate verdict (last N runs; 0=all)
+  --help                      this message
+
+journal.sh append (kw-args form, PREFERRED):
+  --room <slug>                e.g. council-foo
+  --task <task>
+  --solo <text>                operator's pre-council decision + risks-they-already-saw
+  --personas <a,b,c>           comma-separated
+  --net-new-catch true|false   did the council surface a net-new issue?
+  --acted-on true|false        did the operator act on the council's finding?
+  --note <text>                catch-note (optional)
+  --dismissed-count <int>      issues raised but dismissed as noise (default 0)
+  --lens-baseline true|false   did this run produce a same-lenses single-pass baseline? (default false)
+  --council-beat-baseline <bool|null>  did the council beat the baseline? (default null)
+  --issues-raised <int>        total issues raised by the council (default 0)
+  --run-kind code|design|investigation  (default code)
+  --judge-blinded true|false   was this run blinded-judged?
+  --judge-catch true|false|null  judge's NET_NEW_CATCH answer
+  --judge-why <text>           judge's WHY one-liner
+  --judge-evidence <text>      judge's EVIDENCE verbatim quote (when catch=true)
+  --judge-implied-by <text>    judge's IMPLIED_BY (when claiming closely-implied)
+  --judge-reasoning <text>     judge's REASONING scratchpad (audit-only)
+  --judge-dissent-diff <text>  judge's DISSENT_DIFF scratchpad (audit-only)
+  --judge-model-family <str>   self-reported model family (claude|gpt|gemini|other|...)
+  --judge-prompt-version <vN>  rubric version that was used
+  --judge-template-sha256 <hex>  drift-detection hash of the rubric template
+  --judge-render-sha256 <hex>    per-call audit hash of the full prepared prompt
+  --solo-decision-word-count <int>   confound; auto-computed from --solo if 0
+  --synthesis-word-count <int>      confound; auto-computed from transcript if 0
+
+journal.sh append (LEGACY positional form, still supported):
+  journal.sh append <room> <task> <solo> <personas> <net_new_catch> <note> \
+                    <acted_on> <dismissed_count> \
+                    [lens_baseline] [council_beat_baseline] [issues_raised] [run_kind] \
+                    [--judge-* kw-args after position 12]
+  Up to 12 positional args plus narrow --judge-* extension.
+
+Examples:
+  journal.sh append --room council-foo --task foo --solo "ship as-is" \
+    --personas ml-scientist,ab-critic --net-new-catch true --acted-on true \
+    --issues-raised 3 --run-kind design
+HELP
+}
+
+# Top-level --help / -h
+if [ "$cmd" = "--help" ] || [ "$cmd" = "-h" ]; then print_help; exit 0; fi
+
 case "$cmd" in
   append)
-    room="${1:?room (use 'council-<slug>')}"; task="${2:?}"; solo="${3:?}"; personas="${4:?}"
-    catch="${5:?}"; note="${6:-}"; acted="${7:?}"; dis="${8:-0}"
-    base_run="${9:-false}"; beat="${10:-null}"; raised="${11:-0}"; kind="${12:-code}"
-    # Parse --judge-* kw-args ONLY (narrow scope per PLAN Rev 2 Chunk 1)
-    # Args 13+ are treated as kw-args
+    # Detect invocation style: if the FIRST argument starts with '--', this is a kw-args call.
+    # Otherwise it's the legacy 12-positional form. Both shapes set the same internal variables
+    # and fall through to the shared validation + write block below. Closes #3.
+    room=""; task=""; solo=""; personas=""
+    catch=""; note=""; acted=""; dis="0"
+    base_run="false"; beat="null"; raised="0"; kind="code"
     judge_blinded=false; judge_catch=null; judge_why=""; judge_evidence=""
     judge_implied_by=""; judge_reasoning=""; judge_dissent_diff=""
     judge_model_family=""; judge_prompt_version=""
     judge_template_sha256=""; judge_render_sha256=""
     solo_wc=0; synth_wc=0
-    # Shift away first 12 positional args; handle case where <12 were provided
-    shift_n=12; [ $# -lt 12 ] && shift_n=$#
-    shift $shift_n
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        --judge-blinded) judge_blinded="$2"; shift 2;;
-        --judge-catch) judge_catch="$2"; shift 2;;
-        --judge-why) judge_why="$2"; shift 2;;
-        --judge-evidence) judge_evidence="$2"; shift 2;;
-        --judge-implied-by) judge_implied_by="$2"; shift 2;;
-        --judge-reasoning) judge_reasoning="$2"; shift 2;;
-        --judge-dissent-diff) judge_dissent_diff="$2"; shift 2;;
-        --judge-model-family) judge_model_family="$2"; shift 2;;
-        --judge-prompt-version) judge_prompt_version="$2"; shift 2;;
-        --judge-template-sha256) judge_template_sha256="$2"; shift 2;;
-        --judge-render-sha256) judge_render_sha256="$2"; shift 2;;
-        --solo-decision-word-count) solo_wc="$2"; shift 2;;
-        --synthesis-word-count) synth_wc="$2"; shift 2;;
-        *) echo "journal: unknown flag '$1' (only --judge-* and word-count flags accepted)" >&2; exit 1;;
-      esac
-    done
+
+    if [ $# -gt 0 ] && [ "${1#--}" != "$1" ]; then
+      # Pure kw-args invocation. Each --flag has a value (no boolean-style --net-new shorthand;
+      # value strings stay 'true'/'false' for back-compat with how positional args are passed).
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --room) room="$2"; shift 2;;
+          --task) task="$2"; shift 2;;
+          --solo|--solo-decision) solo="$2"; shift 2;;
+          --personas) personas="$2"; shift 2;;
+          --net-new-catch|--catch) catch="$2"; shift 2;;
+          --note|--catch-note) note="$2"; shift 2;;
+          --acted-on) acted="$2"; shift 2;;
+          --dismissed-count) dis="$2"; shift 2;;
+          --lens-baseline|--lens-baseline-run) base_run="$2"; shift 2;;
+          --council-beat-baseline) beat="$2"; shift 2;;
+          --issues-raised) raised="$2"; shift 2;;
+          --run-kind) kind="$2"; shift 2;;
+          --judge-blinded) judge_blinded="$2"; shift 2;;
+          --judge-catch) judge_catch="$2"; shift 2;;
+          --judge-why) judge_why="$2"; shift 2;;
+          --judge-evidence) judge_evidence="$2"; shift 2;;
+          --judge-implied-by) judge_implied_by="$2"; shift 2;;
+          --judge-reasoning) judge_reasoning="$2"; shift 2;;
+          --judge-dissent-diff) judge_dissent_diff="$2"; shift 2;;
+          --judge-model-family) judge_model_family="$2"; shift 2;;
+          --judge-prompt-version) judge_prompt_version="$2"; shift 2;;
+          --judge-template-sha256) judge_template_sha256="$2"; shift 2;;
+          --judge-render-sha256) judge_render_sha256="$2"; shift 2;;
+          --solo-decision-word-count) solo_wc="$2"; shift 2;;
+          --synthesis-word-count) synth_wc="$2"; shift 2;;
+          --help|-h) print_help; exit 0;;
+          *) echo "journal: unknown flag '$1'" >&2; exit 1;;
+        esac
+      done
+      # Validate required fields in kw-args mode
+      [ -n "$room" ]    || { echo "journal: --room required" >&2; exit 1; }
+      [ -n "$task" ]    || { echo "journal: --task required" >&2; exit 1; }
+      [ -n "$solo" ]    || { echo "journal: --solo required" >&2; exit 1; }
+      [ -n "$personas" ] || { echo "journal: --personas required" >&2; exit 1; }
+      [ -n "$catch" ]   || { echo "journal: --net-new-catch required" >&2; exit 1; }
+      [ -n "$acted" ]   || { echo "journal: --acted-on required" >&2; exit 1; }
+    else
+      # Legacy positional invocation. Asserting #<=24 (12 positional + up to 12 narrow
+      # --judge-* kw-args) so a future 13th positional fails loudly instead of being parsed
+      # as a kw-args value.
+      room="${1:?room (use 'council-<slug>')}"; task="${2:?}"; solo="${3:?}"; personas="${4:?}"
+      catch="${5:?}"; note="${6:-}"; acted="${7:?}"; dis="${8:-0}"
+      base_run="${9:-false}"; beat="${10:-null}"; raised="${11:-0}"; kind="${12:-code}"
+      # Parse --judge-* kw-args AFTER position 12 (narrow scope kept for PLAN Rev 2 callers)
+      shift_n=12; [ $# -lt 12 ] && shift_n=$#
+      shift $shift_n
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --judge-blinded) judge_blinded="$2"; shift 2;;
+          --judge-catch) judge_catch="$2"; shift 2;;
+          --judge-why) judge_why="$2"; shift 2;;
+          --judge-evidence) judge_evidence="$2"; shift 2;;
+          --judge-implied-by) judge_implied_by="$2"; shift 2;;
+          --judge-reasoning) judge_reasoning="$2"; shift 2;;
+          --judge-dissent-diff) judge_dissent_diff="$2"; shift 2;;
+          --judge-model-family) judge_model_family="$2"; shift 2;;
+          --judge-prompt-version) judge_prompt_version="$2"; shift 2;;
+          --judge-template-sha256) judge_template_sha256="$2"; shift 2;;
+          --judge-render-sha256) judge_render_sha256="$2"; shift 2;;
+          --solo-decision-word-count) solo_wc="$2"; shift 2;;
+          --synthesis-word-count) synth_wc="$2"; shift 2;;
+          *) echo "journal: unknown flag '$1' (legacy positional mode accepts only --judge-* and word-count kw-args)" >&2; exit 1;;
+        esac
+      done
+    fi
     # Auto-compute word counts if not provided (per council MAJOR, data-engineer)
     [ "$solo_wc" -gt 0 ] || solo_wc=$(echo "$solo" | wc -w | tr -d ' ')
     if [ "$synth_wc" -eq 0 ]; then
