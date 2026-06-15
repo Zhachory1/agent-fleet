@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-EXPECTED=(ml-scientist ab-critic reliability-sentinel software-architect generalist-swe red-team \
-  data-engineer perf-engineer product-pm cost-finops docs-dx pre-mortem cto ceo vp-eng \
-  mvp)
+CORE=(ml-scientist ab-critic reliability-sentinel software-architect generalist-swe red-team)
+EXPERIMENTAL=(data-engineer perf-engineer product-pm cost-finops docs-dx pre-mortem cto ceo vp-eng mvp)
+EXPECTED=("${CORE[@]}" "${EXPERIMENTAL[@]}")
 fail=0
 for name in "${EXPECTED[@]}"; do
   f="$DIR/agents/$name.md"
@@ -17,4 +17,22 @@ for name in "${EXPECTED[@]}"; do
   grep -qi 'agree, refute, or sharpen' "$f" && { echo "FAIL: $name has stale soft round-2 line"; fail=1; }
   grep -q "REFUTE FIRST" "$f" || { echo "FAIL: $name missing REFUTE FIRST reflection alignment"; fail=1; }
 done
+
+# Issue #9: surface (experimental) tag on persona descriptions so selection UIs that read
+# frontmatter (not INDEX.md) carry the warning. Invariant:
+#   Core Six persona description MUST NOT start with '[experimental]'
+#   Experimental persona description MUST start with '[experimental]'
+for name in "${CORE[@]}"; do
+  f="$DIR/agents/$name.md"
+  if grep -q '^description:.*\[experimental\]' "$f"; then
+    echo "FAIL: $name is Core but description starts with [experimental]"; fail=1
+  fi
+done
+for name in "${EXPERIMENTAL[@]}"; do
+  f="$DIR/agents/$name.md"
+  if ! grep -q '^description:[^\n]*\[experimental\]' "$f"; then
+    echo "FAIL: $name is experimental but description does not carry [experimental] tag"; fail=1
+  fi
+done
+
 [ "$fail" = "0" ] && echo "PASS test_agents_load" || exit 1
