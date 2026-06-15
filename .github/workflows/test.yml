@@ -34,6 +34,25 @@ jobs:
           done
           exit $fail
 
+      - name: overlay templates lint (issue #12 acceptance)
+        # Per #12: PRs that add per-org overlay templates (issue #4) must go through
+        # overlay.sh lint before merging. The lint is advisory — it always exits 0 — but
+        # findings are printed in the CI log for reviewer attention. The example overlay
+        # itself is exempt: it carries deliberate warning content that would otherwise
+        # trip the lint's own patterns.
+        run: |
+          shopt -s nullglob
+          for f in agents/_overlay.example/*.md; do
+            echo "=== lint: $f ==="
+            bash lib/overlay.sh lint "$f"
+          done
+          # Also lint the example file itself, but tolerate findings
+          # (the file's threat-model preamble may trip the lint by design).
+          if [ -f agents/_overlay.md.example ]; then
+            echo "=== lint (informational): agents/_overlay.md.example ==="
+            bash lib/overlay.sh lint agents/_overlay.md.example || true
+          fi
+
   shellcheck:
     runs-on: ubuntu-latest
     steps:
