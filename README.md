@@ -72,9 +72,9 @@ prior positions, must refute before conceding) is what distinguishes a council f
 the same question and average." Red-team carries a hardened concession rule. Full design
 rationale: [`docs/PRD.md`](docs/PRD.md), [`docs/DD.md`](docs/DD.md).
 
-## The personas (15 total — see [`agents/INDEX.md`](agents/INDEX.md))
+## The personas (16 total — see [`agents/INDEX.md`](agents/INDEX.md))
 
-**Core six** (n≥18 validation runs):
+**Core six** (n≥18 validation runs each):
 
 | Persona | Lens | Catches |
 |---|---|---|
@@ -85,11 +85,34 @@ rationale: [`docs/PRD.md`](docs/PRD.md), [`docs/DD.md`](docs/DD.md).
 | `generalist-swe` | pragmatic IC | simplicity, over-engineering, correctness, edge cases |
 | `red-team` | adversary | strongest case against, hand-waved assumptions, what breaks first |
 
-Plus 9 [experimental] personas (data/perf/product/cost/docs-dx + pre-mortem + cto/ceo/vp-eng +
-mvp) — see [`agents/INDEX.md`](agents/INDEX.md) for the catalog, overlap matrix, and the
-selection decision tree. Frontmatter detail (the `model: sonnet` field is Claude-Code-specific
-metadata; strip it from your local copy if your tool errors on unknown frontmatter) is in
-[AGENTS.md](AGENTS.md).
+**Experimental ten** (added 2026-06; not yet promoted to Core — promotion criterion is ≥3
+logged real runs with `acted_on=true` per [`agents/INDEX.md`](agents/INDEX.md), which most
+haven't hit yet; descriptions are `[experimental]`-prefixed in the YAML frontmatter so any
+selection UI carries the warning):
+
+| Persona | Group | Lens | Catches |
+|---|---|---|---|
+| `data-engineer` | domain | pipelines-first | idempotency, schema evolution, lineage, backfills, late-data |
+| `perf-engineer` | domain | tail-latency-first | p99, allocation pressure, algorithmic complexity, caching, I/O patterns |
+| `product-pm` | domain | user-value-first | problem clarity, scope, outcome-vs-output, adoption story, reversibility |
+| `cost-finops` | domain | unit-economics-first | $/req, capacity, vendor lock, hidden costs, build-vs-buy TCO |
+| `docs-dx` | domain | developer-experience-first | API ergonomics, error messages, onboarding friction, examples |
+| `pre-mortem` | adversarial | reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors |
+| `mvp` | adversarial | smallest-real-signal advocate | scope creep, polish creep, severity inflation across review rounds, two-way-door reversibility |
+| `cto` | executive | 3–5 year platform/tech arc | strategic fit, stack coherence, migration asymmetry, talent/hire, one-way doors |
+| `ceo` | executive | strategy and narrative | why-this-why-now, opportunity cost, differentiation, brand, first-customer |
+| `vp-eng` | executive | capacity and execution | who actually does this, sequencing, hiring-assumption risk, opportunity cost |
+
+The **adversarial pair `red-team` + `pre-mortem`** are methodologically distinct (red-team
+attacks the artifact as written; pre-mortem assumes it shipped + failed and reasons backward).
+The **`mvp` persona is deliberately oppositional** to red-team + pre-mortem: they find more
+risks, mvp cuts non-blocking scope. Picking mvp WITH either of them for any decision that's
+been through 2+ review rounds gives the reflection debate a real argument to resolve.
+
+Full catalog with overlap matrix + selection decision tree + persona-pairing recommendations:
+[`agents/INDEX.md`](agents/INDEX.md). Frontmatter detail (the `model: sonnet` field is
+Claude-Code-specific metadata; strip it from your local copy if your tool errors on unknown
+frontmatter) is in [AGENTS.md](AGENTS.md).
 
 ## What you get depends on your tool
 
