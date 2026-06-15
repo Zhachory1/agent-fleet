@@ -49,4 +49,11 @@ echo "$MOUT" | grep -cq '── round' && [ "$(echo "$MOUT" | grep -c '── ro
 NR=neg-room
 printf '@@from: persona#hashtag\nverdict: SHIP\n' | "$DIR/lib/transcript.sh" capture "$NR"
 "$DIR/lib/transcript.sh" show "$NR" | grep -qE '── round [0-9]+ ──' && { echo "FAIL: #hashtag misread as round"; exit 1; } || true
+
+# Chunk 7: blind-judge entries render with a distinct marker
+BJ=blind-judge-rendering-room
+printf '@@from: blind-judge#judge-1\nNET_NEW_CATCH: true\nWHY: y\n' | "$DIR/lib/transcript.sh" capture "$BJ"
+BJSHOW="$("$DIR/lib/transcript.sh" show "$BJ")"
+if ! grep -q '⚖ JUDGE 1' <<<"$BJSHOW"; then echo "FAIL: blind-judge entry not rendered with distinct ⚖ JUDGE marker"; echo "---"; echo "$BJSHOW"; exit 1; fi
+if grep -q '┌─ \[blind-judge' <<<"$BJSHOW"; then echo "FAIL: blind-judge rendered with normal box-drawing chars"; exit 1; fi
 echo "PASS test_transcript"
