@@ -56,3 +56,44 @@ echo "$OUT" | grep -q "runs by kind       : code=2, design=0, investigation=1" |
 export AGENT_FLEET_JOURNAL="$(mktemp -d)/empty.jsonl"; touch "$AGENT_FLEET_JOURNAL"
 "$DIR/lib/journal.sh" stats | grep -q "no runs logged yet" || { echo "FAIL: empty-journal stats not graceful"; exit 1; }
 echo "PASS test_journal"
+
+# Rev 3 schema: 13 new blinded-judge fields default to legacy-compat values when missing.
+# Existing rows (before this commit) MUST continue to parse with all defaults populated.
+LEGACY='{"ts":"2026-06-01T00:00:00Z","room":"c-legacy","task":"old","solo_decision":"s",
+         "personas":["x"],"net_new_catch":true,"catch_note":"","acted_on":true,
+         "dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,
+         "issues_raised":0,"run_kind":"code"}'
+echo "$LEGACY" > /tmp/journal-legacy.jsonl
+# stats must report 'blinded-judge sample : 0 of 1 runs judged' for legacy-only data
+OUT=$(AGENT_FLEET_JOURNAL=/tmp/journal-legacy.jsonl bash "$DIR/lib/journal.sh" stats)
+echo "$OUT" | grep -q 'blinded-judge sample : 0 of 1' || { echo "FAIL: stats new-arm legacy: $OUT"; exit 1; }
+echo "$OUT" | grep -qi 'calibration phase' || { echo "FAIL: stats calibration-phase label missing: $OUT"; exit 1; }
+
+# new fields write through append
+ROOM_J=council-judged-row
+"$DIR/lib/transcript.sh" capture "$ROOM_J" <<<"@@from: a
+verdict: BLOCK"
+"$DIR/lib/journal.sh" append "$ROOM_J" "j" "solo" "a" true "n" true 1 false null 3 code \
+  --judge-blinded true --judge-catch true --judge-why "found leakage" \
+  --judge-evidence "ml-scientist: train/serve skew detected" \
+  --judge-model-family claude --judge-prompt-version v2 \
+  --judge-template-sha256 deadbeef --judge-render-sha256 cafef00d \
+  --judge-reasoning "two-clause materiality holds" --judge-dissent-diff "- (none)" \
+  --solo-decision-word-count 1 --synthesis-word-count 5
+jq -se '.[-1] | .judge_blinded==true and .judge_blinded_catch==true and .judge_evidence!="" and
+        .judge_prompt_version=="v2" and .judge_reasoning!="" and .judge_dissent_diff!="" and
+        .synthesis_word_count==5' "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: new judge_* fields not written through append"; exit 1; }
+
+# judge-only row (no preceding self-report append): write a fresh row with self-report null
+ROOM_K=council-judge-only
+"$DIR/lib/transcript.sh" capture "$ROOM_K" <<<"@@from: a
+verdict: SHIP"
+"$DIR/lib/journal.sh" append-judge-only "$ROOM_K" "k" \
+  --judge-blinded true --judge-catch false --judge-why "covered by solo" \
+  --judge-model-family gpt --judge-prompt-version v2 \
+  --judge-template-sha256 deadbeef --judge-render-sha256 baadf00d \
+  --judge-reasoning "solo already named the issue" --judge-dissent-diff "- (none)"
+jq -se '.[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and .room=="'"$ROOM_K"'"' \
+  "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: judge-only row should have judge_blinded=true and self-report fields=null"; exit 1; }
