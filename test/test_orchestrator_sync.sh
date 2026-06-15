@@ -20,4 +20,23 @@ done
 for f in "$A" "$B"; do
   grep -qF 'rooms/council-<slug>/artifact.txt' "$f" || { echo "FAIL: $(basename "$f") missing FR9 durable artifact path"; exit 1; }
 done
+# Selection-table parity: every persona file in agents/ should be referenced in BOTH orchestrator
+# files OR in NEITHER (asymmetric mention = a persona was added/renamed in one file but not the
+# other). Catches the class of drift that occurred when occams-razor was added to the portable
+# prompt's selection table but not to SKILL.md's. Uses whole-word match to avoid 'mvp' substring
+# hits inside 'mvp-something' should that ever exist.
+fail=0
+for pf in "$DIR"/agents/*.md; do
+  name=$(basename "$pf" .md)
+  case "$name" in INDEX|_overlay.md.example) continue ;; esac
+  in_a=0; in_b=0
+  grep -qE "(^|[^a-zA-Z0-9_-])${name}([^a-zA-Z0-9_-]|$)" "$A" && in_a=1
+  grep -qE "(^|[^a-zA-Z0-9_-])${name}([^a-zA-Z0-9_-]|$)" "$B" && in_b=1
+  if [ "$in_a" != "$in_b" ]; then
+    echo "FAIL: persona '$name' referenced in $([ "$in_a" = 1 ] && echo SKILL.md || echo portable-prompt) but NOT in $([ "$in_a" = 1 ] && echo portable-prompt || echo SKILL.md)"
+    echo "       This is selection-table drift — the two orchestrators must agree on which personas exist."
+    fail=1
+  fi
+done
+[ "$fail" = 0 ] || exit 1
 echo "PASS test_orchestrator_sync"
