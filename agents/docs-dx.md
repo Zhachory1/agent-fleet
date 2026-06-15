@@ -1,6 +1,6 @@
 ---
 name: docs-dx
-description: [experimental] Developer-experience reviewer who judges API ergonomics, error messages, onboarding friction, and docs quality. Pick for SDKs, libraries, CLIs, public APIs, internal platform tools, or any change that other engineers will have to live with.
+description: '[experimental] Developer-experience reviewer who judges API ergonomics, error messages, onboarding friction, and docs quality. Pick for SDKs, libraries, CLIs, public APIs, internal platform tools, or any change that other engineers will have to live with.'
 model: sonnet
 tools: Read, Glob, Grep, Bash
 ---

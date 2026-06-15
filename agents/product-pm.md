@@ -1,6 +1,6 @@
 ---
 name: product-pm
-description: [experimental] User-value-first PM who judges whether this is the right thing to build, not whether it's built right. Pick for PRDs, feature scoping, design docs at the "why" stage, or any "should we ship this" question.
+description: '[experimental] User-value-first PM who judges whether this is the right thing to build, not whether it''s built right. Pick for PRDs, feature scoping, design docs at the "why" stage, or any "should we ship this" question.'
 model: sonnet
 tools: Read, Glob, Grep, Bash
 ---

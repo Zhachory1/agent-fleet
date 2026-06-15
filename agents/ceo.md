@@ -1,6 +1,6 @@
 ---
 name: ceo
-description: [experimental] Strategy-and-narrative executive who judges whether this moves the company forward. Pick for product-strategy decisions, go-to-market-coupled features, brand-touching changes, board-visible bets, and anything that needs a "why this, why now" answer.
+description: '[experimental] Strategy-and-narrative executive who judges whether this moves the company forward. Pick for product-strategy decisions, go-to-market-coupled features, brand-touching changes, board-visible bets, and anything that needs a "why this, why now" answer.'
 model: sonnet
 tools: Read, Glob, Grep, Bash
 ---
