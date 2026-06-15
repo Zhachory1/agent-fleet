@@ -1,0 +1,192 @@
+═══ council transcript: council-checkout-express-path ═══
+
+── round 1 ──
+┌─ [reliability-sentinel]  2026-06-15T12:00:00Z
+│ POSITION (persona: reliability-sentinel)
+│ - verdict: SHIP-WITH-CHANGES
+│ - top_issues:
+│   - [MAJOR] kill-switch semantics: when the flag flips off, what happens to in-flight
+│     requests that have ALREADY entered the express path? If they continue, the
+│     "kill-switch" only affects NEW requests — the bad batch (whatever made you flip it)
+│     is still draining through validation-bypass for the remaining latency budget.
+│     evidence: PRD §Rollback plan says "flip the flag off via internal admin tool" but
+│     doesn't say whether the read is sampled per-request, per-connection, or per-process.
+│     fix: spec the read granularity explicitly. Per-request flag read is safer (a flip
+│     interrupts every new validator-bypass decision) but adds ~1µs per request to read
+│     the flag. Per-connection caching is faster but means a kill-switch can't fully
+│     interrupt for the duration of the longest connection lifetime.
+│   - [MINOR] kill-switch latency target is "<30s" — is that the propagation time for the
+│     flag-store, or the time for all in-flight express-path requests to drain?
+│     The two are different numbers and the PRD conflates them.
+│ - strongest_counterargument: the worst case is 30s of validator-bypass continuing after
+│   a flip. That's bounded; the fraud window from 30s of bad checkouts is finite. Maybe
+│   acceptable depending on the fraud-rate baseline.
+│ - confidence: high
+│ - one_line: kill-switch granularity unspecified — could leave validator-bypass running
+│   for the full connection lifetime after a flip.
+└─
+
+┌─ [software-architect]  2026-06-15T12:00:00Z
+│ POSITION (persona: software-architect)
+│ - verdict: SHIP-WITH-CHANGES
+│ - top_issues:
+│   - [MAJOR] "A/B comparison" is underspecified. Per-customer (each customer is in
+│     control OR treatment for the duration of the experiment) and per-request (each
+│     request independently flagged) measure different things. Per-request gives you
+│     latency-of-the-bypass-itself; per-customer gives you the customer-experience
+│     delta. The PRD §Acceptance asks for both p50/p95 AND new-customer error rate but
+│     doesn't say which assignment unit either uses.
+│     evidence: PRD §Acceptance has "A/B comparison after rollout: latency p50/p95 on
+│     returning customers, before vs after."  "before vs after" is a longitudinal
+│     comparison, not A/B. Confounded by anything else changing in production over the
+│     measurement window.
+│     fix: clarify in PRD. Recommend per-customer assignment for the headline metric
+│     (cleaner causal claim) + per-request for the latency-of-bypass micro-benchmark.
+│   - [MINOR] the bypass point sits inside checkout() which is one function. Putting the
+│     bypass at the top is fine for now but couples the "express path" decision to the
+│     same module as the validators it skips. If a future change adds a third validator
+│     conditional on customer attributes, the bypass logic and the new validator can
+│     drift apart silently. Worth noting.
+│ - strongest_counterargument: PRD says the change is bounded and reversible. Maybe the
+│   A/B underspecification is acceptable because we can clarify in the rollout doc rather
+│   than the PRD.
+│ - confidence: med
+│ - one_line: "A/B comparison" actually a before/after; per-customer vs per-request
+│   assignment unconfirmed.
+└─
+
+┌─ [generalist-swe]  2026-06-15T12:00:00Z
+│ POSITION (persona: generalist-swe)
+│ - verdict: SHIP
+│ - top_issues:
+│   - [MINOR] the operator already noted "code review discipline + comment at bypass
+│     site" as a mitigation for validator drift. That's the right call but it's process,
+│     not code. A more robust version is a structural marker: e.g., a comment + a unit
+│     test that asserts "every validator in the new-accounts-only group MUST be in this
+│     list" — so adding a new validator without updating the list fails CI.
+│   - [MINOR] the metric `checkout_express_path_ratio` is good but it's a ratio, not a
+│     count. If the customer base shifts (more new signups, e.g., after a marketing push),
+│     the ratio drops without anything actually changing in the bypass behavior. Want
+│     also a raw count of bypass operations per minute so the absolute volume is visible.
+│ - strongest_counterargument: these are nice-to-haves, not BLOCKERs. The PRD is
+│   shippable as-is for v1.
+│ - confidence: high
+│ - one_line: ship as-is; two low-cost hardening additions (structural-marker test,
+│   absolute-count metric) worth adding.
+└─
+
+┌─ [red-team]  2026-06-15T12:00:00Z
+│ POSITION (persona: red-team)
+│ - verdict: BLOCK
+│ - top_issues:
+│   - [BLOCKER] "returning customer" is a MUTABLE label. An admin can revert an account
+│     from "returning" to "new" via fraud-reversal flow or GDPR deletion. What happens to
+│     an in-flight checkout that READ the customer as "returning" at the pre-check, took
+│     the express path, and is mid-bypass when the admin action lands? At minimum we
+│     have a checkout that bypassed the new-account fraud check on what is now
+│     classified as a new account. At worst we have a checkout that should have been
+│     blocked entirely.
+│     evidence: PRD §Proposal: "A pre-check at the top of checkout() looks at the
+│     customer record." The customer record is mutable. Nothing in the PRD addresses
+│     the in-flight mutation case.
+│     fix: either (a) re-read the customer record AFTER each validator is skipped (negates
+│     most of the latency win), (b) snapshot the customer state at pre-check + audit-log
+│     the snapshot vs final state at order-write time, with a post-hoc reconciliation
+│     job for mismatches, or (c) explicitly accept the race as "acceptable for the latency
+│     win" and document it in the rollback plan.
+│   - [MAJOR] kill-switch is asserted to work in <30s but no test for it exists in the
+│     acceptance. The operator who SAYS the kill-switch works has not VERIFIED the
+│     kill-switch works. PRD-as-written assumes the rollback path is correct without
+│     ever requiring a test.
+│     fix: add "kill-switch verified by manual flip in staging with 1 RPS of returning-
+│     customer traffic; assert express-path requests stop within N seconds" to acceptance.
+│ - strongest_counterargument: the mutable-customer-state race is a real failure mode but
+│   the operator's mitigation list does mention "code review discipline." If reviewers
+│   are watching for this class of issue, the race becomes a near-zero-likelihood event.
+│ - confidence: high
+│ - one_line: "returning customer" is a mutable label; in-flight admin action can flip it
+│   mid-checkout AND nothing in the PRD addresses this. Kill-switch is asserted but never
+│   tested.
+└─
+
+
+── round 2 ──
+┌─ [reliability-sentinel]  2026-06-15T12:00:00Z
+│ REFUTE FIRST: red-team's MAJOR on kill-switch-without-test directly overlaps my MAJOR
+│ on kill-switch-granularity-unspecified. We're flagging different aspects of the same
+│ gap. Their fix (require a verified test) is a stronger version of mine.
+│
+│ CONCEDE: red-team's BLOCKER on the mutable-customer-state race is a failure mode I
+│ missed in r1. It compounds my kill-switch concern: even if the kill-switch is
+│ correctly tested, the in-flight-state-mutation race is independent of the flag flip.
+│
+│ HOLD: kill-switch granularity finding. Upgrade severity to BLOCKER alongside red-team's.
+│
+│ POSITION (persona: reliability-sentinel) #r2
+│ - verdict: BLOCK
+│ - top_issues:
+│   - [BLOCKER] kill-switch granularity unspecified — escalated from MAJOR per red-team
+│     compound argument.
+│   - [BLOCKER] mutable-customer-state race (red-team r1) — yes, this fires through the
+│     same hot path my granularity finding addresses.
+│ - reflection: red-team's mutable-state finding made me re-read the PRD and realize the
+│   express-path-with-state-mutation is the actual blast surface.
+└─
+
+┌─ [software-architect]  2026-06-15T12:00:00Z
+│ REFUTE FIRST: red-team's BLOCKER on mutable-state — fair finding but the
+│ recommended fix (re-read after each validator) destroys the latency win the PRD
+│ exists to capture. The audit-log + reconciliation approach is correct middle ground.
+│
+│ CONCEDE: my "A/B vs before/after" finding doesn't change verdict but is correct;
+│ generalist-swe's structural-marker-test is also a good addition.
+│
+│ HOLD: SHIP-WITH-CHANGES verdict; the architectural concerns I raised are doc-level,
+│ not blocking.
+│
+│ POSITION (persona: software-architect) #r2
+│ - verdict: SHIP-WITH-CHANGES (unchanged)
+│ - reflection: absorbed red-team's mutable-state finding into the architectural surface;
+│   fix shape is audit-log + reconciliation (option b).
+└─
+
+┌─ [generalist-swe]  2026-06-15T12:00:00Z
+│ REFUTE FIRST: red-team's mutable-state BLOCKER is technically correct but
+│ probability-weighted, the admin-flips-customer-mid-checkout race fires ~0 times per
+│ year in practice. The fraud-reversal flow is itself slow (manual review); the GDPR
+│ deletion flow has its own lock.
+│
+│ CONCEDE: my MINORs stand; nothing else from r1 needs adjustment.
+│
+│ HOLD: SHIP verdict.
+│
+│ POSITION (persona: generalist-swe) #r2
+│ - verdict: SHIP (unchanged)
+│ - reflection: red-team's finding is real but my pragmatic-probability estimate says
+│   it's near-zero. Worth a comment in the code; not blocking.
+└─
+
+┌─ [red-team]  2026-06-15T12:00:00Z
+│ REFUTE FIRST: gen-swe's "near-zero probability" steelman of my mutable-state finding
+│ is exactly the steelman I'd attack. "Fraud reversal is slow" — yes, manual review
+│ takes hours; the racy WINDOW is when the reversal completes and the customer is
+│ flagged as new just as a parallel checkout reads them as returning. The window is
+│ small but EXISTS and has no detection mechanism in the PRD.
+│
+│ I MAY NOT CONCEDE without citing a specific factual error in my OWN r1.
+│ Re-reading: I claimed "in-flight checkout that READ the customer as returning at the
+│ pre-check, took the express path, and is mid-bypass when the admin action lands."
+│ The PRD doesn't actually say WHERE the read happens. If the read is at the start of
+│ checkout() AND the admin action is database-level, the race is real but bounded by
+│ the checkout() function's runtime (~tens of ms for the express path). Not a factual
+│ error in my r1; my finding stands.
+│
+│ HOLD: BLOCKER on mutable-state race. Reliability-sentinel agreed; software-architect
+│ proposed audit-log mitigation which I endorse.
+│
+│ POSITION (persona: red-team) #r2
+│ - verdict: BLOCK (unchanged)
+│ - reflection: gen-swe's probability argument is fair but the failure mode is
+│   undetected if it fires. Audit-log + reconciliation gives detection, which is what
+│   moves this from BLOCK to SHIP-WITH-CHANGES.
+└─

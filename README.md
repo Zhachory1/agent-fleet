@@ -146,6 +146,17 @@ Useful, often still finds things — but the validation gate scores it according
 
 ---
 
+## Worked example (read before installing)
+
+[`examples/first-council/`](examples/first-council/) is a complete, runnable council on a
+realistic PRD (feature-flag-gated checkout express path). It includes the input artifact, the
+operator's pre-council solo decision, the per-persona POSITION blocks from a 2-round debate, the
+final synthesis with verdict + ranked issues + named dissents, and a **net-new-vs-solo** table
+showing what the council surfaced that the solo decision didn't.
+
+The canned `run.sh` reproduces the capture + journal + render mechanics in an isolated tmpdir
+(your real journal stays untouched). Read it before deciding whether to install.
+
 ## Install
 
 ### Claude Code (recommended — full council)
