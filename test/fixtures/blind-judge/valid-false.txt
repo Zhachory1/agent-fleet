@@ -1,0 +1,6 @@
+===JUDGE OUTPUT===
+REASONING: Each council finding is either already named in SOLO_DECISION or fails the materiality test.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: false
+WHY: closest pair: synthesis's "train/serve skew" matches solo's "feature drift between offline and online"
+===END===

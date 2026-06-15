@@ -1,0 +1,6 @@
+===JUDGE OUTPUT===
+REASONING: already implied in solo.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: false
+WHY: closest pair: synthesis was already implied by the solo's "we already considered drift" line
+===END===

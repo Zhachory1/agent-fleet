@@ -1,0 +1,7 @@
+===JUDGE OUTPUT===
+REASONING: r.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: true
+WHY: copying op synth as a shortcut.
+EVIDENCE: 1. [BLOCKER] train/serve skew detected
+===END===

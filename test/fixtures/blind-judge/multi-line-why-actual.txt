@@ -1,0 +1,8 @@
+===JUDGE OUTPUT===
+REASONING: r.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: false
+WHY: this is sentence one.
+also this is sentence two.
+EVIDENCE: should-not-be-here
+===END===

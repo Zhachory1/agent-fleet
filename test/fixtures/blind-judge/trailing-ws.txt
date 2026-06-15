@@ -1,0 +1,7 @@
+===JUDGE OUTPUT===
+REASONING: The synthesis surfaces a calibration drift the solo did not name; clause (a) and (b) of materiality both hold (engineer would change rollout; postmortem would cite).
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: true   
+WHY: ml-scientist flagged a calibration drift in the ranker that the operator did not include in pre-decision risks.
+EVIDENCE: - [BLOCKER] calibration drift in ranker after retraining
+===END===
