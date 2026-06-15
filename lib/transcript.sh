@@ -65,10 +65,19 @@ $ln"; fi ;;
     | awk -F'\t' '
         BEGIN { prev = "" }
         { r=$1; from=$2; gsub(/#r[0-9]+$/,"",from); ts=$3; text=$4
+          is_judge = (from ~ /^blind-judge#judge-/)
+          if (is_judge) { sub(/^blind-judge#judge-/, "JUDGE ", from) }
           if (r!=prev) { if (r=="0") printf "── round — ──\n"; else printf "── round %s ──\n", r; prev=r }
-          printf "┌─ [%s]  %s\n", from, ts
-          n=split(text, L, /\\n/); for(i=1;i<=n;i++) printf "│ %s\n", L[i]
-          printf "└─\n" }'
+          if (is_judge) {
+            printf "╔═ [⚖ %s]  %s\n", from, ts
+            n=split(text, L, /\\n/); for(i=1;i<=n;i++) printf "║ %s\n", L[i]
+            printf "╚═\n"
+          } else {
+            printf "┌─ [%s]  %s\n", from, ts
+            n=split(text, L, /\\n/); for(i=1;i<=n;i++) printf "│ %s\n", L[i]
+            printf "└─\n"
+          }
+        }'
     ;;
   *) echo "usage: transcript.sh {append <room> <from> <text> | show [room] | rooms}" >&2; exit 1;;
 esac

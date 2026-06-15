@@ -1,0 +1,7 @@
+===JUDGE OUTPUT===
+REASONING: red-team's BLOCKER on rollout-asymmetry is in PERSONA_POSITIONS but absent from OPERATOR_SYNTHESIS.
+DISSENT_DIFF: - red-team: rollout asymmetry across regions is missing from operator synthesis
+NET_NEW_CATCH: true
+WHY: red-team raised a rollout-asymmetry concern that was erased from the operator synthesis.
+EVIDENCE: - [BLOCKER] rollout asymmetry across regions invalidates the SLO claim
+===END===

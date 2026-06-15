@@ -1,0 +1,7 @@
+===JUDGE OUTPUT===
+REASONING: solo covers it.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: false
+WHY: covered already
+EVIDENCE: - [BLOCKER] should not be here
+===END===
