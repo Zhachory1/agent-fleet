@@ -25,8 +25,8 @@ trap 'rm -rf "$TEST_PARENT_TMP"' EXIT
 mktemp_d() { mktemp -d "$TEST_PARENT_TMP/d.XXXXXX"; }
 
 # Set up isolated env
-export AGENT_CHAT_ROOT="$(mktemp_d)"
-export AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"
+AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
+AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"; export AGENT_FLEET_JOURNAL
 ROOM=council-prepare-test
 mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM"
 echo "diff text here" > "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
@@ -118,8 +118,8 @@ expect_fail_msg "phase1-required-on-new-5th-room" "bash '$DIR/lib/blind-judge.sh
 bash "$DIR/lib/blind-judge.sh" prepare "$R5" --phase1 judge-b >/dev/null 2>&1 \
   && note "PASS phase1-judge-b-ok-on-5th-room" || { note "FAIL phase1-judge-b-ok-on-5th-room"; fail=1; }
 # Reset env for downstream tests
-export AGENT_CHAT_ROOT="$(mktemp_d)"
-export AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"
+AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
+AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"; export AGENT_FLEET_JOURNAL
 ROOM=council-prepare-test
 mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM"
 echo "diff text here" > "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
@@ -426,12 +426,12 @@ RESP_TRUE=$(build_valid_true)
 # both judges with judge-a means they hit each other's lock without phase-validation eating
 # the assertion.
 (
-  ( sleep 1; echo "$RESP_TRUE" ) | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" --phase1 judge-a 2>&1 >/dev/null
+  ( sleep 1; echo "$RESP_TRUE" ) | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" --phase1 judge-a >/dev/null 2>&1
 ) &
 JPID1=$!
 sleep 0.2  # let SLOW reach acquire_lock first
 fast_start=$(date +%s%N 2>/dev/null || date +%s)  # nanoseconds on GNU date, fallback seconds
-echo "$RESP_TRUE" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" --phase1 judge-a 2>&1 >/dev/null
+echo "$RESP_TRUE" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" --phase1 judge-a >/dev/null 2>&1
 fast_end=$(date +%s%N 2>/dev/null || date +%s)
 wait $JPID1 || true
 # fast_elapsed in milliseconds (or seconds if date +%s%N unavailable on this platform).
@@ -493,8 +493,8 @@ echo "$stats" | grep -q 'blinded-judge sample : 1 of 1' \
   && note "PASS smoke-stats-reports-judged" || { note "FAIL smoke-stats-reports-judged (got: $stats)"; fail=1; }
 
 # Reset env for downstream tests (none after smoke today, but keep the discipline)
-export AGENT_CHAT_ROOT="$(mktemp_d)"
-export AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"
+AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
+AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"; export AGENT_FLEET_JOURNAL
 
 echo "## backfill-artifact (Chunk 5)"
 
@@ -533,7 +533,7 @@ bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF2" --from "$GIT_TRACKE
   && note "PASS backfill-git-tracked-no-confirm-needed" || { note "FAIL backfill-git-tracked-no-confirm-needed"; fail=1; }
 # Replace with different content prints a warning to stderr
 UNTRACKED_SOURCE2=$(mktemp); echo "different content" > "$UNTRACKED_SOURCE2"
-rout=$(bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF" --from "$UNTRACKED_SOURCE2" --i-confirm-this-is-the-original 2>&1 >/dev/null || true)
+rout=$(bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF" --from "$UNTRACKED_SOURCE2" --i-confirm-this-is-the-original 2>&1 1>/dev/null || true)
 echo "$rout" | grep -q "REPLACED" \
   && note "PASS backfill-warns-on-replace" || { note "FAIL backfill-warns-on-replace (got: $rout)"; fail=1; }
 rm -f "$UNTRACKED_SOURCE" "$UNTRACKED_SOURCE2"

@@ -59,7 +59,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
-      - name: shellcheck (advisory)
-        # advisory for now — wire into hard CI after issue #14's MAJOR item lands
-        continue-on-error: true
-        run: shellcheck -S warning lib/*.sh install.sh test/*.sh
+      - name: shellcheck version
+        run: shellcheck --version | head -3
+      - name: shellcheck (hard gate at --severity=warning)
+        # Per issue #14 MAJOR: hard CI gate. `synth.sh converged` is exactly what shellcheck
+        # is for. Severity=warning catches real footguns (SC2069 stderr/stdout redirect order,
+        # SC2155 masked return values from `export X=$(cmd)`, SC2088 unexpanded tildes in
+        # quotes). The 31 remaining info-level findings (SC2015 A&&B||C footguns, SC2012
+        # ls-vs-find, SC2026 unquoted words, SC2001 sed-vs-bash-substitution) are tracked as
+        # follow-up cleanup — they're style, not correctness.
+        run: shellcheck --severity=warning lib/*.sh install.sh test/*.sh

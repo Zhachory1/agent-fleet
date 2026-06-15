@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-export AGENT_CHAT_ROOT="$(mktemp -d)"
-export AGENT_FLEET_JOURNAL="$(mktemp -d)/journal.jsonl"
+AGENT_CHAT_ROOT="$(mktemp -d)"; export AGENT_CHAT_ROOT
+AGENT_FLEET_JOURNAL="$(mktemp -d)/journal.jsonl"; export AGENT_FLEET_JOURNAL
 ROOM="council-review-model-x"
 
 # GUARD: append must REFUSE (exit 2) when the room has no transcript
@@ -53,7 +53,7 @@ echo "$OUT" | grep -q "hypotheses pursued (investigations): 1/1" || { echo "FAIL
 echo "$OUT" | grep -q "runs by kind       : code=2, design=0, investigation=1" || { echo "FAIL: stats run-kind breakdown wrong: $OUT"; exit 1; }
 
 # empty journal -> graceful
-export AGENT_FLEET_JOURNAL="$(mktemp -d)/empty.jsonl"; touch "$AGENT_FLEET_JOURNAL"
+AGENT_FLEET_JOURNAL="$(mktemp -d)/empty.jsonl"; export AGENT_FLEET_JOURNAL; touch "$AGENT_FLEET_JOURNAL"
 "$DIR/lib/journal.sh" stats | grep -q "no runs logged yet" || { echo "FAIL: empty-journal stats not graceful"; exit 1; }
 echo "PASS test_journal"
 

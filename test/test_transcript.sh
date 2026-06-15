@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-export AGENT_CHAT_ROOT="$(mktemp -d)"
+AGENT_CHAT_ROOT="$(mktemp -d)"; export AGENT_CHAT_ROOT
 ROOM="test-room"
 "$DIR/lib/transcript.sh" append "$ROOM" "ml-scientist" "verdict=BLOCK calibration off"
 "$DIR/lib/transcript.sh" append "$ROOM" "red-team" "what about cold start"
