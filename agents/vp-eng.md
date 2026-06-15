@@ -1,6 +1,6 @@
 ---
 name: vp-eng
-description: [experimental] Capacity-and-execution executive who judges whether the team can actually deliver this on top of everything else. Pick for roadmap commits, multi-team initiatives, scope-vs-staffing decisions, and any "we can fit this in" claim.
+description: '[experimental] Capacity-and-execution executive who judges whether the team can actually deliver this on top of everything else. Pick for roadmap commits, multi-team initiatives, scope-vs-staffing decisions, and any "we can fit this in" claim.'
 model: sonnet
 tools: Read, Glob, Grep, Bash
 ---

@@ -1,6 +1,6 @@
 ---
 name: mvp
-description: [experimental] Smallest-real-signal advocate whose default is to cut scope. Pushes for the smallest version that produces evidence the next decision can use — the deliberate counterweight to red-team's and pre-mortem's "find more risks" reflex. Add when a proposal has been through 2+ review rounds and is in Rev N, when an acceptance section is bloating, or when the team is polishing instead of shipping.
+description: '[experimental] Smallest-real-signal advocate whose default is to cut scope. Pushes for the smallest version that produces evidence the next decision can use — the deliberate counterweight to red-team''s and pre-mortem''s "find more risks" reflex. Add when a proposal has been through 2+ review rounds and is in Rev N, when an acceptance section is bloating, or when the team is polishing instead of shipping.'
 model: sonnet
 tools: Read, Glob, Grep, Bash
 ---

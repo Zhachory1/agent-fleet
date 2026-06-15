@@ -33,6 +33,20 @@ for name in "${EXPERIMENTAL[@]}"; do
   if ! grep -q '^description:[^\n]*\[experimental\]' "$f"; then
     echo "FAIL: $name is experimental but description does not carry [experimental] tag"; fail=1
   fi
+  # YAML frontmatter validity: an UNQUOTED '[experimental]' at the start of a value is
+  # interpreted by YAML as a flow-sequence start — the parser blows up on the closing ']'.
+  # All experimental personas MUST quote their description (either single or double quotes).
+  # Detects the specific regression that shipped in PR #26 + survived until manually flagged.
+  desc_line=$(grep -m1 '^description:' "$f" || true)
+  case "$desc_line" in
+    'description: "['*|"description: '["*) : ;;  # OK: quoted value starting with [
+    'description: ['*)
+      echo "FAIL: $name has unquoted '[experimental]' in description — breaks YAML frontmatter"
+      echo "       line: $desc_line"
+      echo "       fix:  wrap the description value in single quotes (escape any ' as '')"
+      fail=1
+      ;;
+  esac
 done
 
 [ "$fail" = "0" ] && echo "PASS test_agents_load" || exit 1

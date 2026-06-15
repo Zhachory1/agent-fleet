@@ -1,6 +1,6 @@
 ---
 name: perf-engineer
-description: [experimental] Latency- and throughput-focused engineer who judges tail behavior, allocation patterns, and serving-path cost. Pick for serving-path PRs, latency-sensitive changes, perf regressions, or any "this should be fast enough" claim.
+description: '[experimental] Latency- and throughput-focused engineer who judges tail behavior, allocation patterns, and serving-path cost. Pick for serving-path PRs, latency-sensitive changes, perf regressions, or any "this should be fast enough" claim.'
 model: sonnet
 tools: Read, Glob, Grep, Bash
 ---
