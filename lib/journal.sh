@@ -35,6 +35,11 @@
 #                       — separating them keeps the acted-on rate honest. Code/design runs are
 #                       counted in the actionable arm; investigations are tracked separately.
 set -euo pipefail
+# --version / -V early exit; jq precheck.
+if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
+  cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo unknown; exit 0
+fi
+command -v jq >/dev/null 2>&1 || { echo "journal.sh: jq required (install: brew install jq | apt-get install jq)" >&2; exit 1; }
 
 # Resolve agent-chat transcript root with the same precedence as the journal:
 # AGENT_CHAT_ROOT env var > legacy ~/.claude/agent-chat (if it exists) > XDG.

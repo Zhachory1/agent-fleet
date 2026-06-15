@@ -15,7 +15,48 @@
 # (skills/council) is Claude-Code-specific.
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
+VERSION="$(cat "$SRC/VERSION" 2>/dev/null || echo 'unknown')"
 TOOL="claude"; TARGET=""; COPY=0; UNINSTALL=0; PRINT=0
+
+print_help() {
+  cat <<HELP
+agent-fleet installer v${VERSION}
+
+Usage:
+  install.sh [options]
+
+Options:
+  --tool claude              Default. Symlink personas → ~/.claude/agents,
+                             skill → ~/.claude/skills/council
+  --tool claude --uninstall  Reverse a Claude Code install
+  --target DIR               Place personas + orchestrator prompt into DIR
+                             (any tool: opencode / Codex / Cursor / generic)
+  --copy                     Used with --target: copy files instead of symlinking
+                             (for tools that don't follow symlinks or sandboxed dirs)
+  --print                    Print the portable orchestrator prompt to stdout
+                             (paste into any AI chat that doesn't have a plugin model)
+  --version, -V              Print version and exit
+  --help, -h                 This message
+
+Examples:
+  install.sh                                  # Claude Code, default symlinks
+  install.sh --target ./.cursor/rules --copy  # Cursor: copy into rules dir
+  install.sh --target ./.agent-fleet --copy   # opencode / Codex / generic
+  install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
+
+Requirements: bash, jq (and git for full functionality).
+  Run \`bash $SRC/lib/journal.sh --help\` for journal CLI usage.
+HELP
+}
+
+# Dependency precheck (fast-fail with a clear message if jq missing).
+if ! command -v jq >/dev/null 2>&1; then
+  echo "install.sh: jq is required but not found on PATH." >&2
+  echo "  macOS:  brew install jq" >&2
+  echo "  Debian: apt-get install jq" >&2
+  echo "  Other:  https://jqlang.github.io/jq/download/" >&2
+  exit 1
+fi
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -24,7 +65,9 @@ while [ $# -gt 0 ]; do
     --copy) COPY=1; shift;;
     --uninstall) UNINSTALL=1; shift;;
     --print) PRINT=1; shift;;
-    *) echo "install.sh: unknown arg $1" >&2; exit 1;;
+    --version|-V) echo "$VERSION"; exit 0;;
+    --help|-h) print_help; exit 0;;
+    *) echo "install.sh: unknown arg '$1' (try --help)" >&2; exit 1;;
   esac
 done
 

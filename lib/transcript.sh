@@ -5,6 +5,10 @@
 #   transcript.sh show   [room]                  pretty-print a room (default: newest)
 #   transcript.sh rooms                          list council rooms, newest first
 set -euo pipefail
+if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
+  cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo unknown; exit 0
+fi
+command -v jq >/dev/null 2>&1 || { echo "transcript.sh: jq required (install: brew install jq | apt-get install jq)" >&2; exit 1; }
 # Default agent-chat root: AGENT_CHAT_ROOT env var if set, else legacy ~/.claude/agent-chat
 # if it exists (back-compat), else XDG. Same precedence as journal.sh.
 if [ -n "${AGENT_CHAT_ROOT:-}" ]; then :

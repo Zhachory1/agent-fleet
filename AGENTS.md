@@ -3,7 +3,9 @@
 This repo is a portable **council of specialist review personas** + an orchestrator that convenes
 2-4 of them, runs a bounded N-iteration reflection debate (critique-before-concede; default 2,
 cap 4), and synthesizes a decision-grade answer with named dissents.
-Tools that read `AGENTS.md` (Codex, opencode, Cursor, …) pick this up automatically.
+Tools that read `AGENTS.md` (Codex, opencode, …) pick this up automatically. Cursor reads
+`.cursor/rules/` instead — `install.sh --target ./.cursor/rules --copy` places the personas +
+orchestrator prompt where Cursor will find them.
 
 ## To run a council
 Load the orchestrator prompt at `prompts/council-orchestrator.md` and follow it. The reviewer
