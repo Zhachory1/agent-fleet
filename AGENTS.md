@@ -28,11 +28,15 @@ Pick 2-4 by task — see `agents/INDEX.md` for the catalog + decision tree (incl
 and the orchestrator prompt's selection table for the routing rules.
 
 ## What you get depends on your tool
-- **Subagent-capable** (Claude Code Task tool, opencode subagents): true parallel multi-agent
-  council — each persona runs in isolation, then the orchestrator synthesizes.
+- **Subagent-capable** (Claude Code Task tool, opencode subagents): each persona's round-1
+  POSITION is generated in an isolated context, then the orchestrator synthesizes.
 - **Single-context** (Codex, Cursor, generic chat): the agent adopts each persona's prompt in
-  sequence within one context ("solo council"). Useful, but closer to a single-context-multi-lens
-  pass than a true multi-agent debate.
+  sequence within one context. Round-1 POSITIONs have potential cross-persona contamination
+  (persona 4 has seen personas 1–3's outputs in-context). Reflection rounds (round 2+) work
+  in both modes — each persona reads peers' prior POSITIONs and must REFUTE-FIRST before
+  conceding. The magnitude of round-1 contamination is not measured; the lens-baseline arm
+  in `journal.sh stats` compares any council mode against same-lenses-single-pass, not the
+  two modes against each other.
 
 ## Helpers (any environment with bash + jq)
 Set `AGENT_FLEET_HOME` to this repo, then:

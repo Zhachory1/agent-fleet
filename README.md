@@ -116,21 +116,28 @@ frontmatter) is in [AGENTS.md](AGENTS.md).
 
 ## What you get depends on your tool
 
-Personas + bash helpers are portable everywhere. The **parallel multi-agent debate** needs a
-subagent primitive — without one, you fall back to "solo council" mode where one agent adopts
-each persona in sequence within one context. **Solo mode is closer to the lens-baseline this
-tool exists to beat than to a true multi-agent debate.** Plan accordingly.
+Personas + bash helpers are portable everywhere. What varies by tool is **round-1
+isolation** — whether each persona's first POSITION is generated in a context that has not
+seen the other personas' POSITIONs (true parallel via subagent primitive) or sequentially in
+the same context ("solo-context"). Reflection rounds (round 2+) work in both modes — each
+persona still reads peers' prior-round POSITIONs and must REFUTE-FIRST before conceding.
 
-| Tool | Council depth | How |
+| Tool | Round-1 isolation | How |
 |---|---|---|
-| **Claude Code** | full parallel (Task tool) | `install.sh` → native agents + `/council` skill |
-| **opencode** | full parallel (subagents) | `AGENTS.md` + `--target` personas; orchestrate via subagents |
-| **Codex CLI** | DEGRADED — solo (single context) | reads root `AGENTS.md`; run the orchestrator prompt |
-| **Cursor** | DEGRADED — solo (single context) | drop personas into `.cursor/rules/`; paste orchestrator prompt |
-| **any AI chat** | DEGRADED — solo (single context) | `install.sh --print` → paste the prompt |
+| **Claude Code** | parallel (Task tool) | `install.sh` → native agents + `/council` skill |
+| **opencode** | parallel (subagents) | `AGENTS.md` + `--target` personas; orchestrate via subagents |
+| **Codex CLI** | single-context | reads root `AGENTS.md`; run the orchestrator prompt |
+| **Cursor** | single-context | drop personas into `.cursor/rules/`; paste orchestrator prompt |
+| **any AI chat** | single-context | `install.sh --print` → paste the prompt |
 
-"DEGRADED" means the run is closer to the same-lenses-single-pass baseline than to a true
-council. Still finds things, often — but the validation gate scores it accordingly.
+> **Honest disclosure on the difference:** parallel mode guarantees personas don't influence
+> each other's round-1 POSITIONs; single-context mode has potential cross-persona contamination
+> at round 1 (persona 4 has seen personas 1–3's outputs in-context even if prompted to ignore
+> them). **The magnitude of that contamination is not measured** — the lens-baseline arm in
+> `journal.sh stats` compares any council mode against same-lenses-single-pass; it does NOT
+> compare the two council modes against each other. Until the dual-mode measurement lands
+> (tracked as a follow-up issue), "parallel is better" is a theoretical claim with known sign
+> and unknown magnitude. Plan accordingly.
 
 ## Install (full per-tool snippets)
 
