@@ -1,12 +1,28 @@
 # Blinded-judge — Implementation Plan
 
-> **For agentic workers:** REQUIRED: TDD per chunk — failing test FIRST, then minimum code to pass, then refactor. Steps use checkbox (`- [ ]`) syntax. Where this PLAN spec text conflicts with DD Rev 3, DD wins; if you find such a conflict, flag it in the implementation PR.
+> **For agentic workers:** REQUIRED: TDD per chunk — failing test FIRST, then minimum code to pass, then refactor. Steps use checkbox (`- [ ]`) syntax. Where this PLAN spec text conflicts with DD Rev 3, DD wins; if you find such a conflict, **open a `plan-dd-conflict` tagged issue AND comment on the implementation PR** (not just "flag it" — a tracked surface).
 
-**Goal:** Ship the v1 blinded-judge mechanism per PRD Rev 3 + DD Rev 3. Implements issue #1.
+**Status:** **Rev 2** (post council gate on PLAN PR #19, SPLIT, red-team BLOCK; 22 findings absorbed). Implements issue #1; **merging the impl PR does NOT close #1** (issue #20 tracks Phase 1 operations + DRI decision; #1 closes only when both land).
 
-**Architecture:** New `lib/blind-judge.sh` helper (prepare/record/judge/backfill-artifact subcommands) + canonical rubric `lib/blind-judge-prompt.v2.txt` + journal schema +13 fields + `stats` two-phase arm. Orchestrator edits (SKILL.md + portable prompt) for FR9 artifact persistence. 14 parser golden-bad fixtures + concurrency stress test.
+**Goal:** Ship the v1 blinded-judge mechanism per PRD Rev 3 + DD Rev 3.
+
+**Architecture:** New `lib/blind-judge.sh` helper (prepare/record/judge/backfill-artifact subcommands) + canonical rubric `lib/blind-judge-prompt.v2.txt` + journal schema +13 fields + `stats` two-phase arm. Orchestrator edits (SKILL.md + portable prompt) for FR9 artifact persistence ship in a **SEPARATE PR sequenced BEFORE the impl PR** (council BLOCKER: every-future-council behavior change deserves its own blast radius). 14+ parser golden fixtures + concurrency stress test.
 
 **Tech Stack:** bash + jq + flock. No new runtime dependency. Paste-and-record UX (no CLI shell-out in v1 per PRD).
+
+> **Rev 2 changelog** (council gate, 3 BLOCKERs + 10 MAJORs + 9 MINORs absorbed):
+> Chunk 9 moved to tracking **issue #20** (impl-PR merge no longer closes #1) · Chunk 6
+> (orchestrator FR9 edit) becomes its **own PR sequenced BEFORE impl** (every-future-council
+> behavior change) · Chunk 1 narrowed to `--judge-*` kw-args only (avoids scope conflict with
+> issue #3) · backfill-artifact requires git-tracked source OR `--i-confirm` (closes the
+> confabulation surface that reopened pointer-rot) · --phase1 sequencing exploit closed (need
+> ≥5 distinct rooms + ≥3 judge-b) · Chunk 0 CI lint: `diff` rubric vs DD canonical block ·
+> fixture content sketches added · word-counts both auto-computed (no operator flag) ·
+> 3-sources-of-truth in prepare: spec'd authoritative source + warn on disagreement ·
+> `calibration-phase1.template.md` ships in Chunk 0 · data-quality invariants tested ·
+> PR packaging strategy named explicitly · abstraction-boundary comment in journal.sh ·
+> rollback note + per-journal-file scope note · schema-count narrative corrected · README
+> step split.
 
 ---
 
@@ -14,22 +30,34 @@
 
 ```
 lib/blind-judge.sh                          CREATE  prepare|record|judge|backfill-artifact subcommands + parser
-lib/blind-judge-prompt.v2.txt               CREATE  canonical rubric with attack-warning frontmatter (v1 never shipped)
-lib/journal.sh                              MODIFY  +13 fields, --judged subcommand, two-phase stats arm
+lib/blind-judge-prompt.v2.txt               CREATE  canonical rubric (matches DD canonical block byte-for-byte modulo whitespace)
+lib/journal.sh                              MODIFY  +13 fields, --judged subcommand, two-phase stats arm, --judge-* kw-args ONLY (no scope-grab vs #3)
 lib/transcript.sh                           MODIFY  render @@from: blind-judge#judge-N with distinct visual
-skills/council/SKILL.md                     MODIFY  Step 1: durable artifact write to room/artifact.txt (FR9)
-prompts/council-orchestrator.md             MODIFY  mirror Step 1 change
-test/test_blind_judge.sh                    CREATE  parser fixtures + chain semantics + concurrency
-test/fixtures/blind-judge/                  CREATE  14 golden-good + golden-bad response fixtures
-test/test_journal.sh                        MODIFY  +13 fields default + roundtrip + judge-only-row exclusion
+skills/council/SKILL.md                     MODIFY  Step 1: durable artifact write to room/artifact.txt (FR9) — SEPARATE PR
+prompts/council-orchestrator.md             MODIFY  mirror Step 1 change — SEPARATE PR
+docs/features/blinded-judge/
+  calibration-phase1.template.md            CREATE  template with required headings for Phase 1 paragraph
+test/test_blind_judge.sh                    CREATE  parser fixtures + chain semantics + concurrency + invariants
+test/fixtures/blind-judge/                  CREATE  17 fixtures (14 bad + 3 good, content per Chunk 3)
+test/test_journal.sh                        MODIFY  +13 fields default + roundtrip + judge-only-row exclusion + invariants
 test/test_transcript.sh                     MODIFY  blind-judge#judge-N rendering
+test/test_rubric_canonical.sh               CREATE  CI lint: rubric file diff-matches DD canonical code block
 ```
+
+## PR packaging strategy (Rev 2)
+
+Council BLOCKER: spec the packaging up front, do not punt it.
+
+1. **PR A — orchestrator FR9** (Chunk 6 only): SKILL.md + portable prompt Step 1 edits to write the durable room artifact. ≤5 lines diff in 2 files. Merges FIRST so subsequent impl can read `room/artifact.txt`.
+2. **PR B — impl critical path** (Chunks 0–4 + Chunk 7): rubric file, journal schema, prepare, parser, record/judge/concurrency, transcript rendering. The MVP-shaped slice that lands the actual mechanism.
+3. **PR C — follow-up** (Chunks 5, 8): backfill-artifact + README + end-to-end smoke. Lower-risk, sequence after PR B passes CI on a real judged run.
+4. **Issue #20 — Phase 1 operations + DRI decision** (Chunk 9): tracking issue, NOT code. Impl-PR merge does NOT close #1.
 
 ---
 
-## Chunk 0: canonical rubric (no code; ship file first)
+## Chunk 0: canonical rubric + Phase 1 template + CI lint (no code; ship contracts first)
 
-The rubric file is the contract everything else implements against. Land it first so subsequent chunks reference a real file.
+The rubric file is the contract everything else implements against. Land it first so subsequent chunks reference a real file. Plus the Phase 1 template (issue #20 needs it ready) and a CI lint asserting the rubric stays in sync with DD's canonical code block.
 
 ### Task 0.1: write `lib/blind-judge-prompt.v2.txt`
 
@@ -37,7 +65,7 @@ The rubric file is the contract everything else implements against. Land it firs
 
 - [ ] **Step 1: extract verbatim from DD Rev 3 §Canonical rubric.** The DD ships the rubric text as a fenced code block. Copy it verbatim into `lib/blind-judge-prompt.v2.txt` (the fenced ` ``` ` boundaries are NOT part of the file). Include the `# ============` attack-warning frontmatter.
 
-- [ ] **Step 2: sanity-check the file has all required tokens.** Run:
+- [ ] **Step 2: sanity-check the file has all required tokens** (kept as a dev-time check; the canonical lint is Task 0.3):
 
 ```bash
 for tok in 'WARNING TO ANY EDITOR' 'v2 changelog' 'PERSONA_POSITIONS' 'OPERATOR_SYNTHESIS' \
@@ -50,11 +78,65 @@ echo "rubric tokens OK"
 
 - [ ] **Step 3: commit** `chore(blinded-judge): canonical rubric v2.txt (post external review)`
 
+### Task 0.2: write `docs/features/blinded-judge/calibration-phase1.template.md`
+
+**Files:** Create `docs/features/blinded-judge/calibration-phase1.template.md`
+
+Council MAJOR finding: future-operator amnesia. Without a template, the calibration paragraph defaults to "agreement looked OK." Required headings + 1-line description per heading.
+
+- [ ] **Step 1: write the template** with these sections (each: heading + 1-line description of what goes here):
+  - `## Sample` — list the 5 council slugs and which family pair each used (claude/claude, claude/gpt, etc.)
+  - `## Disagreement count and shape` — N pairs where judge-a and judge-b disagreed; describe each one ("council X: A said true, B said false because...")
+  - `## Concentration analysis` — do disagreements concentrate in: long synthesis, short synthesis, specific personas, specific issue severities?
+  - `## Same-family vs cross-family` — did the 3 same-family pairs agree more than the 2 cross-family pairs? If so, by how much?
+  - `## Implications for Phase 2` — one paragraph naming the band the agreement rate likely falls into AND any rubric-version-bump candidates the qualitative analysis surfaced.
+
+- [ ] **Step 2: commit** `chore(blinded-judge): calibration-phase1.template.md (issue #20)`
+
+### Task 0.3: CI lint — rubric file matches DD canonical block
+
+**Files:** Create `test/test_rubric_canonical.sh`
+
+Council MAJOR finding (red-team, downgraded from BLOCKER): token-grep is loose. A future implementer paraphrasing the rubric would pass `grep` but not `diff`. The right defense is a CI lint.
+
+- [ ] **Step 1: failing test.** `test/test_rubric_canonical.sh`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+DD="$DIR/docs/features/blinded-judge/DD.md"
+RUBRIC="$DIR/lib/blind-judge-prompt.v2.txt"
+[ -f "$RUBRIC" ] || { echo "FAIL: rubric file missing"; exit 1; }
+# Extract the first fenced code block under '## Canonical rubric' header.
+EXTRACTED=$(awk '
+  /^## Canonical rubric/ {in_section=1; next}
+  in_section && /^```$/ && !in_code {in_code=1; next}
+  in_section && in_code && /^```$/ {in_code=0; in_section=0; exit}
+  in_section && in_code {print}
+' "$DD")
+# Compare with whitespace normalized (trailing whitespace + blank-line runs collapsed).
+norm() { sed 's/[[:space:]]*$//' | cat -s; }
+diff <(printf '%s\n' "$EXTRACTED" | norm) <(norm < "$RUBRIC") \
+  || { echo "FAIL: rubric file drifts from DD canonical block (above diff)"; exit 1; }
+echo "PASS test_rubric_canonical"
+```
+
+- [ ] **Step 2: ensure the rubric file passes the lint.** (After Task 0.1, the file should match DD's code block; the lint is the assertion.)
+
+- [ ] **Step 3: commit** `test(blinded-judge): CI lint asserting rubric file matches DD canonical block`
+
 ---
 
-## Chunk 1: journal schema (additive, backward-compat)
+## Chunk 1: journal schema (additive, backward-compat) — narrow `--judge-*` kw-args only
 
 13 new fields per DD Rev 3. Run_kind-style backward compat — missing field → default. Tests assert legacy rows unchanged.
+
+**Council BLOCKER #3 (gen-swe):** original PLAN extended `journal.sh append` outside the scope of issue #3 (which exists to design exactly that kw-arg refactor). Rev 2: this chunk introduces `--judge-*` flags ONLY — a narrow, scoped kw-arg parser — and explicitly leaves general-purpose kw-args (everything other than `--judge-*`) for issue #3 to handle later. The positional contract for the first 12 args stays unchanged.
+
+**Council MAJOR (data-engineer):** both word counts auto-computed; operator does not pass `--synthesis-word-count`. `solo_decision_word_count` from `$3` (the existing positional); `synthesis_word_count` from the room's @@from: synthesis block at append time.
+
+**Council MINOR (software-architect):** add a one-paragraph comment at the top of `journal.sh` naming the contract: `blind-judge.sh` reads `judge_*` fields from this file's row format; field-name changes are breaking changes.
 
 ### Task 1.1: extend `journal.sh append`
 
@@ -107,10 +189,16 @@ jq -e '.[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null
 
 - [ ] **Step 2: implement.** Two surface changes to `lib/journal.sh`:
 
-  - `append`: accept new `--judge-*` flags AFTER the existing 12 positional args (per #3 the positional contract stays, but new fields are kw-args). Default missing flags to legacy values (judge_blinded=false, etc.). Compute `solo_decision_word_count` from `$3` if not supplied; require `synthesis_word_count` flag (operator MUST report — synthesis size is the operator's input, not the appender's).
+  - `append`: accept new `--judge-*` flags AFTER the existing 12 positional args (**Rev 2: narrow to `--judge-*` ONLY** — no other kw-args; issue #3 handles general case). Default missing flags to legacy values (judge_blinded=false, etc.). **Both word counts auto-computed** (per council MAJOR): `solo_decision_word_count` from `$3`; `synthesis_word_count` from the @@from: synthesis block of the room's `log.jsonl`.
   - New subcommand `append-judge-only <room> <task> --judge-* ...`: writes a fresh row with all self-report fields NULL and judge_* fields populated. Used by step 3 of the chain when step 2 failed (per DD FR8).
 
-  Both wrap their write in `flock -x "$AGENT_FLEET_JOURNAL.lock"` (Chunk 4 adds the lock).
+  Both wrap their write in `flock -x "$AGENT_FLEET_JOURNAL.lock"`. **Rev 2:** flock added in Chunk 1, not deferred to Chunk 4 (council MAJOR: tests in Chunk 1 would race without it).
+
+  **Data-quality invariants** (council MAJOR, data-engineer): asserted at write time.
+  - `judge_blinded=false` ⇒ all other `judge_*` fields empty/null.
+  - `judge_blinded_catch=true` ⇒ `judge_evidence` non-empty.
+  - `judge_blinded_catch=false` ⇒ `judge_evidence` empty.
+  Append refuses with a one-line error if invariants violated.
 
 - [ ] **Step 3: run, all tests pass.** Existing 10 tests must not regress.
 
@@ -207,6 +295,11 @@ echo "PASS prepare-test"
   - `pbcopy` (mac) / `xclip -selection clipboard` (linux) / stdout-only (otherwise OR if `$SSH_CONNECTION` set). Print the banner from DD §"The context-switch banner (FR3)".
   - Print both SHA256s before the banner so the operator can paste them into `record` later.
 
+- [ ] **Step 2b: source-of-truth contract** (council MAJOR, software-architect + data-engineer compounded):
+  - **Room is authoritative.** `room/artifact.txt` + `room/log.jsonl` are the canonical state.
+  - `/tmp/council-<slug>.txt` is a working-copy advisory — if present AND it differs from `room/artifact.txt`, print a one-line warning but proceed using the room copy.
+  - Journal row's `solo_decision` is REQUIRED. If missing OR the row is missing entirely, `prepare` refuses with `"no solo_decision in journal for room <slug>; run journal.sh append first OR pass --solo-decision explicitly"`.
+
 - [ ] **Step 3: run, prepare-test passes.**
 
 ### Task 2.2: `--phase1` forcing rule
@@ -221,6 +314,14 @@ echo "PASS prepare-test"
 
 - [ ] **Step 2: implement.** Count judged rows from journal (`jq '[.[]|select(.judge_blinded==true)]|length'`). Per DD §"--phase1 forcing rule (Rev 2)".
 
+  **Rev 2 hardening (council MAJOR, red-team + data-engineer):** the count is insufficient. Also enforce:
+  - The 5 judged rows must come from **≥5 distinct rooms** (no using the same council twice to fake Phase 1 progress).
+  - **≥3 of the 5 judged rows must have `--phase1 judge-b`** (so the operator can't fake Phase 1 by running judge-a five times).
+
+  Closes the "5 calls all judge-a" sequencing exploit.
+
+  **Rev 2 scope note** (council MINOR, software-architect): the phase count is per-`AGENT_FLEET_JOURNAL` file. Switching journals (different env var) resets the phase counter. Document this in the helper's `--help`.
+
 - [ ] **Step 3: commit** `feat(blind-judge): prepare subcommand + --phase1 forcing rule`
 
 ---
@@ -233,14 +334,30 @@ The load-bearing piece. 14 golden-bad fixtures must reject; 3 golden-good must p
 
 **Files:** Extend `lib/blind-judge.sh`; Create `test/fixtures/blind-judge/`; extend `test/test_blind_judge.sh`
 
-- [ ] **Step 1: write 14 golden fixtures.** Each is a complete response that the operator might paste back. Per DD §Parser test-fixtures list. Naming and content matches DD verbatim:
-  - `missing-sentinel.txt`, `missing-end.txt`, `missing-reasoning.txt`, `missing-dissent-diff.txt`
-  - `no-space.txt`, `caps.txt`, `trailing-ws.txt`, `bad-value.txt`
-  - `multi-line-why-wrapped.txt` (must PASS), `multi-line-why-actual.txt` (must FAIL)
-  - `missing-evidence.txt`, `evidence-on-false.txt`
-  - `evidence-quotes-synthesis.txt` (must FAIL with "EVIDENCE quotes OPERATOR_SYNTHESIS verbatim")
-  - `implied-without-implied-by.txt`
-  - `valid-true.txt`, `valid-false.txt`, `valid-erasure.txt` (must PASS)
+- [ ] **Step 1: write 17 golden fixtures.** Each is a complete response that the operator might paste back. Per DD §Parser test-fixtures list. Naming, content sketch, and expected behavior:
+
+  **Bad fixtures (14, must FAIL):**
+  - `missing-sentinel.txt` — valid response with the opening `===JUDGE OUTPUT===` line removed; expect "missing ===JUDGE OUTPUT=== sentinel"
+  - `missing-end.txt` — valid response with closing `===END===` removed; expect "missing ===END=== sentinel"
+  - `missing-reasoning.txt` — valid response with the REASONING section omitted; expect "REASONING field required"
+  - `missing-dissent-diff.txt` — valid response with DISSENT_DIFF omitted; expect "DISSENT_DIFF field required"
+  - `no-space.txt` — `NET_NEW_CATCH:true` (no space after colon); expect parse-pass (the parser is whitespace-tolerant); content also includes proof the catch is correctly extracted as `true`
+  - `caps.txt` — `NET_NEW_CATCH: True` (capitalized); expect parse-pass via `tolower()` and value-check passes
+  - `trailing-ws.txt` — `NET_NEW_CATCH: true   ` (3 trailing spaces); expect parse-pass
+  - `bad-value.txt` — `NET_NEW_CATCH: yes`; expect "NET_NEW_CATCH must be 'true' or 'false', got: yes"
+  - `multi-line-why-wrapped.txt` — legitimate single-sentence WHY that pbcopy wrapped across 2 lines (no EVIDENCE/END mid-block); **must PASS** — the parser collapses newlines into spaces
+  - `multi-line-why-actual.txt` — two distinct sentences in WHY (with EVIDENCE field appearing after the wrap); **must FAIL** since EVIDENCE: appears mid-WHY block
+  - `missing-evidence.txt` — `NET_NEW_CATCH: true` without an EVIDENCE field; expect "EVIDENCE required when NET_NEW_CATCH=true"
+  - `evidence-on-false.txt` — `NET_NEW_CATCH: false` with a non-empty EVIDENCE field; expect "EVIDENCE must be empty when NET_NEW_CATCH=false"
+  - `evidence-quotes-synthesis.txt` — `NET_NEW_CATCH: true` and EVIDENCE line that appears verbatim in the OPERATOR_SYNTHESIS argument passed to `parse_response`; expect "EVIDENCE quotes OPERATOR_SYNTHESIS verbatim" (this is the Gemini BLOCKER fix)
+  - `implied-without-implied-by.txt` — `NET_NEW_CATCH: false` and WHY contains "already implied" but IMPLIED_BY field is missing; expect "IMPLIED_BY required when WHY claims SOLO_DECISION already covered"
+
+  **Good fixtures (3, must PASS):**
+  - `valid-true.txt` — catch=true, EVIDENCE from PERSONA_POSITIONS, REASONING + DISSENT_DIFF populated. Parser returns (true, why, evidence, "", reasoning, dissent_diff).
+  - `valid-false.txt` — catch=false, no EVIDENCE, REASONING explains why solo covered, DISSENT_DIFF says "- (none)".
+  - `valid-erasure.txt` — catch=true due to dissent-erasure; WHY names the persona + claim; EVIDENCE from that persona's POSITION block; DISSENT_DIFF lists the claim.
+
+**Council MAJOR (red-team):** parser fixtures cover PARSER failures, not JUDGE-semantic failures (catch=false + WHY-claims-true; EVIDENCE paraphrased-from-synthesis-but-found-in-positions). **Explicitly deferred to v1.1** as "semantic-incoherence fixture category" — too expensive to fully cover in v1; flagged in tech debt.
 
 - [ ] **Step 2: failing test.** Drive the parser against all 17 fixtures. Each `*-pass.txt` exit 0 + correct output fields; each `*-fail.txt` exit 1 + error message contains expected substring.
 
@@ -307,25 +424,31 @@ The mutation path. `record` writes the row; `judge` is `prepare` + stdin read + 
 
 For the 23 orphaned rooms predating FR9. Idempotent: write `room/artifact.txt` from a supplied path.
 
-### Task 5.1: backfill-artifact
+**Council MAJOR (data-engineer):** backfill is a confabulation surface. Operator could backfill with `/tmp/random-notes.txt` and the judge would treat fabricated content as the original artifact. Same shape as the @diff: pointer-rot risk DD Rev 2 closed for orchestrator-time — reopens here unless constrained.
+
+### Task 5.1: backfill-artifact with confabulation guard
 
 **Files:** Extend `lib/blind-judge.sh`; extend `test/test_blind_judge.sh`
 
 - [ ] **Step 1: failing test.**
-  - backfill-artifact on a fresh room → creates `artifact.txt`, content matches `--from`.
-  - rerun with same args → no error, content unchanged.
-  - rerun with different `--from` → overwrites and prints a one-line `note: artifact replaced` warning.
+  - backfill-artifact on a fresh room with `--from <git-tracked-path>` → creates `artifact.txt`, content matches.
+  - backfill-artifact with `--from <not-git-tracked>` AND no `--i-confirm-this-is-the-original` → exit 1 with message instructing the operator to use one of the two paths.
+  - backfill-artifact with `--from <not-git-tracked>` AND `--i-confirm-this-is-the-original` → succeeds; the journal-row's `judge_*` rows for this room will carry an additional flag `backfill_confirmed_by_operator=true` (parseable from the transcript line).
+  - rerun with same args (same content) → no error, content unchanged.
+  - rerun with different `--from` content → overwrites and prints a one-line `note: artifact replaced` warning.
   - prepare on the backfilled room → succeeds.
 
-- [ ] **Step 2: implement.** Trivial: `cp $from $room/artifact.txt`; print a note if the existing differs from the new.
+- [ ] **Step 2: implement.** Constraint: `--from` must be either (a) `git cat-file -e <ref>` passes (it's a tracked commit/blob), OR (b) operator passes `--i-confirm-this-is-the-original`. Default refuses arbitrary paths with `"refuse: --from must be git-tracked OR pass --i-confirm-this-is-the-original (paste-time confabulation surface)"`.
 
-- [ ] **Step 3: commit** `feat(blind-judge): backfill-artifact for legacy room rescue`
+- [ ] **Step 3: commit** `feat(blind-judge): backfill-artifact with confabulation guard (git-tracked or --i-confirm)`
 
 ---
 
-## Chunk 6: orchestrator changes — FR9 artifact persistence
+## Chunk 6: orchestrator changes — FR9 artifact persistence (SHIPS AS PR A, BEFORE PR B)
 
 The cross-component requirement: orchestrator MUST write the artifact to the room.
+
+**Council BLOCKER #2 (software-architect):** this chunk changes every-future-council behavior. It must be its own PR sequenced BEFORE the impl PR. Implementation depends on the orchestrator writing `room/artifact.txt`; that dependency makes the sequencing self-enforcing.
 
 ### Task 6.1: SKILL.md + portable prompt Step 1
 
@@ -380,29 +503,32 @@ done
 
 ---
 
-## Chunk 9: Phase 1 operations (post-merge, manual, no code)
+## Chunk 9: Phase 1 operations — MOVED TO TRACKING ISSUE #20
 
-These are the operator-procedural steps after the implementation lands. Listed here so they don't get lost.
+**Council BLOCKER #1 (red-team):** burying the actual feature work as checkboxes in a merged PLAN doc would never get checked. Phase 1 operations + the DRI decision land at **issue #20**, not here.
 
-- [ ] Run the first 5 judged councils with `--phase1 judge-a` then `--phase1 judge-b` (3 same-family, 2 cross-family per PRD-OQ8). Document each.
-- [ ] After 5 dual-judged runs land: write `docs/features/blinded-judge/calibration-phase1.md` with the qualitative shape-of-disagreement paragraph (PRD Rev 3 Phase 1).
-- [ ] Switch helper to single-judge mode for runs 6+.
-- [ ] After 50 single-judged runs: DRI writes `docs/features/blinded-judge/decision-<date>.md` per PRD Decision Process (KPI replacement triggered if agreement <70%).
+This PLAN ships **code**. Issue #20 tracks the **operations**. Issue #1 closes only when BOTH:
+  - code merge (impl PR for Chunks 0-4 + 7; follow-up PR for Chunks 5, 8)
+  - operations close (5 Phase 1 dual-judged councils + calibration-phase1.md + 50 Phase 2 single-judged councils + DRI decision-<date>.md)
+
+**Rollback note** (council MINOR, red-team): if the Phase 2 agreement rate falls in the `<70%` band per PRD Decision Process, the DRI's decision is to **switch the canonical KPI from self-report to blinded**, NOT to remove the feature. There is no automatic rollback; the DRI is the decision-maker. This note exists so the question "do we kill it?" has a documented answer.
 
 ---
 
 ## Acceptance summary (cross-references DD §Acceptance)
 
 - [ ] All 10 existing tests still pass.
-- [ ] `test/test_blind_judge.sh` covers: prepare (5 blobs disjoint), 14 golden parser fixtures, --phase1 forcing, record (in-place update + judge-only row + self-quote check + warn-confirm + idempotent), judge (end-to-end), backfill-artifact (idempotent), concurrency (two-terminal race serializes).
-- [ ] `test/test_journal.sh` extended for 13 new fields default + roundtrip + judge-only row exclusion.
+- [ ] `test/test_blind_judge.sh` covers: prepare (5 blobs disjoint + source-of-truth disagreement warning), 17 golden parser fixtures (14 bad + 3 good), --phase1 forcing + uniqueness exploit guard, record (in-place update + judge-only row + self-quote check + warn-confirm + idempotent + invariant checks), judge (end-to-end), backfill-artifact (git-tracked OR --i-confirm), concurrency (two-terminal race serializes via flock).
+- [ ] `test/test_journal.sh` extended for 13 new fields default + roundtrip + judge-only row exclusion + data-quality invariants.
 - [ ] `test/test_transcript.sh` covers distinct rendering of `blind-judge#judge-N`.
-- [ ] `test/test_orchestrator_sync.sh` covers FR9 durable artifact path in both SKILL.md and portable prompt.
-- [ ] CI green on the implementation PR.
-- [ ] `lib/blind-judge-prompt.v2.txt` matches the DD §Canonical rubric verbatim (no drift).
-- [ ] Pre-implementation gate (rubric external review) was satisfied by DD Rev 3; reference the comment in the impl PR body.
+- [ ] `test/test_orchestrator_sync.sh` covers FR9 durable artifact path in both SKILL.md and portable prompt (PR A only).
+- [ ] `test/test_rubric_canonical.sh` asserts `diff` between rubric file and DD canonical code block is empty modulo whitespace.
+- [ ] CI green on all three PRs (A: orchestrator FR9, B: impl critical path, C: follow-up).
+- [ ] `lib/blind-judge-prompt.v2.txt` matches the DD §Canonical rubric verbatim (CI lint enforces).
+- [ ] Pre-implementation gate (rubric external review) was satisfied by DD Rev 3; reference the comment in PR B's body.
+- [ ] Issue #20 (Phase 1 operations + DRI decision) is **explicitly NOT in the impl PR's close-list**. Impl PR merge does not close #1; only issue #20 closing closes #1.
 
-## Sequenced for v1.1 (per DD Tech Debt)
+## Sequenced for v1.1 (per DD Tech Debt + council Rev 2)
 
 - CLI shell-out judge (`--auto-claude` / `--auto-gpt` etc.)
 - Forcing gate on cadence (if first-10 compliance < 70%)
@@ -410,3 +536,4 @@ These are the operator-procedural steps after the implementation lands. Listed h
 - Multi-judge consensus beyond Phase 1
 - Solo + synthesis word-count analysis
 - `council_mode` field (if post-hoc analysis ever needs it)
+- **Semantic-incoherence fixture category** (council MAJOR, red-team): fixtures for judge-side semantic failures (catch=false + WHY-claims-true; EVIDENCE paraphrased-from-synthesis-but-found-in-positions). Not parser-rejectable; would be flagged in stats. Out of v1; named here so it doesn't drift back as a surprise.
