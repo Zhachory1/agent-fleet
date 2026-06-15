@@ -394,5 +394,40 @@ wait $PID2 || true
 n=$(jq -s --arg r "$ROOM_C" '[.[] | select(.room==$r)] | length' "$AGENT_FLEET_JOURNAL")
 [ "$n" = "1" ] && note "PASS concurrency-single-journal-row" || { note "FAIL concurrency: got $n rows"; fail=1; }
 
+# PR C correctness fix (#23 MAJOR #2): per-room lock in `judge` spans prepare→record.
+# Race two judge calls on the SAME room (with piped responses). Second one MUST block
+# on the room lock until the first releases, then either record or fail-gracefully.
+ROOM_J=council-judge-race-test
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_J"
+echo "art" > "$AGENT_CHAT_ROOT/rooms/$ROOM_J/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM_J" <<EOF >/dev/null
+@@from: a#r1
+p
+@@from: synthesis
+s
+EOF
+bash "$DIR/lib/journal.sh" append "$ROOM_J" "judge-race-test" "x" "a" \
+  true "" true 0 false null 1 design --synthesis-word-count 1 >/dev/null
+
+RESP_TRUE=$(build_valid_true)
+# Spawn two parallel judge calls feeding the same valid response
+(
+  echo "$RESP_TRUE" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" 2>&1 >/dev/null
+) &
+JPID1=$!
+(
+  echo "$RESP_TRUE" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" 2>&1 >/dev/null
+) &
+JPID2=$!
+wait $JPID1 || true
+wait $JPID2 || true
+
+# Exactly ONE journal row for ROOM_J (both judges wrote the same answer; idempotent)
+n=$(jq -s --arg r "$ROOM_J" '[.[] | select(.room==$r)] | length' "$AGENT_FLEET_JOURNAL")
+[ "$n" = "1" ] && note "PASS judge-race-single-journal-row" || { note "FAIL judge-race: got $n rows"; fail=1; }
+# Lock dir must be cleaned up
+[ ! -d "$AGENT_CHAT_ROOT/rooms/$ROOM_J/.judge.lockdir" ] \
+  && note "PASS judge-race-lock-cleaned-up" || { note "FAIL judge-race-lock-orphaned"; fail=1; }
+
 echo "---"
 if [ "$fail" = "0" ]; then echo "PASS test_blind_judge"; else echo "FAIL test_blind_judge"; exit 1; fi

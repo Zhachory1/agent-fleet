@@ -431,6 +431,13 @@ EOF
         *) die "unknown flag '$1'";;
       esac
     done
+    # PR C correctness fix (#23 MAJOR #2): hold a per-room lock spanning prepare→record so two
+    # terminals can't both pass enforce_phase1 simultaneously. Lock is on the room directory
+    # (separate from journal lock to avoid double-locking when record runs in this same process).
+    room_dir="$AGENT_CHAT_ROOT/rooms/$room"
+    [ -d "$room_dir" ] || die "room '$room' does not exist (no transcript directory)"
+    judge_lockdir="$room_dir/.judge.lockdir"
+    acquire_lock "$judge_lockdir"
     # Prepare prints to stdout; we want it printed PLUS the operator pastes the response on stdin
     if [ -n "$phase1" ]; then
       "$0" prepare "$room" --phase1 "$phase1"
@@ -467,6 +474,7 @@ EOF
     rec_args=("$room" --catch "$catch" --why "$why" --reasoning "$reasoning" --dissent-diff "$dissent_diff")
     [ -n "$evidence" ]   && rec_args+=(--evidence "$evidence")
     [ -n "$implied_by" ] && rec_args+=(--implied-by "$implied_by")
+    # judge_lockdir is released by trap-on-EXIT in acquire_lock; we keep holding it through record
     [ -n "$phase1" ]     && rec_args+=(--phase1 "$phase1")
     "$0" record "${rec_args[@]}"
     ;;
