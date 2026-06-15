@@ -200,7 +200,34 @@ expect_fail_msg "fixture-missing-dissent"    "bash '$DIR/lib/blind-judge.sh' par
 expect_fail_msg "fixture-bad-value"          "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/bad-value.txt' '$OP_SYNTH_FILE'"           "NET_NEW_CATCH must be"
 expect_fail_msg "fixture-missing-evidence"   "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/missing-evidence.txt' '$OP_SYNTH_FILE'"    "EVIDENCE required"
 expect_fail_msg "fixture-evidence-on-false"  "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-on-false.txt' '$OP_SYNTH_FILE'"   "EVIDENCE must be empty"
-expect_fail_msg "fixture-evidence-quotes-synthesis" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-quotes-synthesis.txt' '$OP_SYNTH_FILE'" "EVIDENCE quotes OPERATOR_SYNTHESIS verbatim"
+expect_fail_msg "fixture-evidence-quotes-synthesis" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-quotes-synthesis.txt' '$OP_SYNTH_FILE'" "EVIDENCE appears in OPERATOR_SYNTHESIS"
+
+# Post-/code-review hardening: substring (not just line-exact) attack on EVIDENCE
+# operator's synthesis contains "train/serve skew detected" as part of a longer line;
+# judge quotes the phrase, not the whole line; -F (not -Fx) catches it.
+cat > "$FIXDIR/evidence-quotes-synthesis-substring.txt" <<'EOF'
+===JUDGE OUTPUT===
+REASONING: r.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: true
+WHY: phrase from op synth.
+EVIDENCE: train/serve skew detected
+===END===
+EOF
+expect_fail_msg "fixture-evidence-substring-of-synthesis" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-quotes-synthesis-substring.txt' '$OP_SYNTH_FILE'" "EVIDENCE appears in OPERATOR_SYNTHESIS"
+
+# Post-/code-review hardening: IMPLIED_BY may legitimately contain colon-prefixed text;
+# the extract_field regex must not stop at a literal "foo:" inside the value.
+cat > "$FIXDIR/valid-false-implied-by-colon.txt" <<'EOF'
+===JUDGE OUTPUT===
+REASONING: solo named this risk explicitly with a quoted line.
+DISSENT_DIFF: - (none)
+NET_NEW_CATCH: false
+WHY: closest pair: synthesis was already implied by the solo's line about regression
+IMPLIED_BY: solo line about regression: we already considered model drift between v1 and v2
+===END===
+EOF
+expect_pass "fixture-implied-by-with-colon" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/valid-false-implied-by-colon.txt' '$OP_SYNTH_FILE'"
 expect_fail_msg "fixture-implied-without-implied-by" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/implied-without-implied-by.txt' '$OP_SYNTH_FILE'" "IMPLIED_BY required"
 # multi-line-why-actual: has EVIDENCE field present but NET_NEW_CATCH=false → "EVIDENCE must be empty"
 expect_fail_msg "fixture-multi-line-why-actual" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/multi-line-why-actual.txt' '$OP_SYNTH_FILE'" "EVIDENCE must be empty"

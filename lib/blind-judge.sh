@@ -37,14 +37,17 @@ release_lock() {
   trap - EXIT
 }
 
-# extract_field BLOCK FIELD STOP_REGEX -> stdout. STOP_REGEX is an awk alternation pattern;
-# captures lines between "FIELD:" and the next stop-prefix line (or ===END===). Empty stop_re is
-# allowed (means "only ===END=== stops the capture"). Collapses internal newlines to single spaces.
+# extract_field BLOCK FIELD STOP_REGEX -> stdout. STOP_REGEX is an awk alternation pattern of
+# field-name-prefixes (without colons) that should terminate the capture. The sentinel ===END===
+# is matched as its own anchored pattern (it has no trailing colon, unlike the field prefixes).
+# Empty STOP_REGEX is allowed (terminate at ===END=== only). Collapses internal newlines to
+# single spaces in the captured value.
 extract_field() {
   local block="$1" field="$2" stop_re="$3"
   local stop_pat
+  # Two stop patterns: field-name-with-colon-prefix OR ===END=== sentinel.
   if [ -n "$stop_re" ]; then
-    stop_pat="^(${stop_re}|===END===):"
+    stop_pat="^(${stop_re}):|^===END===\$"
   else
     stop_pat='^===END===$'
   fi
@@ -83,10 +86,13 @@ parse_response() {
   if [ "$catch" = "false" ] && [ -n "$evidence" ]; then
     die "EVIDENCE must be empty when NET_NEW_CATCH=false (got: $evidence)"
   fi
-  # Self-quote guard (Gemini's BLOCKER fix): EVIDENCE must not match a line in OPERATOR_SYNTHESIS
+  # Self-quote guard (Gemini's BLOCKER fix, hardened post-/code-review):
+  # EVIDENCE must not appear AS A SUBSTRING of OPERATOR_SYNTHESIS. Using -F (not -Fx) catches
+  # the case where the operator's framing covers the same finding in slightly different words
+  # and the judge quotes the shared phrase. Exact-line check (-Fx) only catches a full-line copy.
   if [ -n "$evidence" ] && [ -n "$op_synth" ]; then
-    if grep -qFx -- "$evidence" <<<"$op_synth"; then
-      die "EVIDENCE quotes OPERATOR_SYNTHESIS verbatim ('$evidence'); must quote PERSONA_POSITIONS only"
+    if grep -qF -- "$evidence" <<<"$op_synth"; then
+      die "EVIDENCE appears in OPERATOR_SYNTHESIS ('$evidence'); must quote PERSONA_POSITIONS only"
     fi
   fi
 
@@ -120,7 +126,7 @@ count_judge_b_rows() {
 resolve_artifact() {
   local room="$1"
   local artifact_path="$AGENT_CHAT_ROOT/rooms/$room/artifact.txt"
-  [ -f "$artifact_path" ] || die "no artifact in room '$room'; orchestrator did not persist it (FR9). Re-run the council OR run backfill-artifact."
+  [ -f "$artifact_path" ] || die "no artifact in room '$room'; orchestrator did not persist it (FR9). Re-run the council (backfill-artifact deferred to PR C)."
   local content
   content=$(<"$artifact_path")
   if [[ "$content" =~ ^@file:\ (.+)$ ]]; then
