@@ -429,6 +429,45 @@ n=$(jq -s --arg r "$ROOM_J" '[.[] | select(.room==$r)] | length' "$AGENT_FLEET_J
 [ ! -d "$AGENT_CHAT_ROOT/rooms/$ROOM_J/.judge.lockdir" ] \
   && note "PASS judge-race-lock-cleaned-up" || { note "FAIL judge-race-lock-orphaned"; fail=1; }
 
+echo "## end-to-end smoke (Chunk 8)"
+
+# Fresh state: orchestrator writes durable artifact, captures transcript, journal appends,
+# operator runs blind-judge.sh judge, journal row updates, transcript gets blind-judge#judge-N line.
+SMOKE_DIR=$(mktemp -d); SMOKE_J="$SMOKE_DIR/j.jsonl"
+export AGENT_CHAT_ROOT="$SMOKE_DIR/agent-chat"
+export AGENT_FLEET_JOURNAL="$SMOKE_J"
+SMOKE_ROOM=council-e2e-smoke
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$SMOKE_ROOM"
+echo "smoke artifact: a 3-line proposal that adds a feature flag" > "$AGENT_CHAT_ROOT/rooms/$SMOKE_ROOM/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$SMOKE_ROOM" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [BLOCKER] feature flag has no rollback test
+@@from: synthesis
+Council verdict: BLOCK
+1. [BLOCKER] feature flag has no rollback test
+EOF
+bash "$DIR/lib/journal.sh" append "$SMOKE_ROOM" "e2e-smoke" \
+  "ship the feature flag as-is" "red-team" true "" true 0 false null 1 design \
+  --synthesis-word-count 9 >/dev/null
+# Feed a valid judge response through the full chain (judge subcommand)
+SMOKE_RESPONSE=$(build_valid_erasure)  # erasure response = catch=true with EVIDENCE
+echo "$SMOKE_RESPONSE" | bash "$DIR/lib/blind-judge.sh" judge "$SMOKE_ROOM" --phase1 judge-a >/dev/null 2>&1 \
+  && note "PASS smoke-judge-chain-completes" || { note "FAIL smoke-judge-chain-completes"; fail=1; }
+# Verify: journal row has judge_blinded=true AND transcript has @@from: blind-judge#judge-1
+jq -e --arg r "$SMOKE_ROOM" 'select(.room==$r and .judge_blinded==true and .judge_blinded_catch==true)' "$SMOKE_J" >/dev/null \
+  && note "PASS smoke-journal-row-updated" || { note "FAIL smoke-journal-row-updated"; fail=1; }
+grep -q '"from":"blind-judge#judge-1"' "$AGENT_CHAT_ROOT/rooms/$SMOKE_ROOM/log.jsonl" \
+  && note "PASS smoke-transcript-judge-line" || { note "FAIL smoke-transcript-judge-line"; fail=1; }
+# stats should now report 1 judged run on this isolated journal
+stats=$(AGENT_FLEET_JOURNAL="$SMOKE_J" bash "$DIR/lib/journal.sh" stats 2>&1)
+echo "$stats" | grep -q 'blinded-judge sample : 1 of 1' \
+  && note "PASS smoke-stats-reports-judged" || { note "FAIL smoke-stats-reports-judged (got: $stats)"; fail=1; }
+
+# Reset env for downstream tests (none after smoke today, but keep the discipline)
+export AGENT_CHAT_ROOT="$(mktemp -d)"
+export AGENT_FLEET_JOURNAL="$(mktemp -d)/j.jsonl"
+
 echo "## backfill-artifact (Chunk 5)"
 
 ROOM_BF=council-backfill-test
