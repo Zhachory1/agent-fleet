@@ -10,6 +10,8 @@ description: "Convene a council of 2-4 specialist personas to review a high-stak
 
 You are the council orchestrator. Run this protocol. Personas are STATELESS one-shot subagents — YOU sequence everything and hold all outputs in YOUR context.
 
+**Prerequisite:** the operator MUST set `AGENT_FLEET_HOME` to their clone of the agent-fleet repo (e.g. `export AGENT_FLEET_HOME="$HOME/code/agent-fleet"` — substitute the actual clone path). Every `lib/` invocation below uses `$AGENT_FLEET_HOME`. If unset, fall back to asking the operator before running any council step — do NOT guess the path.
+
 ## Step 0 — Solo first (counterfactual, MANDATORY)
 Before convening, ask the user (one line) for their current decision + the risks they already see. Record as `solo_decision`. This powers the catch-rate KPI. If they decline, set solo_decision="(skipped)".
 
@@ -96,7 +98,7 @@ ALL positions at once into `capture`, blocks delimited by `@@from: <persona>#r<N
 suffix is the round number — round 1 here):
 
 ```
-bash ~/code/agent-fleet/lib/transcript.sh capture council-<slug> <<'EOF'
+bash $AGENT_FLEET_HOME/lib/transcript.sh capture council-<slug> <<'EOF'
 @@from: <persona-1>#r1
 <persona-1 FULL POSITION block, verbatim>
 @@from: <persona-2>#r1
@@ -146,7 +148,7 @@ personas across rounds by exact first token.
 After each reflection round, pipe prev/curr `<persona> <verdict> <issue_count>` (separated by a
 `---` line) into `synth.sh converged`:
 ```
-printf '<prev lines>\n---\n<curr lines>\n' | bash ~/code/agent-fleet/lib/synth.sh converged
+printf '<prev lines>\n---\n<curr lines>\n' | bash $AGENT_FLEET_HOME/lib/synth.sh converged
 ```
 Then apply EXACTLY this state machine:
 > **CONVERGED** → stop. **SUSPICIOUS-FLIP** and not yet warned → emit
@@ -160,7 +162,7 @@ SUSPICIOUS-FLIP both just run toward the cap with no second retry. The retry cos
 round beyond the target; the absolute cap of 4 is never exceeded.
 
 ## Step 5 — Synthesize (in YOUR context)
-Compute the consensus/dissent flag deterministically: pipe '<persona> <verdict>' lines into `bash ~/code/agent-fleet/lib/synth.sh flag`.
+Compute the consensus/dissent flag deterministically: pipe '<persona> <verdict>' lines into `bash $AGENT_FLEET_HOME/lib/synth.sh flag`.
 
 **Persisted capitulation headline (REQUIRED).** If a SUSPICIOUS-FLIP persisted to the cap — i.e. you
 already `warned` and the council was STILL flipping at the final round — the synthesis MUST headline
@@ -196,7 +198,7 @@ acted-on gate with code/design runs. For validation runs also ask: did the counc
 lens-baseline from Step 0.5 (Y/N)? Then call `journal.sh append` (kw-args form preferred):
 
 ```
-bash ~/code/agent-fleet/lib/journal.sh append \
+bash $AGENT_FLEET_HOME/lib/journal.sh append \
   --room council-<slug> \
   --task <slug> \
   --solo "<solo_decision>" \
@@ -218,10 +220,10 @@ Run `journal.sh --help` for the full flag list.
 Then tell the user where to read the full transcript + the running gate stats (Visibility below).
 
 ## Visibility — where the council's thinking lives
-- **Full per-persona reasoning (durable):** `bash ~/code/agent-fleet/lib/transcript.sh show <slug>`
+- **Full per-persona reasoning (durable):** `bash $AGENT_FLEET_HOME/lib/transcript.sh show <slug>`
   (omit `<slug>` for the newest run). Raw: `~/.claude/agent-chat/rooms/council-<slug>/log.jsonl`.
-- **List past councils:** `bash ~/code/agent-fleet/lib/transcript.sh rooms`
-- **KPI gate dashboard:** `bash ~/code/agent-fleet/lib/journal.sh stats [N]` — catch rate,
+- **List past councils:** `bash $AGENT_FLEET_HOME/lib/transcript.sh rooms`
+- **KPI gate dashboard:** `bash $AGENT_FLEET_HOME/lib/journal.sh stats [N]` — catch rate,
   false-alarm rate, lens-baseline-beat rate, and the keep/kill verdict over the last N runs.
 - **Raw journal:** `cat ~/.claude/agent-fleet-journal.jsonl | jq .`
 - **Live, this session:** the synthesis you print in Step 5.

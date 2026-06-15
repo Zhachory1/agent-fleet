@@ -11,8 +11,17 @@
 # Bash + jq + flock + sha256sum. No new runtime dep.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
-AGENT_CHAT_ROOT="${AGENT_CHAT_ROOT:-$HOME/.claude/agent-chat}"
-AGENT_FLEET_JOURNAL="${AGENT_FLEET_JOURNAL:-$HOME/.claude/agent-fleet-journal.jsonl}"
+# Default paths: env var > legacy ~/.claude > XDG (same precedence as journal.sh + transcript.sh).
+if [ -z "${AGENT_CHAT_ROOT:-}" ]; then
+  if [ -d "$HOME/.claude/agent-chat" ]; then AGENT_CHAT_ROOT="$HOME/.claude/agent-chat"
+  else AGENT_CHAT_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/agent-fleet/agent-chat"
+  fi
+fi
+if [ -z "${AGENT_FLEET_JOURNAL:-}" ]; then
+  if [ -f "$HOME/.claude/agent-fleet-journal.jsonl" ]; then AGENT_FLEET_JOURNAL="$HOME/.claude/agent-fleet-journal.jsonl"
+  else AGENT_FLEET_JOURNAL="${XDG_DATA_HOME:-$HOME/.local/share}/agent-fleet/journal.jsonl"
+  fi
+fi
 
 die() { printf 'blind-judge: %s\n' "$*" >&2; exit 1; }
 

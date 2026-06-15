@@ -5,7 +5,12 @@
 #   transcript.sh show   [room]                  pretty-print a room (default: newest)
 #   transcript.sh rooms                          list council rooms, newest first
 set -euo pipefail
-AGENT_CHAT_ROOT="${AGENT_CHAT_ROOT:-$HOME/.claude/agent-chat}"
+# Default agent-chat root: AGENT_CHAT_ROOT env var if set, else legacy ~/.claude/agent-chat
+# if it exists (back-compat), else XDG. Same precedence as journal.sh.
+if [ -n "${AGENT_CHAT_ROOT:-}" ]; then :
+elif [ -d "$HOME/.claude/agent-chat" ]; then AGENT_CHAT_ROOT="$HOME/.claude/agent-chat"
+else AGENT_CHAT_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/agent-fleet/agent-chat"
+fi
 ROOMS="$AGENT_CHAT_ROOT/rooms"
 ac_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 ac_safe() { printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '-' | cut -c1-64; }
