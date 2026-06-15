@@ -252,9 +252,31 @@ bash $AGENT_FLEET_HOME/lib/overlay.sh lint   # advisory: scans for suspicious pa
 
 The lint is heuristic and advisory — a clean lint does NOT prove the overlay is safe. It surfaces
 candidates (contract overrides, prompt-injection shapes, exfiltration patterns, URLs, tool-call
-shapes) for human review. Start from
-[`agents/_overlay.md.example`](agents/_overlay.md.example), which carries the threat-model
-warning at the top of the file.
+shapes) for human review.
+
+### Overlay starter presets
+
+Filling an overlay from a blank file is real work. The repo ships **industry starter presets**
+under [`agents/_overlay.example/`](agents/_overlay.example/) covering common org shapes. Pick the
+closest to yours, copy it to `agents/_overlay.md`, and customize.
+
+| If your org is… | Start from… | Personas it sharpens |
+|---|---|---|
+| SaaS (B2B or B2C with subscription model) | [`saas.md`](agents/_overlay.example/saas.md) | product-pm, ab-critic, generalist-swe |
+| ML platform / applied ML | [`ml-platform.md`](agents/_overlay.example/ml-platform.md) | ml-scientist, ab-critic, data-engineer |
+| Adtech / programmatic advertising | [`adtech.md`](agents/_overlay.example/adtech.md) | ab-critic, ml-scientist, reliability-sentinel |
+| Fintech / payments / lending | [`fintech.md`](agents/_overlay.example/fintech.md) | reliability-sentinel, software-architect, red-team |
+| Two-sided marketplace | [`marketplace.md`](agents/_overlay.example/marketplace.md) | ab-critic, product-pm, ml-scientist |
+| Devtools / developer-facing products | [`devtools.md`](agents/_overlay.example/devtools.md) | docs-dx, software-architect, product-pm |
+| Anything else | [`_overlay.md.example`](agents/_overlay.md.example) | (generic skeleton; the original fallback) |
+
+Each preset is a public starter — generic enough to be safe in the repo, real enough to be useful.
+They're meant to be **edited heavily** before installing as your private `agents/_overlay.md`.
+The ml-scientist + ab-critic personas in particular get noticeably sharper with a domain-rich
+overlay; the cost of running them against the bare-skeleton overlay is real.
+
+CI runs `lib/overlay.sh lint` against every preset on every push (advisory — findings surface in
+the CI log, but the build doesn't fail on them).
 
 ## Tests
 
