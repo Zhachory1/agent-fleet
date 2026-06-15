@@ -22,11 +22,19 @@ council finishes, judge whether the council surfaced a net-new catch the lens-ba
 Record both in the journal (Step 6). If the council never beats the lens-baseline, the multi-agent
 apparatus is not earning its cost — the lenses are. (Skip only once validation is complete.)
 
-## Step 1 — Capture artifact once
-Identify the artifact under review (a diff, a doc path, a metrics table, pasted text).
-- diff → `git diff [args] > /tmp/council-<slug>.txt`
-- file/doc → use its path directly
-- pasted text / table → write to `/tmp/council-<slug>.txt`
+## Step 1 — Capture artifact once (FR9: durable copy in room)
+Identify the artifact under review (a diff, a doc path, a metrics table, pasted text). Write it
+to BOTH:
+- working copy at `/tmp/council-<slug>.txt` (per-session, may be cleared)
+- **durable copy at `~/.claude/agent-chat/rooms/council-<slug>/artifact.txt`** (FR9, NEW) so the
+  blinded-judge helper can find it days later when the operator runs `blind-judge.sh judge`.
+
+How:
+- diff → `git diff [args] > /tmp/council-<slug>.txt && mkdir -p ~/.claude/agent-chat/rooms/council-<slug> && cp /tmp/council-<slug>.txt ~/.claude/agent-chat/rooms/council-<slug>/artifact.txt`
+- file/doc with a stable path → the durable copy may be a one-line pointer: `printf '@file: %s\n' "$(realpath "$ARTIFACT")" > ~/.claude/agent-chat/rooms/council-<slug>/artifact.txt` (blind-judge helper resolves at judge-time; refuses if unresolvable to prevent confabulation)
+- diff range with stable SHAs → `printf '@diff: %s\n' "$DIFF_REF" > ~/.claude/agent-chat/rooms/council-<slug>/artifact.txt`
+- pasted text / table → write to both `/tmp/council-<slug>.txt` AND the durable copy
+
 Hold the path. <2KB may be inlined; else pass the path.
 
 ## Step 2 — Select 2-4 personas (rules table → LLM fallback)
