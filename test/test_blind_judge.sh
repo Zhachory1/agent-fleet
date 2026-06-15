@@ -417,17 +417,30 @@ bash "$DIR/lib/journal.sh" append "$ROOM_J" "judge-race-test" "x" "a" \
   true "" true 0 false null 1 design --synthesis-word-count 1 >/dev/null
 
 RESP_TRUE=$(build_valid_true)
-# Spawn two parallel judge calls feeding the same valid response
+# /council MAJOR #1 fix (PR C). Earlier version of this test just verified the lock dir was
+# created+removed, which a no-op lock would pass. The fix: time the FAST judge call alone.
+# If the lock works, FAST must wait for SLOW to finish (~1s). If the lock is a no-op,
+# FAST returns immediately (<200ms). The difference is the actual serialization assertion.
+#
+# Pass --phase1 because the test env is still in Phase 1 (distinct_rooms<5 here); pairing
+# both judges with judge-a means they hit each other's lock without phase-validation eating
+# the assertion.
 (
-  echo "$RESP_TRUE" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" 2>&1 >/dev/null
+  ( sleep 1; echo "$RESP_TRUE" ) | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" --phase1 judge-a 2>&1 >/dev/null
 ) &
 JPID1=$!
-(
-  echo "$RESP_TRUE" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" 2>&1 >/dev/null
-) &
-JPID2=$!
+sleep 0.2  # let SLOW reach acquire_lock first
+fast_start=$(date +%s%N 2>/dev/null || date +%s)  # nanoseconds on GNU date, fallback seconds
+echo "$RESP_TRUE" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM_J" --phase1 judge-a 2>&1 >/dev/null
+fast_end=$(date +%s%N 2>/dev/null || date +%s)
 wait $JPID1 || true
-wait $JPID2 || true
+# fast_elapsed in milliseconds (or seconds if date +%s%N unavailable on this platform).
+# date +%s%N on macOS without coreutils returns the literal string "%N" — detect + fallback.
+if [[ "$fast_start" == *N* ]] || [[ "$fast_end" == *N* ]]; then
+  fast_elapsed_ms=$(( (fast_end - fast_start) * 1000 ))
+else
+  fast_elapsed_ms=$(( (fast_end - fast_start) / 1000000 ))
+fi
 
 # Exactly ONE journal row for ROOM_J (both judges wrote the same answer; idempotent)
 n=$(jq -s --arg r "$ROOM_J" '[.[] | select(.room==$r)] | length' "$AGENT_FLEET_JOURNAL")
@@ -435,6 +448,14 @@ n=$(jq -s --arg r "$ROOM_J" '[.[] | select(.room==$r)] | length' "$AGENT_FLEET_J
 # Lock dir must be cleaned up
 [ ! -d "$AGENT_CHAT_ROOT/rooms/$ROOM_J/.judge.lockdir" ] \
   && note "PASS judge-race-lock-cleaned-up" || { note "FAIL judge-race-lock-orphaned"; fail=1; }
+# Serialization: FAST must have waited for SLOW (>=500ms). A no-op lock would let FAST
+# return in <200ms (it has nothing else to do).
+if [ "$fast_elapsed_ms" -ge 500 ]; then
+  note "PASS judge-race-lock-actually-serializes (fast waited ${fast_elapsed_ms}ms)"
+else
+  note "FAIL judge-race-lock-no-op (fast finished in ${fast_elapsed_ms}ms; should have waited >=500ms for SLOW)"
+  fail=1
+fi
 
 echo "## end-to-end smoke (Chunk 8)"
 
