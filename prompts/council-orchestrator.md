@@ -19,9 +19,16 @@ The honest question is "do the LENSES help?", not "do multiple AGENTS help?". Pr
 single-pass review using the SAME selected lenses in one context; hold it as `lens_baseline`.
 After the council, judge whether it surfaced a net-new catch the baseline missed.
 
-## Step 1 — Capture the artifact once
+## Step 1 — Capture the artifact once (FR9: durable copy in room)
 Identify what's under review (diff, doc, metrics, pasted text). Save it to one path/excerpt you
 pass to every persona — do NOT rely on shared conversation, personas don't inherit it.
+
+**FR9 (NEW):** also persist a durable copy at
+`~/.claude/agent-chat/rooms/council-<slug>/artifact.txt` so the blinded-judge helper
+(`lib/blind-judge.sh`) can find the artifact days later. For already-durable sources, the file
+may be a one-line pointer (`@file: <abs-path>` or `@diff: <git-ref>`); the helper resolves at
+judge-time and refuses if unresolvable (prevents confabulation). For pasted text, write the
+actual content. The room directory should be created with `mkdir -p` before writing.
 
 ## Step 2 — Select 2-4 personas
 Pick by task (cap 4; add `red-team` when stakes are high):

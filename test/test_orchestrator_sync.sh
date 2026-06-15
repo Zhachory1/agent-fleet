@@ -16,4 +16,8 @@ done
 for f in "$A" "$B"; do
   grep -qF 'council capitulated under reflection' "$f" || { echo "FAIL: $(basename "$f") missing capitulation headline"; exit 1; }
 done
+# FR9: Step 1 must instruct durable artifact write to room/artifact.txt (blind-judge helper depends on it)
+for f in "$A" "$B"; do
+  grep -qF 'rooms/council-<slug>/artifact.txt' "$f" || { echo "FAIL: $(basename "$f") missing FR9 durable artifact path"; exit 1; }
+done
 echo "PASS test_orchestrator_sync"
