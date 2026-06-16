@@ -31,15 +31,36 @@ die() { printf 'blind-judge: %s\n' "$*" >&2; exit 1; }
 
 # Portable advisory lock using mkdir (atomic on POSIX). flock isn't on mac by default.
 # Usage: acquire_lock <lockdir>; ... ; release_lock <lockdir>
-# Waits up to 30s, then dies.
+# Waits up to 30s (with 10ms jitter to avoid two-process timeout-collisions), then dies.
+# Reclaims stale lockdirs older than STALE_LOCK_SECS (default 300 = 5 minutes).
+# Override for tests: AGENT_FLEET_STALE_LOCK_SECS=<n>.
 acquire_lock() {
   local lockdir="$1"
   local waited=0
+  local stale_secs="${AGENT_FLEET_STALE_LOCK_SECS:-300}"
   while ! mkdir "$lockdir" 2>/dev/null; do
-    sleep 0.05
+    # Stale-lock recovery (#23 reliability): if the existing lockdir is older than
+    # stale_secs, it survived a SIGKILL or crash. Reclaim it once; do NOT loop
+    # reclaiming (that'd race with a slow-but-live holder).
+    if [ "$waited" -gt 20 ] && [ -d "$lockdir" ]; then
+      local mtime now age
+      # macOS stat -f vs GNU stat -c
+      mtime=$(stat -f %m "$lockdir" 2>/dev/null || stat -c %Y "$lockdir" 2>/dev/null || echo 0)
+      now=$(date +%s)
+      age=$((now - mtime))
+      if [ "$age" -gt "$stale_secs" ]; then
+        # Reclaim: rmdir + retry mkdir in one atomic-ish sequence. If another process
+        # claims it in between, our next mkdir fails and we loop back to normal wait.
+        rmdir "$lockdir" 2>/dev/null
+        printf 'blind-judge: reclaimed stale lock %s (age %ds > %ds)\n' "$lockdir" "$age" "$stale_secs" >&2
+        continue
+      fi
+    fi
+    # 50ms base + 0-9ms jitter (avoids two-process synchronized timeouts)
+    sleep "0.0$((50 + RANDOM % 10))"
     waited=$((waited + 1))
     if [ "$waited" -gt 600 ]; then
-      die "timed out acquiring lock $lockdir"
+      die "timed out acquiring lock $lockdir (manual recovery: rmdir $lockdir)"
     fi
   done
   trap 'rmdir "'"$lockdir"'" 2>/dev/null || true' EXIT

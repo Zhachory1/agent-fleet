@@ -59,6 +59,25 @@ elif [ -f "$HOME/.claude/agent-fleet-journal.jsonl" ]; then
 else
   JOURNAL="${XDG_DATA_HOME:-$HOME/.local/share}/agent-fleet/journal.jsonl"
 fi
+
+# Write-permission precheck on the journal dir (#23 reliability): on a read-only mount
+# or restricted dir, mkdir/jq give an unhelpful 'Permission denied' mid-pipeline. Pre-check
+# once at startup so the error is actionable.
+_check_journal_writable() {
+  local d; d="$(dirname "$JOURNAL")"
+  # If JOURNAL exists, must be writable. If not, the parent dir must be writable (or createable).
+  if [ -e "$JOURNAL" ]; then
+    [ -w "$JOURNAL" ] || { echo "journal: $JOURNAL is not writable (check permissions or AGENT_FLEET_JOURNAL)" >&2; exit 1; }
+  elif [ -d "$d" ]; then
+    [ -w "$d" ] || { echo "journal: $d is not writable (check permissions or AGENT_FLEET_JOURNAL)" >&2; exit 1; }
+  else
+    # Walk up to first existing ancestor; it must be writable so mkdir -p can create $d.
+    local p="$d"
+    while [ ! -e "$p" ]; do p="$(dirname "$p")"; [ "$p" = "/" ] && break; done
+    [ -w "$p" ] || { echo "journal: cannot create $d (nearest existing ancestor $p is not writable)" >&2; exit 1; }
+  fi
+}
+
 ac_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 cmd="${1:-}"; shift || true
 
@@ -244,6 +263,7 @@ case "$cmd" in
         exit 2
       fi
     fi
+    _check_journal_writable
     mkdir -p "$(dirname "$JOURNAL")"
     # flock wrapper (Rev 2: added in Chunk 1 per PLAN)
     # Detect flock availability (Linux has it, macOS may need brew install util-linux)
@@ -343,6 +363,7 @@ case "$cmd" in
       echo "journal: invariant violated — judge_blinded_catch=false requires judge_evidence empty" >&2
       exit 1
     fi
+    _check_journal_writable
     mkdir -p "$(dirname "$JOURNAL")"
     # flock wrapper
     if command -v flock >/dev/null 2>&1; then
