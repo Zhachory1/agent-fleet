@@ -475,22 +475,29 @@ EOF
     [ -d "$room_dir" ] || die "room '$room' does not exist (no transcript directory)"
     judge_lockdir="$room_dir/.judge.lockdir"
     acquire_lock "$judge_lockdir"
-    # Prepare prints to stdout; capture so we can extract the SHAs (audit trail) AND also
-    # echo it back so the operator sees the prompt (they need to read it + paste the rendered
-    # prompt into their judge chat). Cannot use 'tee /dev/tty' — fails when stdin is
-    # redirected (tests, CI, non-interactive shells).
+    # Prepare prints the full rendered prompt to stdout AND copies it to clipboard via
+    # pbcopy/xclip. We capture stdout so we can extract the SHAs (audit trail) but DO NOT
+    # re-echo the 15KB+ prompt to the terminal — it scrolls past the 'Paste here' line and
+    # the operator can't tell the helper is waiting for input. The prompt is on the clipboard.
     if [ -n "$phase1" ]; then
       prepare_out=$("$0" prepare "$room" --phase1 "$phase1")
     else
       prepare_out=$("$0" prepare "$room")
     fi
-    # Echo to stdout so the operator sees the rubric prompt (already on clipboard via pbcopy
-    # in prepare, but the printed copy is the visual confirmation that it rendered).
-    printf '%s\n' "$prepare_out"
     # Extract the SHAs from prepare's stdout (lines: 'judge_template_sha256: <hex>' etc.).
-    # These are the canonical audit-trail values; recomputing them here would risk drift.
     judge_tsh=$(printf '%s\n' "$prepare_out" | awk -F': ' '/^judge_template_sha256:/ {print $2; exit}')
     judge_rsh=$(printf '%s\n' "$prepare_out" | awk -F': ' '/^judge_render_sha256:/ {print $2; exit}')
+    # Show the operator a compact status line, NOT the whole rendered prompt.
+    echo "prepared: room=$room phase1=${phase1:-none}"
+    echo "  template_sha256: ${judge_tsh:0:16}..."
+    echo "  render_sha256:   ${judge_rsh:0:16}..."
+    if [ -n "${SSH_CONNECTION:-}" ]; then
+      echo "  (SSH detected — prompt was NOT copied to clipboard; re-run 'prepare' standalone and copy manually)"
+    elif command -v pbcopy >/dev/null 2>&1 || command -v xclip >/dev/null 2>&1; then
+      echo "  prompt is on your clipboard (pbcopy/xclip)"
+    else
+      echo "  (no clipboard tool found — run 'prepare $room --phase1 ${phase1:-...}' separately to see the prompt)"
+    fi
     # Empty-synthesis warning (#57): if the rubric is rendering without an OPERATOR_SYNTHESIS
     # block, the judge's dissent-erasure cross-check is muted. Surface this so the operator
     # can decide whether to proceed or capture synthesis first.
@@ -507,7 +514,9 @@ EOF
       fi
     fi
     echo ""
-    echo "Paste the judge response below (ending with ===END===), then Ctrl-D:"
+    echo "Paste the judge's response below (the ===JUDGE OUTPUT=== ... ===END=== block)."
+    echo "Then press Ctrl-D on a new line to submit."
+    echo ""
     # Read stdin with a 10-minute hard timeout (DD-OQ1: 600s; 5min reminder is a v1.1 enhancement)
     if command -v timeout >/dev/null 2>&1; then
       response=$(timeout 600 cat) || die "stdin timeout (10 minutes) waiting for judge response"
