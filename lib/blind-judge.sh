@@ -475,11 +475,36 @@ EOF
     [ -d "$room_dir" ] || die "room '$room' does not exist (no transcript directory)"
     judge_lockdir="$room_dir/.judge.lockdir"
     acquire_lock "$judge_lockdir"
-    # Prepare prints to stdout; we want it printed PLUS the operator pastes the response on stdin
+    # Prepare prints to stdout; capture so we can extract the SHAs (audit trail) AND also
+    # echo it back so the operator sees the prompt (they need to read it + paste the rendered
+    # prompt into their judge chat). Cannot use 'tee /dev/tty' — fails when stdin is
+    # redirected (tests, CI, non-interactive shells).
     if [ -n "$phase1" ]; then
-      "$0" prepare "$room" --phase1 "$phase1"
+      prepare_out=$("$0" prepare "$room" --phase1 "$phase1")
     else
-      "$0" prepare "$room"
+      prepare_out=$("$0" prepare "$room")
+    fi
+    # Echo to stdout so the operator sees the rubric prompt (already on clipboard via pbcopy
+    # in prepare, but the printed copy is the visual confirmation that it rendered).
+    printf '%s\n' "$prepare_out"
+    # Extract the SHAs from prepare's stdout (lines: 'judge_template_sha256: <hex>' etc.).
+    # These are the canonical audit-trail values; recomputing them here would risk drift.
+    judge_tsh=$(printf '%s\n' "$prepare_out" | awk -F': ' '/^judge_template_sha256:/ {print $2; exit}')
+    judge_rsh=$(printf '%s\n' "$prepare_out" | awk -F': ' '/^judge_render_sha256:/ {print $2; exit}')
+    # Empty-synthesis warning (#57): if the rubric is rendering without an OPERATOR_SYNTHESIS
+    # block, the judge's dissent-erasure cross-check is muted. Surface this so the operator
+    # can decide whether to proceed or capture synthesis first.
+    room_log_check="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
+    if [ -s "$room_log_check" ]; then
+      synth_check=$(jq -r 'select(.from=="synthesis") | .text // ""' "$room_log_check" 2>/dev/null | tr -d '[:space:]')
+      if [ -z "$synth_check" ]; then
+        echo "" >&2
+        echo "blind-judge: WARN — room '$room' has no @@from: synthesis block." >&2
+        echo "  The judge will operate without dissent-erasure cross-check." >&2
+        echo "  Catch-detection still works; calibration writeup should note this." >&2
+        echo "  See issue #57 for Phase 1 calibration implications." >&2
+        echo "" >&2
+      fi
     fi
     echo ""
     echo "Paste the judge response below (ending with ===END===), then Ctrl-D:"
@@ -511,6 +536,10 @@ EOF
     rec_args=("$room" --catch "$catch" --why "$why" --reasoning "$reasoning" --dissent-diff "$dissent_diff")
     [ -n "$evidence" ]   && rec_args+=(--evidence "$evidence")
     [ -n "$implied_by" ] && rec_args+=(--implied-by "$implied_by")
+    # Forward the SHAs from prepare so the journal row has the full audit trail.
+    # Without these, judge_template_sha256/judge_render_sha256 land empty (silent audit gap).
+    [ -n "$judge_tsh" ]  && rec_args+=(--template-sha256 "$judge_tsh")
+    [ -n "$judge_rsh" ]  && rec_args+=(--render-sha256 "$judge_rsh")
     # judge_lockdir is released by trap-on-EXIT in acquire_lock; we keep holding it through record
     [ -n "$phase1" ]     && rec_args+=(--phase1 "$phase1")
     "$0" record "${rec_args[@]}"
