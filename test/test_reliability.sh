@@ -52,7 +52,7 @@ JLOCK="$AGENT_FLEET_JOURNAL.lockdir"
 mkdir -p "$(dirname "$JLOCK")"
 mkdir "$JLOCK"
 backdate "$JLOCK" 3600
-note "backdated lockdir mtime ($(stat -f %m "$JLOCK" 2>/dev/null || stat -c %Y "$JLOCK" 2>/dev/null || echo '?'))"
+note "backdated lockdir mtime ($(stat -c %Y "$JLOCK" 2>/dev/null || stat -f %m "$JLOCK" 2>/dev/null || echo '?'))"
 
 # AGENT_FLEET_STALE_LOCK_SECS=1 means anything older than 1s is stale.
 # Run `record` with the env var; it should reclaim the stale lock and succeed.

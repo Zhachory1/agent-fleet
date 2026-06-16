@@ -44,9 +44,13 @@ acquire_lock() {
     # reclaiming (that'd race with a slow-but-live holder).
     if [ "$waited" -gt 20 ] && [ -d "$lockdir" ]; then
       local mtime now age
-      # macOS stat -f vs GNU stat -c
-      mtime=$(stat -f %m "$lockdir" 2>/dev/null || stat -c %Y "$lockdir" 2>/dev/null || echo 0)
+      # GNU stat -c (Linux) vs BSD stat -f (macOS). Try -c first because BSD stat -f
+      # accepts the flag with a DIFFERENT meaning (filesystem info) and would return
+      # success with garbage output on Linux. -c on macOS fails cleanly.
+      mtime=$(stat -c %Y "$lockdir" 2>/dev/null || stat -f %m "$lockdir" 2>/dev/null || echo 0)
       now=$(date +%s)
+      # If parsing failed (mtime is non-numeric), skip reclaim this iteration.
+      case "$mtime" in *[!0-9]*|'') waited=$((waited + 1)); sleep "0.0$((50 + RANDOM % 10))"; continue;; esac
       age=$((now - mtime))
       if [ "$age" -gt "$stale_secs" ]; then
         # Reclaim: rmdir + retry mkdir in one atomic-ish sequence. If another process
