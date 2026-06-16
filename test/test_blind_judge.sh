@@ -538,5 +538,42 @@ echo "$rout" | grep -q "REPLACED" \
   && note "PASS backfill-warns-on-replace" || { note "FAIL backfill-warns-on-replace (got: $rout)"; fail=1; }
 rm -f "$UNTRACKED_SOURCE" "$UNTRACKED_SOURCE2"
 
+echo "## extract_operator_synthesis: multi-synthesis-block picks LAST (issue #44 item #4)"
+# DD contract: when a room has 2+ @@from: synthesis blocks across rounds, the parser MUST
+# pick the LAST one (`| last` in jq). This guards against early-round synthesis drafts being
+# used in place of the final synthesis the operator actually committed to.
+ROOM_MS=council-multi-synthesis
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_MS"
+echo "artifact" > "$AGENT_CHAT_ROOT/rooms/$ROOM_MS/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM_MS" <<EOF >/dev/null
+@@from: ml-scientist#r1
+verdict: BLOCK
+- [BLOCKER] early-round finding
+@@from: synthesis
+DRAFT round-1 synthesis: BLOCK with early finding
+@@from: ml-scientist#r2
+verdict: SHIP-WITH-CHANGES
+- [MAJOR] revised finding
+@@from: synthesis
+FINAL synthesis: SHIP-WITH-CHANGES with revised finding
+EOF
+
+# Source the helper functions to call extract_operator_synthesis directly.
+# blind-judge.sh runs main when not sourced; we invoke `prepare` so the same code path that
+# uses extract_operator_synthesis fires end-to-end.
+bash "$DIR/lib/journal.sh" append "$ROOM_MS" "multi-synth" "ship" "ml-scientist" \
+  true "" true 0 false null 1 design --synthesis-word-count 7 >/dev/null
+MS_OUT=$(bash "$DIR/lib/blind-judge.sh" prepare "$ROOM_MS" --phase1 judge-a)
+os_block=$(awk '/==== OPERATOR_SYNTHESIS ====/,/==== PERSONA_LIST ====/' <<<"$MS_OUT")
+grep -q "FINAL synthesis" <<<"$os_block" \
+  && note "PASS multi-synthesis-picks-last (FINAL present)" \
+  || { note "FAIL multi-synthesis: FINAL synthesis missing from OPERATOR_SYNTHESIS block"; fail=1; }
+if grep -q "DRAFT round-1" <<<"$os_block"; then
+  note "FAIL multi-synthesis: DRAFT round-1 synthesis leaked into OPERATOR_SYNTHESIS (parser used wrong block)"
+  fail=1
+else
+  note "PASS multi-synthesis-rejects-earlier-drafts (DRAFT absent)"
+fi
+
 echo "---"
 if [ "$fail" = "0" ]; then echo "PASS test_blind_judge"; else echo "FAIL test_blind_judge"; exit 1; fi
