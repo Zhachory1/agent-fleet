@@ -71,6 +71,8 @@ Subcommands:
   append-judge-only ...       record a judge-only row (used when journal.sh append failed but
                               blind-judge.sh judge ran; writes self-report fields as NULL)
   stats [N]                   print catch-rate / false-alarm / gate verdict (last N runs; 0=all)
+  migrate [--dry-run]         idempotently fill schema defaults on every row. Writes
+                              JOURNAL.bak + atomic rename. Re-running is a no-op.
   --help                      this message
 
 journal.sh append (kw-args form, PREFERRED):
@@ -460,5 +462,70 @@ case "$cmd" in
         "verdict: \(if $t<20 then "keep going — \(20-$t) more run(s) to the gate" elif $bgate=="INSUFFICIENT" then "INSUFFICIENT BASELINE DATA — council cannot be judged until \(10-$bruns) more lens-baseline run(s) (gate needs n≥10)" elif $catchpct>=40 and ($fapct<50 or $fapct<0) and $bgate=="PASS" then "KEEP — council earns its cost" else "KILL CANDIDATE — collapse to a single lens-prompt" end)"
       end' "$JOURNAL"
     ;;
-  *) echo "usage: journal.sh {append ... | stats [N]}" >&2; exit 1;;
+  migrate)
+    # journal.sh migrate [--dry-run]
+    # Idempotently fill schema defaults on every row. Safe because:
+    #   1. Writes to JOURNAL.bak first, then atomically renames over JOURNAL.
+    #   2. If jq fails, original is untouched.
+    #   3. Re-running is a no-op (every field already present after first run).
+    # Defaults match the `// "default"` patterns used by stats — single source of truth for
+    # missing-field semantics is here.
+    dry_run=0
+    [ "${1:-}" = "--dry-run" ] && dry_run=1
+    [ -f "$JOURNAL" ] || { echo "migrate: no journal at $JOURNAL"; exit 0; }
+    # Count rows that would change so dry-run shows actual signal
+    changed=$(jq -s '[.[] | select(
+      (has("run_kind")|not) or
+      (has("lens_baseline_run")|not) or
+      (has("council_beat_baseline")|not) or
+      (has("issues_raised")|not) or
+      (has("judge_blinded")|not) or
+      (has("judge_blinded_catch")|not) or
+      (has("judge_why")|not) or
+      (has("judge_evidence")|not) or
+      (has("judge_implied_by")|not) or
+      (has("judge_reasoning")|not) or
+      (has("judge_dissent_diff")|not) or
+      (has("judge_model_family_self_reported")|not) or
+      (has("judge_prompt_version")|not) or
+      (has("judge_template_sha256")|not) or
+      (has("judge_render_sha256")|not) or
+      (has("solo_decision_word_count")|not) or
+      (has("synthesis_word_count")|not)
+    )] | length' "$JOURNAL")
+    total=$(jq -s 'length' "$JOURNAL")
+    if [ "$dry_run" = "1" ]; then
+      echo "migrate --dry-run: $changed / $total row(s) would be updated"
+      exit 0
+    fi
+    if [ "$changed" = "0" ]; then
+      echo "migrate: already up to date ($total row(s), 0 changes)"
+      exit 0
+    fi
+    cp "$JOURNAL" "$JOURNAL.bak"
+    tmp="$JOURNAL.migrate.tmp"
+    # Defaults: match the `// default` patterns in stats. Bool/null/string/int defaults below.
+    jq -c '.
+      | (.run_kind                          //= "code")
+      | (.lens_baseline_run                 //= false)
+      | (.council_beat_baseline             //= null)
+      | (.issues_raised                     //= 0)
+      | (.judge_blinded                     //= false)
+      | (.judge_blinded_catch               //= null)
+      | (.judge_why                         //= "")
+      | (.judge_evidence                    //= "")
+      | (.judge_implied_by                  //= "")
+      | (.judge_reasoning                   //= "")
+      | (.judge_dissent_diff                //= "")
+      | (.judge_model_family_self_reported  //= "")
+      | (.judge_prompt_version              //= null)
+      | (.judge_template_sha256             //= "")
+      | (.judge_render_sha256               //= "")
+      | (.solo_decision_word_count          //= 0)
+      | (.synthesis_word_count              //= 0)
+    ' "$JOURNAL" > "$tmp" || { rm -f "$tmp"; echo "migrate: jq failed; $JOURNAL untouched ($JOURNAL.bak preserved)" >&2; exit 1; }
+    mv "$tmp" "$JOURNAL"
+    echo "migrate: $changed / $total row(s) updated; backup at $JOURNAL.bak"
+    ;;
+  *) echo "usage: journal.sh {append ... | stats [N] | migrate [--dry-run]}" >&2; exit 1;;
 esac
