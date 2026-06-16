@@ -627,7 +627,7 @@ else
   note "FAIL --response-file row missing or wrong shape: '$row'"; fail=1
 fi
 
-# Missing file is rejected
+# Missing file is rejected (use judge-a; this room already has judge-a, so it's a repeat — Phase 1 rules allow repeats).
 set +e
 bash "$DIR/lib/blind-judge.sh" judge "$ROOM_RF" --phase1 judge-a --response-file /nonexistent/path.txt >/dev/null 2>&1
 rc=$?
@@ -697,6 +697,18 @@ if echo "$warn2" | grep -qF "no @@from: synthesis block"; then
 else
   note "PASS synthesis-bearing room does NOT trigger empty-synthesis warning"
 fi
+
+# Backfill judge-b coverage on the rooms already judged judge-a. Phase 1's forcing rule
+# requires >=3 judge-b runs across the 5 distinct rooms before a 5th NEW distinct room can
+# be added via judge-a alone. Without this, the multi-synthesis test below (5th distinct
+# room) would trip the rule. Use record --force because rooms already have judge-a recorded.
+for backfill_room in "$ROOM_SHA" "$ROOM_RF" "$ROOM_NOSYN"; do
+  bash "$DIR/lib/blind-judge.sh" record "$backfill_room" --catch false \
+    --why "phase1 judge-b backfill (test infra)" \
+    --reasoning "phase1 rule satisfaction; no semantic content" \
+    --dissent-diff "- (none)" --implied-by "ship as-is" \
+    --phase1 judge-b --force >/dev/null 2>&1 || true
+done
 
 echo "## extract_operator_synthesis: multi-synthesis-block picks LAST (issue #44 item #4)"
 # DD contract: when a room has 2+ @@from: synthesis blocks across rounds, the parser MUST
