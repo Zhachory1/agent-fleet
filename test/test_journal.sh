@@ -145,3 +145,52 @@ verdict: SHIP"
 jq -se --arg r "$ROOM_MIXED" '.[-1] | .room==$r and .judge_blinded==true and .judge_blinded_catch==false' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
   || { echo "FAIL: mixed positional + judge-* kw-args broke"; exit 1; }
+
+# Issue #44 item #3: data-quality invariants in `append` (not just `append-judge-only`).
+# These code paths existed; the tests did not. PR fills the test gap.
+ROOM_INV=council-invariants
+"$DIR/lib/transcript.sh" capture "$ROOM_INV" <<<"@@from: a
+verdict: SHIP"
+
+# Invariant 1: judge_blinded=false ⇒ all other judge_* fields must be empty/null.
+# Populating any judge_* field while judge_blinded=false must reject.
+set +e
+"$DIR/lib/journal.sh" append --room "$ROOM_INV" --task t --solo s --personas a \
+  --net-new-catch true --acted-on true \
+  --judge-blinded false --judge-evidence "should-not-be-set" 2>/dev/null
+rc=$?; set -e
+[ "$rc" = "1" ] || { echo "FAIL: invariant 1 (blinded=false + evidence set) should reject (exit 1), got $rc"; exit 1; }
+
+set +e
+"$DIR/lib/journal.sh" append --room "$ROOM_INV" --task t --solo s --personas a \
+  --net-new-catch true --acted-on true \
+  --judge-blinded false --judge-why "should-not-be-set" 2>/dev/null
+rc=$?; set -e
+[ "$rc" = "1" ] || { echo "FAIL: invariant 1 (blinded=false + why set) should reject (exit 1), got $rc"; exit 1; }
+
+# Invariant 2: judge_blinded_catch=true ⇒ judge_evidence must be non-empty.
+set +e
+"$DIR/lib/journal.sh" append --room "$ROOM_INV" --task t --solo s --personas a \
+  --net-new-catch true --acted-on true \
+  --judge-blinded true --judge-catch true --judge-evidence "" 2>/dev/null
+rc=$?; set -e
+[ "$rc" = "1" ] || { echo "FAIL: invariant 2 (catch=true + evidence empty) should reject (exit 1), got $rc"; exit 1; }
+
+# Invariant 3: judge_blinded_catch=false ⇒ judge_evidence must be empty.
+set +e
+"$DIR/lib/journal.sh" append --room "$ROOM_INV" --task t --solo s --personas a \
+  --net-new-catch true --acted-on true \
+  --judge-blinded true --judge-catch false --judge-evidence "should-be-empty" 2>/dev/null
+rc=$?; set -e
+[ "$rc" = "1" ] || { echo "FAIL: invariant 3 (catch=false + evidence set) should reject (exit 1), got $rc"; exit 1; }
+
+# Positive case: judge_blinded=true + catch=true + evidence non-empty must succeed
+"$DIR/lib/journal.sh" append --room "$ROOM_INV" --task t --solo s --personas a \
+  --net-new-catch true --acted-on true \
+  --judge-blinded true --judge-catch true --judge-evidence "real evidence quote" \
+  --judge-model-family claude --judge-prompt-version v2 \
+  --judge-template-sha256 deadbeef --judge-render-sha256 cafef00d \
+  --judge-reasoning "r" --judge-dissent-diff "- (none)" \
+  || { echo "FAIL: invariants should permit catch=true + evidence non-empty"; exit 1; }
+
+echo "PASS test_journal_invariants (issue #44 item #3)"
