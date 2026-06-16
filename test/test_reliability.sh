@@ -10,6 +10,22 @@ note() { printf '  %s\n' "$*"; }
 WORK="$(mktemp -d)"
 trap 'chmod -R u+w "$WORK" 2>/dev/null; rm -rf "$WORK"' EXIT
 
+# Portable backdating helper: set mtime of $1 to $2 seconds in the past.
+# GNU touch has -d "@<epoch>"; BSD touch needs -t YYYYMMDDhhmm[.SS]. Both supported here.
+backdate() {
+  local target="$1" secs_ago="$2"
+  local epoch; epoch=$(( $(date +%s) - secs_ago ))
+  if touch -d "@${epoch}" "$target" 2>/dev/null; then return 0; fi
+  # BSD fallback: format as YYYYMMDDhhmm.SS in local time
+  local stamp
+  if date -r "$epoch" '+%Y%m%d%H%M.%S' >/dev/null 2>&1; then
+    stamp=$(date -r "$epoch" '+%Y%m%d%H%M.%S')
+  else
+    stamp=$(date -d "@${epoch}" '+%Y%m%d%H%M.%S')
+  fi
+  touch -t "$stamp" "$target"
+}
+
 # ---- Stale-lockdir recovery ----
 # Strategy: source the acquire_lock function from blind-judge.sh in a subshell that
 # never reaches main. We can't trivially source (the script runs `cmd=...` at top
@@ -31,12 +47,12 @@ verdict: SHIP
 Council verdict: SHIP
 EOF
 
-# Prime the journal lock as a stale dir. Set mtime to 1 hour ago.
+# Prime the journal lock as a stale dir. Backdate mtime by 1 hour (portable).
 JLOCK="$AGENT_FLEET_JOURNAL.lockdir"
 mkdir -p "$(dirname "$JLOCK")"
 mkdir "$JLOCK"
-# touch -t expects [[CC]YY]MMDDhhmm[.SS] — use a fixed past time
-touch -t 202001010000 "$JLOCK"
+backdate "$JLOCK" 3600
+note "backdated lockdir mtime ($(stat -f %m "$JLOCK" 2>/dev/null || stat -c %Y "$JLOCK" 2>/dev/null || echo '?'))"
 
 # AGENT_FLEET_STALE_LOCK_SECS=1 means anything older than 1s is stale.
 # Run `record` with the env var; it should reclaim the stale lock and succeed.
