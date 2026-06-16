@@ -224,16 +224,60 @@ council's thinking after a run.
 
 ## Counterfactual Journal (NFR5 / KPI)
 
-`~/.claude/agent-fleet-journal.jsonl`, one/run:
+`~/.claude/agent-fleet-journal.jsonl` (or XDG path), one row per run. The schema has
+accreted over time; `lib/journal.sh migrate` idempotently fills defaults on older rows.
+Current Rev 3 schema (the canonical set the `migrate` subcommand backfills):
 
 ```json
-{"ts":"...","task":"<slug>","solo_decision":"<my call before council>",
- "personas":["ml-scientist","ab-critic"],"net_new_catch":true,
- "catch_note":"missed train/serve skew on feature X","acted_on":true,"dismissed_count":1}
+{
+  "ts": "2026-06-16T12:00:00Z",
+  "room": "council-foo",
+  "task": "foo",
+  "solo_decision": "<my call before council>",
+  "personas": ["ml-scientist", "ab-critic"],
+  "net_new_catch": true,
+  "catch_note": "missed train/serve skew",
+  "acted_on": true,
+  "dismissed_count": 1,
+  "lens_baseline_run": false,
+  "council_beat_baseline": null,
+  "issues_raised": 3,
+  "run_kind": "code",
+  "judge_blinded": true,
+  "judge_blinded_catch": true,
+  "judge_why": "<judge one-liner>",
+  "judge_evidence": "<verbatim quote>",
+  "judge_implied_by": "",
+  "judge_reasoning": "<audit scratchpad>",
+  "judge_dissent_diff": "<audit scratchpad>",
+  "judge_model_family_self_reported": "claude",
+  "judge_prompt_version": "v2",
+  "judge_template_sha256": "<hex>",
+  "judge_render_sha256": "<hex>",
+  "solo_decision_word_count": 12,
+  "synthesis_word_count": 348
+}
 ```
 
-`lib/journal.sh` append. Orchestrator prompt me for `solo_decision` BEFORE convening (enforces
-solo-first counterfactual). Powers the kill-criterion.
+### Field semantics — non-obvious ones
+
+- **`synthesis_word_count`** — count of the **LATEST** `@@from: synthesis` block in the
+  room's transcript, NOT an aggregate across rounds. When a room has multiple synthesis
+  blocks (e.g. one per round), `extract_operator_synthesis` picks the last via jq's `| last`
+  and word-counts that block alone. This guards against early-round draft syntheses being
+  treated as the final committed synthesis.
+
+- **`judge_phase1`** — internal 14th field, NOT included in the schema above and NOT
+  written by `journal.sh append` (only `blind-judge.sh record` sets it). Values:
+  `"judge-a"`, `"judge-b"`, or absent. Used by `count_judge_b_rows` to enforce the
+  Phase-1 dual-judging rule (≥3 of the 5 distinct rooms must have a judge-b row). The
+  field is internal because Phase 1 is a one-time calibration; after Phase 2 begins, the
+  field stops being written. `journal.sh migrate` deliberately does NOT backfill it (would
+  contaminate the phase-counting logic).
+
+`lib/journal.sh` append enforces solo-first counterfactual (refuses without solo_decision)
+and transcript-first capture (refuses without a captured room transcript). Powers the
+kill-criterion.
 
 ## Synthesis Format (skimmable < 2 min)
 
