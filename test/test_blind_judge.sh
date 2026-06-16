@@ -588,6 +588,56 @@ else
   note "FAIL judge_render_sha256 missing or wrong shape: '$rsh'"; fail=1
 fi
 
+echo "## judge --response-file flag (terminal-paste-limit workaround)"
+# Same response shape as the SHA test above; use --response-file instead of stdin
+ROOM_RF=council-judge-response-file
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_RF"
+echo "artifact for response-file test" > "$AGENT_CHAT_ROOT/rooms/$ROOM_RF/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM_RF" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [BLOCKER] some concern
+@@from: synthesis
+Council verdict: BLOCK
+1. [BLOCKER] some concern
+EOF
+bash "$DIR/lib/journal.sh" append "$ROOM_RF" "rf-test" "ship as-is" "red-team" \
+  true "" true 0 false null 1 design >/dev/null
+
+RF_RESP=$(mktemp_d)/response.txt
+cat > "$RF_RESP" <<EOF
+===JUDGE OUTPUT===
+REASONING: response-file path test.
+
+DISSENT_DIFF: - (none)
+
+NET_NEW_CATCH: false
+
+WHY: nothing new.
+
+IMPLIED_BY: ship as-is
+
+===END===
+EOF
+bash "$DIR/lib/blind-judge.sh" judge "$ROOM_RF" --phase1 judge-a --response-file "$RF_RESP" >/dev/null 2>&1
+row=$(jq -c --arg r "$ROOM_RF" 'select(.room==$r and .judge_blinded==true)' "$AGENT_FLEET_JOURNAL" | tail -1)
+if [ -n "$row" ] && [ "$(jq -r '.judge_blinded_catch' <<<"$row")" = "false" ]; then
+  note "PASS --response-file path produces correctly-shaped journal row"
+else
+  note "FAIL --response-file row missing or wrong shape: '$row'"; fail=1
+fi
+
+# Missing file is rejected
+set +e
+bash "$DIR/lib/blind-judge.sh" judge "$ROOM_RF" --phase1 judge-a --response-file /nonexistent/path.txt >/dev/null 2>&1
+rc=$?
+set -e
+if [ "$rc" != "0" ]; then
+  note "PASS --response-file rejects nonexistent path"
+else
+  note "FAIL --response-file accepted a nonexistent path"; fail=1
+fi
+
 echo "## empty-synthesis warning fires (issue #57)"
 # Room with NO @@from: synthesis block
 ROOM_NOSYN=council-no-synthesis-warn

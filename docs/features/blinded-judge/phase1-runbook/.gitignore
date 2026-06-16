@@ -1,0 +1,3 @@
+# Generated judge prompts + raw results — large, room-specific, regenerable from the helper.
+*.txt
+*_results.txt

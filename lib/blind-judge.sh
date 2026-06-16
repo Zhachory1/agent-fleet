@@ -462,12 +462,18 @@ EOF
   judge)
     room="${1:?room}"; shift || true
     phase1=""
+    response_file=""
     while [ $# -gt 0 ]; do
       case "$1" in
         --phase1) phase1="$2"; shift 2;;
+        --response-file) response_file="$2"; shift 2;;
         *) die "unknown flag '$1'";;
       esac
     done
+    if [ -n "$response_file" ]; then
+      [ -f "$response_file" ] || die "--response-file does not exist: $response_file"
+      [ -s "$response_file" ] || die "--response-file is empty: $response_file"
+    fi
     # PR C correctness fix (#23 MAJOR #2): hold a per-room lock spanning prepare→record so two
     # terminals can't both pass enforce_phase1 simultaneously. Lock is on the room directory
     # (separate from journal lock to avoid double-locking when record runs in this same process).
@@ -514,17 +520,25 @@ EOF
       fi
     fi
     echo ""
-    echo "Paste the judge's response below (the ===JUDGE OUTPUT=== ... ===END=== block)."
-    echo "Then press Ctrl-D on a new line to submit."
-    echo ""
-    # Read stdin with a 10-minute hard timeout (DD-OQ1: 600s; 5min reminder is a v1.1 enhancement)
-    if command -v timeout >/dev/null 2>&1; then
-      response=$(timeout 600 cat) || die "stdin timeout (10 minutes) waiting for judge response"
-    elif command -v gtimeout >/dev/null 2>&1; then
-      response=$(gtimeout 600 cat) || die "stdin timeout (10 minutes) waiting for judge response"
+    if [ -n "$response_file" ]; then
+      echo "reading judge response from: $response_file"
+      response=$(cat "$response_file")
     else
-      # macOS without coreutils: perl alarm() fallback
-      response=$(perl -e 'alarm 600; while(<STDIN>) { print }') || die "stdin timeout (10 minutes) waiting for judge response"
+      echo "Paste the judge's response below (the ===JUDGE OUTPUT=== ... ===END=== block)."
+      echo "Then press Ctrl-D on a new line to submit."
+      echo "  tip: terminal paste-buffer limits drop large pastes. If your response is >2KB,"
+      echo "       save it to a file and use --response-file <path> instead (or 'pbpaste > /tmp/r.txt'"
+      echo "       then pipe via '< /tmp/r.txt')."
+      echo ""
+      # Read stdin with a 10-minute hard timeout (DD-OQ1: 600s; 5min reminder is a v1.1 enhancement)
+      if command -v timeout >/dev/null 2>&1; then
+        response=$(timeout 600 cat) || die "stdin timeout (10 minutes) waiting for judge response"
+      elif command -v gtimeout >/dev/null 2>&1; then
+        response=$(gtimeout 600 cat) || die "stdin timeout (10 minutes) waiting for judge response"
+      else
+        # macOS without coreutils: perl alarm() fallback
+        response=$(perl -e 'alarm 600; while(<STDIN>) { print }') || die "stdin timeout (10 minutes) waiting for judge response"
+      fi
     fi
     room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
     op_synth=$(extract_operator_synthesis "$room_log")

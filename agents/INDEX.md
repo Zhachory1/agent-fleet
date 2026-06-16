@@ -1,7 +1,12 @@
 # Persona index
 
 Each `agents/<name>.md` is a self-contained system prompt — one judgment lens. Pick **3–6** per
-council (Rev 3: was 2–4; raised); **cap 6**. When `iterations>1`, the orchestrator force-includes `red-team`.
+council (Rev 3: was 2–4; raised); **cap 6**. **Default-3 auto-include (Rev 4):** the orchestrator
+auto-includes `red-team`, `mvp`, and `occams-razor` in every council unless the operator explicitly
+opts out. They are the standing scope-and-realism controls (kill-shot + cut-scope + cut-complexity).
+Rules-table picks fill the remaining 0–3 slots; if adding default-3 + table picks exceeds 6, drop
+the lowest-priority non-default-3 pick. Opt-out is reasonable for tasks where the default-3 lenses
+don't fit (pure statistical ML readout, tiny correctness bug fix); state the reason in one line.
 
 > ⚠ **Overlap matters more at higher persona counts.** Personas in the same group often raise
 > similar issues, which inflates false-consensus pressure. The `Tends to agree with` column
@@ -89,7 +94,7 @@ Reviewing CODE (diff, PR, serving path):
 
 Reviewing a MODEL or EXPERIMENT:
   model change / pipeline      → ml-scientist + ab-critic + reliability-sentinel
-  A/B readout / holdout        → ab-critic + ml-scientist (+ red-team if launch-decision)
+  A/B readout / holdout        → ab-critic + ml-scientist  (default-3 auto-added; consider --no-default-3 if purely about statistical validity)
 
 Reviewing a DESIGN or DECISION:
   design doc / architecture    → software-architect + red-team + generalist-swe
