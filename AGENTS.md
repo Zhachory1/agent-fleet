@@ -24,7 +24,9 @@ Personas:
 - **Executive** — `cto` (3-5yr platform/tech arc), `ceo` (strategy / narrative / opportunity cost),
   `vp-eng` (capacity / sequencing / staffing reality).
 
-Pick 3-6 by task (Rev 3: was 2-4) — see `agents/INDEX.md` for the catalog + decision tree (including
+Pick 3-6 by task (Rev 3: was 2-4). Rev 4: `red-team`, `mvp`, `occams-razor` are auto-included
+in every council as the standing scope-and-realism controls (opt out per-call with reason). See
+`agents/INDEX.md` for the catalog + decision tree (including
 overlap flags), and the orchestrator prompt's selection table for the routing rules. At >4 personas,
 the overlap check is mandatory: high persona counts amplify false-consensus pressure if multiple picks
 share a same-group lens.

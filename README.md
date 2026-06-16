@@ -63,7 +63,7 @@ your decision  ──▶  /council <task>
                       ├─ Step 3   — round 1: each persona reviews in isolation, blind
                       │             rounds 2..N (default 2, cap 4): each persona sees peers'
                       │             FULL prior positions and must REFUTE-FIRST before conceding
-                      │             ↳ red-team auto-included when N>1 (standing dissenter)
+                      │             ↳ default-3 auto-included: red-team + mvp + occams-razor
                       │             ↳ deterministic convergence + capitulation detector
                       └─ Step 5   — synthesis: ranked issues, named dissents, false-consensus flag
                           Step 6  — journal the run (refuses unless transcript was captured)

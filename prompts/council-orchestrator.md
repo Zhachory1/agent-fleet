@@ -69,9 +69,25 @@ is a deliberate doubled-weight pick when the artifact is suspected of being bloa
 AND complexity — they attack different axes, so the "agreement" is real evidence rather than
 false-consensus. Justify the pick in one line when you make it.
 
-**red-team auto-include:** when `iterations>1`, force-include `red-team` in the selected set even if
-the table did not pick it — the standing dissenter against convergence pressure. If that exceeds 6
-(the new max as of Rev 3), drop the lowest-priority non-red-team pick.
+**Default-3 auto-include (Rev 4):** auto-include `red-team`, `mvp`, and `occams-razor` in every
+council regardless of what the rules table picked — they are the standing scope-and-realism
+controls. red-team finds the kill-shot; mvp cuts unnecessary scope; occams-razor cuts unnecessary
+complexity. Together they keep councils realistic about what's actually being built and what's
+actually a blocker. The rules-table picks then fill the remaining 0-3 slots with task-specific
+lenses (the cap stays at 6 personas total).
+
+**Opt-out:** if the operator explicitly says `--no-default-3` or names personas to exclude (e.g.
+"skip mvp for this — it's not a scope question"), honor that. Cases where opting out is
+reasonable: an ML readout where the question is about statistical validity (mvp's lens doesn't
+fit), a pure correctness review of a tiny bug fix (occams-razor's complexity-cut has nothing
+to attack). When opting out, state the reason in one line so the choice is visible.
+
+**Overlap acknowledgment:** the default-3 triples the adversarial weight (3 personas that skew
+BLOCK). This is intentional for THIS repo's failure profile — operator-driven work where scope
+creep + over-engineering + false-positives are the dominant failure modes. The SUSPICIOUS-FLIP
+detector still catches convergence-as-capitulation, but be aware that a unanimous BLOCK from
+the default-3 may reflect their shared bias rather than truly fatal flaws. Weight task-specific
+personas' SHIP verdicts proportionally.
 
 **Overlap check at >4 personas (Rev 3):** with the cap raised, picking 5-6 from the 16-persona catalog
 makes flagged-overlap pairs (per `agents/INDEX.md`'s `Tends to agree with` column) more likely. Overlap

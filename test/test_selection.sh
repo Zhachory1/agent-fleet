@@ -11,8 +11,12 @@ grep -q "design doc / architecture / new service / build-vs-buy | software-archi
 grep -q "false-consensus risk" "$S" || { echo "FAIL: no false-consensus guard"; exit 1; }
 grep -q "Solo first" "$S" || { echo "FAIL: no counterfactual step"; exit 1; }
 grep -qi "parallel" "$S" || { echo "FAIL: round-1 not parallel"; exit 1; }
-grep -qiE 'red-team.*(auto|force).*(includ|multi-iter|iterations)|force-include red-team' "$DIR/skills/council/SKILL.md" \
-  || { echo "FAIL: red-team auto-include rule missing"; exit 1; }
+# Rev 4: default-3 auto-include (red-team + mvp + occams-razor) replaces the older
+# red-team-only-when-iterations>1 rule. All three must be named as auto-included in the skill.
+for persona in red-team mvp occams-razor; do
+  grep -qiE "auto-include.*$persona|$persona.*auto-include" "$DIR/skills/council/SKILL.md" \
+    || { echo "FAIL: $persona missing from default-3 auto-include rule"; exit 1; }
+done
 
 # Persona cap (Rev 3): minimum 3, maximum 6. Both SKILL.md and the portable prompt MUST agree.
 for f in "$DIR/skills/council/SKILL.md" "$DIR/prompts/council-orchestrator.md"; do

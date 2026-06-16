@@ -588,6 +588,56 @@ else
   note "FAIL judge_render_sha256 missing or wrong shape: '$rsh'"; fail=1
 fi
 
+echo "## judge --response-file flag (terminal-paste-limit workaround)"
+# Same response shape as the SHA test above; use --response-file instead of stdin
+ROOM_RF=council-judge-response-file
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_RF"
+echo "artifact for response-file test" > "$AGENT_CHAT_ROOT/rooms/$ROOM_RF/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM_RF" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [BLOCKER] some concern
+@@from: synthesis
+Council verdict: BLOCK
+1. [BLOCKER] some concern
+EOF
+bash "$DIR/lib/journal.sh" append "$ROOM_RF" "rf-test" "ship as-is" "red-team" \
+  true "" true 0 false null 1 design >/dev/null
+
+RF_RESP=$(mktemp_d)/response.txt
+cat > "$RF_RESP" <<EOF
+===JUDGE OUTPUT===
+REASONING: response-file path test.
+
+DISSENT_DIFF: - (none)
+
+NET_NEW_CATCH: false
+
+WHY: nothing new.
+
+IMPLIED_BY: ship as-is
+
+===END===
+EOF
+bash "$DIR/lib/blind-judge.sh" judge "$ROOM_RF" --phase1 judge-a --response-file "$RF_RESP" >/dev/null 2>&1
+row=$(jq -c --arg r "$ROOM_RF" 'select(.room==$r and .judge_blinded==true)' "$AGENT_FLEET_JOURNAL" | tail -1)
+if [ -n "$row" ] && [ "$(jq -r '.judge_blinded_catch' <<<"$row")" = "false" ]; then
+  note "PASS --response-file path produces correctly-shaped journal row"
+else
+  note "FAIL --response-file row missing or wrong shape: '$row'"; fail=1
+fi
+
+# Missing file is rejected (use judge-a; this room already has judge-a, so it's a repeat — Phase 1 rules allow repeats).
+set +e
+bash "$DIR/lib/blind-judge.sh" judge "$ROOM_RF" --phase1 judge-a --response-file /nonexistent/path.txt >/dev/null 2>&1
+rc=$?
+set -e
+if [ "$rc" != "0" ]; then
+  note "PASS --response-file rejects nonexistent path"
+else
+  note "FAIL --response-file accepted a nonexistent path"; fail=1
+fi
+
 echo "## empty-synthesis warning fires (issue #57)"
 # Room with NO @@from: synthesis block
 ROOM_NOSYN=council-no-synthesis-warn
@@ -647,6 +697,18 @@ if echo "$warn2" | grep -qF "no @@from: synthesis block"; then
 else
   note "PASS synthesis-bearing room does NOT trigger empty-synthesis warning"
 fi
+
+# Backfill judge-b coverage on the rooms already judged judge-a. Phase 1's forcing rule
+# requires >=3 judge-b runs across the 5 distinct rooms before a 5th NEW distinct room can
+# be added via judge-a alone. Without this, the multi-synthesis test below (5th distinct
+# room) would trip the rule. Use record --force because rooms already have judge-a recorded.
+for backfill_room in "$ROOM_SHA" "$ROOM_RF" "$ROOM_NOSYN"; do
+  bash "$DIR/lib/blind-judge.sh" record "$backfill_room" --catch false \
+    --why "phase1 judge-b backfill (test infra)" \
+    --reasoning "phase1 rule satisfaction; no semantic content" \
+    --dissent-diff "- (none)" --implied-by "ship as-is" \
+    --phase1 judge-b --force >/dev/null 2>&1 || true
+done
 
 echo "## extract_operator_synthesis: multi-synthesis-block picks LAST (issue #44 item #4)"
 # DD contract: when a room has 2+ @@from: synthesis blocks across rounds, the parser MUST

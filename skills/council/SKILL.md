@@ -40,12 +40,29 @@ How:
 Hold the path. <2KB may be inlined; else pass the path.
 
 ## Step 2 — Select 3-6 personas (rules table → LLM fallback)
-Match task to this table; if no row matches, use judgment to pick 3-6 + one-line justification each. **Minimum 3, maximum 6.** Default target: 4 (gives room for the auto-included red-team without losing a task-driven pick).
+Match task to this table; if no row matches, use judgment to pick 3-6 + one-line justification each. **Minimum 3, maximum 6.** Default target: 4-5 (gives room for the auto-included default-3 — red-team + mvp + occams-razor — plus 1-2 task-driven picks).
 
-**red-team auto-include (FR4):** when `iterations>1` (any multi-iteration run), force-include
-`red-team` in the selected set even if the rules table did not pick it — it is the standing dissenter
-against convergence pressure. (If adding it would exceed 6 personas, drop the lowest-priority
-non-red-team pick.)
+**Default-3 auto-include (Rev 4):** auto-include `red-team`, `mvp`, and `occams-razor` in every
+council regardless of what the rules table picked — they are the standing scope-and-realism
+controls. red-team finds the kill-shot; mvp cuts unnecessary scope; occams-razor cuts unnecessary
+complexity. Together they keep councils realistic about what's actually being built and what's
+actually a blocker. The rules-table picks then fill the remaining 0-3 slots with task-specific
+lenses (the cap stays at 6 personas total). If adding the default-3 + the table's picks would
+exceed 6, drop the lowest-priority NON-default-3 pick.
+
+**Opt-out:** if the operator explicitly says `--no-default-3` or names personas to exclude (e.g.
+"skip mvp for this — it's not a scope question"), honor that. Cases where opting out is
+reasonable: an ML readout where the question is statistical validity (mvp's lens doesn't fit),
+a pure correctness review of a tiny bug fix (occams-razor's complexity-cut has nothing to
+attack). When opting out, state the reason in one line so the choice is visible to anyone
+reading the synthesis later.
+
+**Overlap acknowledgment:** the default-3 triples the adversarial weight (3 personas that skew
+BLOCK). This is intentional for THIS repo's failure profile — operator-driven work where scope
+creep, over-engineering, and false-positive issue-filing are the dominant failure modes. The
+SUSPICIOUS-FLIP detector still catches convergence-as-capitulation, but be aware that a
+unanimous BLOCK from the default-3 may reflect their shared cut-it-down bias rather than truly
+fatal flaws. Weight task-specific personas' SHIP verdicts proportionally.
 
 **Overlap pressure at higher persona counts** (Rev 3): with the cap raised from 4 to 6, picking 5-6 personas
 from the 16-persona catalog increases the probability that 2+ picks are flagged as same-group in
