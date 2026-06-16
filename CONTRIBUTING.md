@@ -80,8 +80,9 @@ frontmatter requires:
 
 ## Code of conduct
 
-This is a small repo. Be respectful, be specific, assume good faith. Ad-hominem against personas
-(human or LLM) is the only thing not allowed.
+This project adopts the [Contributor Covenant 2.1](./CODE_OF_CONDUCT.md). Be respectful, be
+specific, assume good faith. Ad-hominem against personas (human or LLM) is the one thing this
+repo flags explicitly beyond the Covenant's standard expectations.
 
 ## Questions?
 
