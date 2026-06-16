@@ -538,6 +538,116 @@ echo "$rout" | grep -q "REPLACED" \
   && note "PASS backfill-warns-on-replace" || { note "FAIL backfill-warns-on-replace (got: $rout)"; fail=1; }
 rm -f "$UNTRACKED_SOURCE" "$UNTRACKED_SOURCE2"
 
+echo "## judge subcommand forwards SHAs to record (issue #58: Phase 1 audit trail)"
+# Setup: a room with transcript + journal row so prepare can run
+ROOM_SHA=council-judge-forwards-sha
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_SHA"
+echo "some artifact text for sha-fwd test" > "$AGENT_CHAT_ROOT/rooms/$ROOM_SHA/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM_SHA" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [BLOCKER] test concern
+@@from: synthesis
+Council verdict: BLOCK
+1. [BLOCKER] test concern
+EOF
+bash "$DIR/lib/journal.sh" append "$ROOM_SHA" "sha-fwd-test" "ship as-is" "red-team" \
+  true "" true 0 false null 1 design >/dev/null
+
+# Synthetic judge response (catch=false; no evidence/implied-by gymnastics)
+SHA_RESP=$(mktemp_d)/response.txt
+cat > "$SHA_RESP" <<EOF
+===JUDGE OUTPUT===
+REASONING: test reasoning that's long enough to be a real sentence.
+
+DISSENT_DIFF: - (none)
+
+NET_NEW_CATCH: false
+
+WHY: nothing new beyond solo.
+
+IMPLIED_BY: ship as-is
+
+===END===
+EOF
+
+bash "$DIR/lib/blind-judge.sh" judge "$ROOM_SHA" --phase1 judge-a < "$SHA_RESP" >/dev/null 2>&1
+# Verify the row now has BOTH SHAs populated (the bug being regression-tested)
+row=$(jq -c --arg r "$ROOM_SHA" 'select(.room==$r and .judge_blinded==true)' "$AGENT_FLEET_JOURNAL" | tail -1)
+tsh=$(jq -r '.judge_template_sha256' <<<"$row")
+rsh=$(jq -r '.judge_render_sha256' <<<"$row")
+# Each SHA is 64 hex chars
+if [[ "$tsh" =~ ^[0-9a-f]{64}$ ]]; then
+  note "PASS judge forwards judge_template_sha256 to record (64-hex)"
+else
+  note "FAIL judge_template_sha256 missing or wrong shape: '$tsh'"; fail=1
+fi
+if [[ "$rsh" =~ ^[0-9a-f]{64}$ ]]; then
+  note "PASS judge forwards judge_render_sha256 to record (64-hex)"
+else
+  note "FAIL judge_render_sha256 missing or wrong shape: '$rsh'"; fail=1
+fi
+
+echo "## empty-synthesis warning fires (issue #57)"
+# Room with NO @@from: synthesis block
+ROOM_NOSYN=council-no-synthesis-warn
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_NOSYN"
+echo "artifact text" > "$AGENT_CHAT_ROOT/rooms/$ROOM_NOSYN/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM_NOSYN" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [BLOCKER] only persona
+EOF
+bash "$DIR/lib/journal.sh" append "$ROOM_NOSYN" "no-syn-test" "ship as-is" "red-team" \
+  true "" true 0 false null 1 design >/dev/null
+
+NOSYN_RESP=$(mktemp_d)/response.txt
+cat > "$NOSYN_RESP" <<EOF
+===JUDGE OUTPUT===
+REASONING: test reasoning sentence.
+
+DISSENT_DIFF: - (none)
+
+NET_NEW_CATCH: false
+
+WHY: nothing new beyond solo.
+
+IMPLIED_BY: ship as-is
+
+===END===
+EOF
+
+warn_out=$(bash "$DIR/lib/blind-judge.sh" judge "$ROOM_NOSYN" --phase1 judge-a < "$NOSYN_RESP" 2>&1 >/dev/null)
+if echo "$warn_out" | grep -qF "no @@from: synthesis block"; then
+  note "PASS empty-synthesis warning fires on stderr"
+else
+  note "FAIL empty-synthesis warning missing: stderr was '$warn_out'"; fail=1
+fi
+
+# Same room but with synthesis -> NO warning
+ROOM_SYN=council-with-synthesis-no-warn
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_SYN"
+echo "artifact" > "$AGENT_CHAT_ROOT/rooms/$ROOM_SYN/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$ROOM_SYN" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [BLOCKER] something
+@@from: synthesis
+Council verdict: BLOCK
+1. [BLOCKER] something
+EOF
+bash "$DIR/lib/journal.sh" append "$ROOM_SYN" "syn-present" "ship" "red-team" \
+  true "" true 0 false null 1 design >/dev/null
+
+SYN_RESP=$(mktemp_d)/response.txt
+cp "$NOSYN_RESP" "$SYN_RESP"  # same response shape
+warn2=$(bash "$DIR/lib/blind-judge.sh" judge "$ROOM_SYN" --phase1 judge-a < "$SYN_RESP" 2>&1 >/dev/null)
+if echo "$warn2" | grep -qF "no @@from: synthesis block"; then
+  note "FAIL synthesis-bearing room incorrectly triggered empty-synthesis warning"; fail=1
+else
+  note "PASS synthesis-bearing room does NOT trigger empty-synthesis warning"
+fi
+
 echo "## extract_operator_synthesis: multi-synthesis-block picks LAST (issue #44 item #4)"
 # DD contract: when a room has 2+ @@from: synthesis blocks across rounds, the parser MUST
 # pick the LAST one (`| last` in jq). This guards against early-round synthesis drafts being
