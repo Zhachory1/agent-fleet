@@ -1,6 +1,6 @@
 # Parallel-subagent vs single-context council runs — measurement protocol
 
-**Status:** protocol + helper landed; 3/10 paired artifacts complete (dogfood/interim sample).
+**Status:** protocol + helper landed; 7/10 paired artifacts complete (dogfood/interim sample).
 **Tracks:** issue #36.
 **Depends on:** #48 (Phase 1 calibration complete as of 2026-06-16).
 
@@ -8,23 +8,28 @@
 
 ## Interim results (dogfood sample; not final evidence)
 
-As of 2026-06-17, the first 3 paired artifacts have been run and blinded-judged (6 judgments):
+As of 2026-06-17, the first 7 paired artifacts have been run and blinded-judged (14 judgments):
 
 | Pair | Artifact | Parallel self/judge | Single self/judge | Paired delta |
 |---|---|---:|---:|---:|
 | 01 | `7a1631f` paired-mode helper | true / true | true / true | 0pp |
 | 02 | `8362bcf` generated council skill | true / true | false / true | +100pp |
 | 03 | `e0ea452` Cave/Codex install batch | true / true | true / true | 0pp |
+| 04 | `a003bb6` Phase 1 calibration writeup | true / true | true / true | 0pp |
+| 05 | `16e4be9` default-3 + response-file + runbook | true / true | true / true | 0pp |
+| 06 | `c927302` compact judge status UX | true / true | true / true | 0pp |
+| 07 | `5d07e8a` judge SHA forwarding + empty-synthesis warning | true / true | true / true | 0pp |
 
 Aggregate so far:
-- **parallel agreement:** 3/3
-- **single-context agreement:** 2/3
-- **mean paired delta:** +33pp parallel-minus-single
+- **parallel agreement:** 7/7
+- **single-context agreement:** 6/7
+- **mean paired delta:** +14pp parallel-minus-single
 
-This is **not enough to update README/AGENTS claims**. The first 3 pairs were also dogfood runs
-that surfaced product/tooling bugs, and several fixes landed between pairs (`7e6a9c7`, `61d8f03`,
-`889452a`, `b449f34`). Treat pairs 1-3 as an interim, pre/post-hardening mixed sample. The final
-writeup must either separate pre-hardening vs post-hardening rows or explicitly justify pooling.
+This is **not enough to update README/AGENTS claims**. Pairs 1-4 were also dogfood runs that
+surfaced product/tooling bugs, and several fixes landed between pairs (`7e6a9c7`, `61d8f03`,
+`889452a`, `b449f34`, `b0132f3`). Pairs 5-7 are post-hardening but still use fresh Claude CLI
+for both modes rather than separate native tools. The final writeup must either separate
+pre-hardening vs post-hardening rows or explicitly justify pooling.
 
 ---
 
