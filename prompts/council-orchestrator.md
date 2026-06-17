@@ -102,6 +102,8 @@ round beyond the target `N` (bounded by 4) — so the brake works even at defaul
 ### Iteration 1 — blind
 **If your tool has a subagent primitive** (Claude Code Task tool; opencode subagents): spawn each
 selected persona as an isolated subagent IN PARALLEL, prompt = persona file + artifact + task.
+For Claude Code, set `subagent_type` to the bare persona name (e.g. `red-team`); it resolves
+from `~/.claude/agents/`.
 **If it does not** (Cursor / Codex / generic chat): adopt each persona's system prompt
 (`agents/<name>.md`) ONE AT A TIME in this context and produce its POSITION before the next —
 state each one fresh; do NOT let an earlier persona bias a later one. (Note: single-context mode
@@ -118,7 +120,9 @@ POSITION (persona: <name>)
 - one_line
 ```
 
-Persist ALL positions in ONE call (the durable record of the thinking), round-tagged `#r<N>`:
+**MANDATORY:** persist ALL positions in ONE call (the durable record of the thinking),
+round-tagged `#r<N>`. Do NOT loop N appends — this exact step was skipped on real runs and
+lost the transcript.
 ```
 bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture council-<slug> <<'EOF'
 @@from: <persona-1>#r1
@@ -127,6 +131,8 @@ bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture council-<slug> <<'EOF'
 <full POSITION-2>
 EOF
 ```
+Verify with `transcript.sh rooms` that `council-<slug>` now exists; if not, the run is
+unrecorded — redo capture before synthesizing.
 
 ### Iterations 2..N — reflection (critique-before-concede)
 For each round `r` from 2 to N, re-run the SAME personas. Each persona's prompt **injects each
