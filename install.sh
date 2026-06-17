@@ -95,6 +95,10 @@ while [ $# -gt 0 ]; do
     *) echo "install.sh: unknown arg '$1' (try --help)" >&2; exit 1;;
   esac
 done
+if [ "$SCOPE" != "project" ] && [ "$TOOL" != "cave" ]; then
+  echo "install.sh: --user/--project only applies to --tool cave" >&2
+  exit 1
+fi
 
 place() { # place <src-file> <dst-path>
   mkdir -p "$(dirname "$2")"
@@ -103,7 +107,6 @@ place() { # place <src-file> <dst-path>
 place_dir() { # place_dir <src-dir> <dst-dir>
   mkdir -p "$(dirname "$2")"
   if [ "$COPY" = "1" ]; then
-    rm -rf "$2"
     mkdir -p "$2"
     cp -R "$1"/. "$2"/
   else
@@ -111,13 +114,32 @@ place_dir() { # place_dir <src-dir> <dst-dir>
   fi
 }
 place_cave_persona() { # place_cave_persona <src-file> <dst-path>
+  local tmp
   mkdir -p "$(dirname "$2")"
   # Cave's tool registry uses lowercase canonical tool names. Keep source personas
   # Claude-Code-compatible; transform only the Cave install copies.
+  tmp="$2.tmp.$$"
   awk '
-    /^tools:[[:space:]]*/ { print "tools: read, grep, find, bash"; next }
+    function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+    BEGIN {
+      map["Read"] = "read"; map["Bash"] = "bash"; map["Edit"] = "edit"; map["Write"] = "write"
+      map["Grep"] = "grep"; map["Glob"] = "find"; map["LS"] = "ls"; map["Ls"] = "ls"
+    }
+    /^tools:[[:space:]]*/ {
+      tools = $0; sub(/^tools:[[:space:]]*/, "", tools)
+      n = split(tools, raw, ",")
+      out = ""
+      for (i = 1; i <= n; i++) {
+        t = trim(raw[i])
+        mapped = (t in map) ? map[t] : t
+        if (!(t in map)) printf "install.sh: WARN Cave tool has no mapping: %s\n", t > "/dev/stderr"
+        out = out (out == "" ? "" : ", ") mapped
+      }
+      print "tools: " out
+      next
+    }
     { print }
-  ' "$1" > "$2"
+  ' "$1" > "$tmp" && mv "$tmp" "$2" || { rm -f "$tmp"; return 1; }
 }
 # personas: enumerate the actual persona files. Excludes:
 #   - _overlay.md          (private overlay, not a persona; gitignored)
@@ -215,7 +237,7 @@ case "$TOOL" in
     echo "agent-fleet: installed Cave $SCOPE-scope agents → $CAVE_AGENTS_DST"
     echo "agent-fleet: installed Cave skill → $CAVE_SKILL_DST"
     echo "agent-fleet: installed Cave prompt → $CAVE_PROMPT_DST"
-    echo "Cave agent copies use lowercase tools: read, grep, find, bash."
+    echo "Cave agent copies map Claude-Code tool names to Cave lowercase names."
     echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
     exit 0
     ;;

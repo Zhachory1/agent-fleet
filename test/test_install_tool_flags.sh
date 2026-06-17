@@ -3,6 +3,8 @@
 # Validates tool-shortcut aliases added for issue #14 MAJOR plus cross-tool installs (#52/#53/#58).
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
+EXTRA_PERSONA="$DIR/agents/cave-tool-map-fixture.md"
+trap 'rm -f "$EXTRA_PERSONA"' EXIT
 fail=0
 
 # How many persona .md files exist (excludes catalog + private/example overlays).
@@ -77,7 +79,7 @@ if [ ! -f "$tmp/.cave/skills/council/SKILL.md" ]; then
   echo "FAIL: --tool cave did not install council skill into .cave/skills/council"
   fail=1
 fi
-if ! grep -q '^tools: read, grep, find, bash$' "$tmp/.cave/agents/red-team.md"; then
+if ! grep -q '^tools: read, find, grep, bash$' "$tmp/.cave/agents/red-team.md"; then
   echo "FAIL: --tool cave did not rewrite persona tools to Cave lowercase names"
   fail=1
 fi
@@ -93,6 +95,32 @@ if [ -f "$tmp/.cave/agents/red-team.md" ] || [ -e "$tmp/.cave/skills/council" ] 
   fail=1
 fi
 rm -rf "$tmp"
+
+# Cave tool mapping is per declared tool, not a hardcoded tools line.
+cat > "$EXTRA_PERSONA" <<'EOF'
+---
+name: cave-tool-map-fixture
+description: test-only fixture for Cave tool mapping
+tools: Read, Write, Glob, Grep, Bash, NotReal
+---
+body
+EOF
+tmp=$(mktemp -d)
+set +e
+OUT=$(cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool cave 2>&1)
+rc=$?
+set -e
+if [ "$rc" != "0" ]; then
+  echo "FAIL: --tool cave with mapping fixture exited $rc: $OUT"; fail=1
+fi
+if ! grep -q '^tools: read, write, find, grep, bash, NotReal$' "$tmp/.cave/agents/cave-tool-map-fixture.md"; then
+  echo "FAIL: --tool cave did not map declared tools per token"
+  fail=1
+fi
+echo "$OUT" | grep -q 'WARN Cave tool has no mapping: NotReal' \
+  || { echo "FAIL: --tool cave did not warn on unmapped tool: $OUT"; fail=1; }
+rm -rf "$tmp"
+rm -f "$EXTRA_PERSONA"
 
 # Cave user-scope layout uses Cave's user resource dirs.
 tmp=$(mktemp -d)
@@ -112,5 +140,12 @@ if [ ! -f "$tmp/home/.cave/prompts/council-orchestrator.md" ]; then
   fail=1
 fi
 rm -rf "$tmp"
+
+set +e
+OUT=$(HOME="$(mktemp -d)" bash "$DIR/install.sh" --tool codex --user 2>&1)
+rc=$?
+set -e
+[ "$rc" != "0" ] && echo "$OUT" | grep -q -- '--user/--project only applies to --tool cave' \
+  || { echo "FAIL: --tool codex --user should reject as Cave-only scope flag: rc=$rc out='$OUT'"; fail=1; }
 
 [ "$fail" = "0" ] && echo "PASS test_install_tool_flags" || exit 1
