@@ -124,19 +124,19 @@ rm -f "$EXTRA_PERSONA"
 
 # Cave user-scope layout uses Cave's user resource dirs.
 tmp=$(mktemp -d)
-( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool cave --user >/dev/null 2>&1 ) || {
+( cd "$tmp" && HOME="$tmp/home" CAVE_HOME="$tmp/cave-home" bash "$DIR/install.sh" --tool cave --user >/dev/null 2>&1 ) || {
   echo "FAIL: install.sh --tool cave --user exited non-zero"; fail=1
 }
-if [ ! -f "$tmp/home/.cave/agent/agents/red-team.md" ]; then
-  echo "FAIL: --tool cave --user did not install personas into ~/.cave/agent/agents"
+if [ ! -f "$tmp/cave-home/agent/agents/red-team.md" ]; then
+  echo "FAIL: --tool cave --user did not install personas into CAVE_HOME/agent/agents"
   fail=1
 fi
-if [ ! -f "$tmp/home/.cave/skills/council/SKILL.md" ]; then
-  echo "FAIL: --tool cave --user did not install skill into ~/.cave/skills/council"
+if [ ! -f "$tmp/cave-home/skills/council/SKILL.md" ]; then
+  echo "FAIL: --tool cave --user did not install skill into CAVE_HOME/skills/council"
   fail=1
 fi
-if [ ! -f "$tmp/home/.cave/prompts/council-orchestrator.md" ]; then
-  echo "FAIL: --tool cave --user did not install prompt into ~/.cave/prompts"
+if [ ! -f "$tmp/cave-home/prompts/council-orchestrator.md" ]; then
+  echo "FAIL: --tool cave --user did not install prompt into CAVE_HOME/prompts"
   fail=1
 fi
 rm -rf "$tmp"

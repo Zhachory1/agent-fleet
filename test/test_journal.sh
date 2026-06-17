@@ -211,3 +211,21 @@ echo "$OUT" | grep -q 'calibration phase — 2/5 Phase 1 rooms' \
   || { echo "FAIL: stats Phase 1 progress should count distinct rooms: $OUT"; exit 1; }
 
 echo "PASS test_journal_phase1_distinct_rooms (issue #60)"
+
+# Phase 2 branch: once 5 distinct rooms are judged, stats should leave the
+# calibration label and report Phase 2 progress by distinct rooms.
+STATS_PHASE2="$(mktemp)"
+cat > "$STATS_PHASE2" <<'EOF'
+{"room":"council-1","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
+{"room":"council-2","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
+{"room":"council-3","judge_blinded":true,"net_new_catch":false,"judge_blinded_catch":false}
+{"room":"council-4","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
+{"room":"council-5","judge_blinded":true,"net_new_catch":false,"judge_blinded_catch":false}
+EOF
+OUT=$(AGENT_FLEET_JOURNAL="$STATS_PHASE2" bash "$DIR/lib/journal.sh" stats)
+echo "$OUT" | grep -q '5/5 agree = 100%' \
+  || { echo "FAIL: stats Phase 2 agreement wrong: $OUT"; exit 1; }
+echo "$OUT" | grep -q 'Phase 2: 5/50 rooms judged' \
+  || { echo "FAIL: stats Phase 2 distinct-room progress wrong: $OUT"; exit 1; }
+
+echo "PASS test_journal_phase2_distinct_rooms"

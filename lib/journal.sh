@@ -433,10 +433,10 @@ case "$cmd" in
       | if $t == 0 then "no runs logged yet" else
         # backward-compat: rows logged before run_kind existed default to "code";
         # rows before judge_blinded existed default to judge_blinded=false
-        ([$r[] | . + {run_kind: (.run_kind // "code"),
-                      judge_blinded: (.judge_blinded // false),
-                      judge_blinded_catch: (.judge_blinded_catch // null),
-                      net_new_catch: (.net_new_catch // null)}]) as $r
+        ([$r[] | . + {run_kind: (if has("run_kind") then .run_kind else "code" end),
+                      judge_blinded: (if has("judge_blinded") then .judge_blinded else false end),
+                      judge_blinded_catch: (if has("judge_blinded_catch") then .judge_blinded_catch else null end),
+                      net_new_catch: (if has("net_new_catch") then .net_new_catch else null end)}]) as $r
       | ([$r[]|select(.net_new_catch)]|length) as $catches
       | ([$r[]|.dismissed_count // 0]|add) as $dis
       | ([$r[]|.issues_raised // 0]|add) as $raised

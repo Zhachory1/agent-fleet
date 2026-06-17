@@ -38,15 +38,15 @@ Options:
   --tool opencode            COPY personas + orchestrator → ./.agent-fleet/
                              (opencode reads AGENTS.md from repo root + subagents)
   --tool codex               COPY personas + orchestrator → ./.agent-fleet/,
-                             skill → ~/.codex/skills/council
+                             skill → \${CODEX_HOME:-~/.codex}/skills/council
                              (Codex reads AGENTS.md from repo root)
   --tool cave                COPY cave-compatible personas → ./.cave/agents/,
                              skill → ./.cave/skills/council,
                              prompt → ./.cave/prompts/council-orchestrator.md
-  --tool cave --user         User-scope Cave install:
-                             agents → ~/.cave/agent/agents,
-                             skill → ~/.cave/skills/council,
-                             prompt → ~/.cave/prompts/council-orchestrator.md
+  --tool cave --user         User-scope Cave install under \${CAVE_HOME:-~/.cave}:
+                             agents → \${CAVE_HOME:-~/.cave}/agent/agents,
+                             skill → \${CAVE_HOME:-~/.cave}/skills/council,
+                             prompt → \${CAVE_HOME:-~/.cave}/prompts/council-orchestrator.md
   --project                  Cave only. Project-scope install (default)
   --user                     Cave only. User-scope install
   --target DIR               Place personas + orchestrator prompt into DIR
@@ -104,14 +104,9 @@ place() { # place <src-file> <dst-path>
   mkdir -p "$(dirname "$2")"
   if [ "$COPY" = "1" ]; then cp -f "$1" "$2"; else ln -sf "$1" "$2"; fi
 }
-place_dir() { # place_dir <src-dir> <dst-dir>
-  mkdir -p "$(dirname "$2")"
-  if [ "$COPY" = "1" ]; then
-    mkdir -p "$2"
-    cp -R "$1"/. "$2"/
-  else
-    ln -sfn "$1" "$2"
-  fi
+place_dir() { # place_dir <src-dir> <dst-dir>; copy-only for sandboxed tool resource dirs
+  mkdir -p "$(dirname "$2")" "$2"
+  cp -R "$1"/. "$2"/
 }
 place_cave_persona() { # place_cave_persona <src-file> <dst-path>
   local tmp
@@ -216,9 +211,10 @@ case "$TOOL" in
   cave)
     COPY=1
     if [ "$SCOPE" = "user" ]; then
-      CAVE_AGENTS_DST="$HOME/.cave/agent/agents"
-      CAVE_SKILL_DST="$HOME/.cave/skills/council"
-      CAVE_PROMPT_DST="$HOME/.cave/prompts/council-orchestrator.md"
+      CAVE_BASE="${CAVE_HOME:-$HOME/.cave}"
+      CAVE_AGENTS_DST="$CAVE_BASE/agent/agents"
+      CAVE_SKILL_DST="$CAVE_BASE/skills/council"
+      CAVE_PROMPT_DST="$CAVE_BASE/prompts/council-orchestrator.md"
     else
       CAVE_AGENTS_DST="./.cave/agents"
       CAVE_SKILL_DST="./.cave/skills/council"
