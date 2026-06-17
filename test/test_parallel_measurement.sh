@@ -29,12 +29,16 @@ EOF
 
 make_room council-pair-1-parallel "parallel finding"
 make_room council-pair-1-single "single finding"
+printf 'mode-reveal phrase outside log: Task tool\n' >> "$AGENT_CHAT_ROOT/rooms/council-pair-1-single/artifact.txt"
 
 OUT=$(bash "$DIR/lib/parallel-vs-single.sh" anonymize \
   --pair-id 1 --parallel-room council-pair-1-parallel --single-room council-pair-1-single \
-  --study-dir "$STUDY")
+  --study-dir "$STUDY" 2>&1)
 echo "$OUT" | grep -q 'mapping:' || { echo "FAIL: anonymize did not print mapping path: $OUT"; exit 1; }
 note "PASS anonymize prints mapping"
+echo "$OUT" | grep -q 'WARN: .*copied content may contain mode-revealing text' \
+  || { echo "FAIL: recursive mode-leak warning did not fire for artifact.txt: $OUT"; exit 1; }
+note "PASS recursive mode-leak warning scans files beyond log.jsonl"
 
 [ -f "$STUDY/mapping.jsonl" ] || { echo "FAIL: mapping.jsonl missing"; exit 1; }
 [ "$(jq -s 'length' "$STUDY/mapping.jsonl")" = "2" ] || { echo "FAIL: expected 2 mapping rows"; exit 1; }
@@ -48,18 +52,13 @@ case "$parallel_anon $single_anon" in *parallel*|*single*) echo "FAIL: anon room
 note "PASS anonymized rooms created without mode names"
 
 jq -e --arg p "$parallel_anon" --arg s "$single_anon" '
-  select(.room==$p or .room==$s) | .judge_blinded==false and .judge_blinded_catch==null
-' "$AGENT_FLEET_JOURNAL" >/dev/null || { echo "FAIL: anonymized journal rows not reset for judging"; exit 1; }
-note "PASS anonymized journal rows reset judge fields"
+  select(.room==$p or .room==$s) | .task==.room and .judge_blinded==false and .judge_blinded_catch==null
+' "$AGENT_FLEET_JOURNAL" >/dev/null || { echo "FAIL: anonymized journal rows not reset for judging or task not anonymized"; exit 1; }
+note "PASS anonymized journal rows reset judge fields and task"
 
-# Simulate judged anon rows: parallel agrees with self, single disagrees.
-tmp="$WORK/journal.tmp"
-jq -c --arg p "$parallel_anon" --arg s "$single_anon" '
-  if .room==$p then . + {judge_blinded:true, judge_blinded_catch:true, judge_why:"agree"}
-  elif .room==$s then . + {judge_blinded:true, judge_blinded_catch:false, judge_why:"disagree"}
-  else . end
-' "$AGENT_FLEET_JOURNAL" > "$tmp"
-mv "$tmp" "$AGENT_FLEET_JOURNAL"
+# Simulate judged anon rows as sparse appended rows: parallel agrees with self, single disagrees.
+jq -cn --arg room "$parallel_anon" '{room:$room, judge_blinded:true, judge_blinded_catch:true, judge_why:"agree"}' >> "$AGENT_FLEET_JOURNAL"
+jq -cn --arg room "$single_anon" '{room:$room, judge_blinded:true, judge_blinded_catch:false, judge_why:"disagree"}' >> "$AGENT_FLEET_JOURNAL"
 
 SUMMARY=$(bash "$DIR/lib/parallel-vs-single.sh" analyze --study-dir "$STUDY")
 echo "$SUMMARY" | grep -q 'parallel agreement: 1/1' || { echo "FAIL: parallel agreement wrong: $SUMMARY"; exit 1; }

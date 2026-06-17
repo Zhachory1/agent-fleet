@@ -14,6 +14,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ### Fixed
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.
 - Blinded-judge stale-lock default raised above the 10-minute judge stdin hold window.
+- Paired-mode helper now avoids GNU-only `sha256sum`, scans copied rooms recursively for mode leaks, anonymizes cloned journal `task`, and merges sparse judge rows during analysis.
 
 ## [0.1.0] — 2026-06-16
 
