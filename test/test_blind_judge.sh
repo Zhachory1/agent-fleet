@@ -117,6 +117,23 @@ expect_fail_msg "phase1-required-on-new-5th-room" "bash '$DIR/lib/blind-judge.sh
 # Same R5 + --phase1 judge-b: should succeed (judge_b_count=4 already, so the >=3 guard passes)
 bash "$DIR/lib/blind-judge.sh" prepare "$R5" --phase1 judge-b >/dev/null 2>&1 \
   && note "PASS phase1-judge-b-ok-on-5th-room" || { note "FAIL phase1-judge-b-ok-on-5th-room"; fail=1; }
+# Record R5 so the next new room is Phase 2. Regression: enforce_phase1 used to end
+# its Phase 2 branch with `[ -n "$phase1" ] && die` under set -e, so a valid no-flag
+# prepare exited 1 on the first Phase 2 room.
+bash "$DIR/lib/blind-judge.sh" record "$R5" --catch true --why w5 --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b >/dev/null
+R6=phase-room-6
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$R6"
+echo "a" > "$AGENT_CHAT_ROOT/rooms/$R6/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$R6" <<EOF >/dev/null
+@@from: x#r1
+p
+@@from: synthesis
+s
+EOF
+bash "$DIR/lib/journal.sh" append "$R6" "t" "s" "x" true "" true 0 false null 1 design \
+  --synthesis-word-count 1 >/dev/null
+bash "$DIR/lib/blind-judge.sh" prepare "$R6" >/dev/null 2>&1 \
+  && note "PASS phase2-new-room-no-phase1-ok" || { note "FAIL phase2-new-room-no-phase1-ok"; fail=1; }
 # Reset env for downstream tests
 AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
 AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"; export AGENT_FLEET_JOURNAL

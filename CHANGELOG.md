@@ -16,6 +16,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Blinded-judge stale-lock default raised above the 10-minute judge stdin hold window.
 - Paired-mode helper now avoids GNU-only `sha256sum`, scans copied rooms recursively for mode leaks, anonymizes cloned journal `task`, and merges sparse judge rows during analysis.
 - Canonical council prompt restores the Claude Code `subagent_type` dispatch hint and capture anti-skip warning after paired-measurement catch.
+- `blind-judge.sh prepare` now succeeds for the first new Phase 2 room without `--phase1` under `set -e`.
 
 ## [0.1.0] — 2026-06-16
 

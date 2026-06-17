@@ -234,7 +234,9 @@ enforce_phase1() {
     fi
   else
     # Phase 2 (>=5 distinct rooms judged AND this isn't a repeat)
-    [ -n "$phase1" ] && die "REFUSES: --phase1 may not be used after Phase 1 (distinct_rooms=$distinct_rooms; this room is new — Phase 2)"
+    if [ -n "$phase1" ]; then
+      die "REFUSES: --phase1 may not be used after Phase 1 (distinct_rooms=$distinct_rooms; this room is new — Phase 2)"
+    fi
   fi
 }
 
