@@ -7,20 +7,20 @@
 #   install.sh --tool claude --uninstall
 #   install.sh --tool cursor        # COPY personas + orchestrator -> ./.cursor/rules/ (current repo)
 #   install.sh --tool opencode      # COPY personas + orchestrator -> ./.agent-fleet/ (current repo)
-#   install.sh --tool codex         # COPY personas + orchestrator -> ./.agent-fleet/ (current repo);
-#                                   #   point your AGENTS.md at ./.agent-fleet/council-orchestrator.md
+#   install.sh --tool codex         # COPY personas + orchestrator -> ./.agent-fleet/ and skill -> ~/.codex/skills/council
+#   install.sh --tool cave          # COPY cave-compatible personas -> ./.cave/agents, skill -> ./.cave/skills/council
 #   install.sh --target DIR [--copy]# place personas + orchestrator prompt into DIR (any tool)
 #                                   #   symlink by default; --copy to copy instead (for tools that
 #                                   #   don't follow symlinks, or sandboxed dirs)
 #   install.sh --print              # print the portable orchestrator prompt to stdout (paste anywhere)
 #
 # AGENT_FLEET_HOME is this repo. Personas (agents/*.md) and the portable prompt
-# (prompts/council-orchestrator.md) are the cross-tool payload; the Claude skill
-# (skills/council) is Claude-Code-specific.
+# (prompts/council-orchestrator.md) are the cross-tool payload; the council skill
+# (skills/council) is installed for tools with local skill directories.
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 VERSION="$(cat "$SRC/VERSION" 2>/dev/null || echo 'unknown')"
-TOOL="claude"; TARGET=""; COPY=0; UNINSTALL=0; PRINT=0
+TOOL="claude"; TARGET=""; COPY=0; UNINSTALL=0; PRINT=0; SCOPE="project"
 
 print_help() {
   cat <<HELP
@@ -37,8 +37,18 @@ Options:
                              (Cursor reads .cursor/rules/, not AGENTS.md)
   --tool opencode            COPY personas + orchestrator → ./.agent-fleet/
                              (opencode reads AGENTS.md from repo root + subagents)
-  --tool codex               COPY personas + orchestrator → ./.agent-fleet/
+  --tool codex               COPY personas + orchestrator → ./.agent-fleet/,
+                             skill → ~/.codex/skills/council
                              (Codex reads AGENTS.md from repo root)
+  --tool cave                COPY cave-compatible personas → ./.cave/agents/,
+                             skill → ./.cave/skills/council,
+                             prompt → ./.cave/prompts/council-orchestrator.md
+  --tool cave --user         User-scope Cave install:
+                             agents → ~/.cave/agent/agents,
+                             skill → ~/.cave/skills/council,
+                             prompt → ~/.cave/prompts/council-orchestrator.md
+  --project                  Cave only. Project-scope install (default)
+  --user                     Cave only. User-scope install
   --target DIR               Place personas + orchestrator prompt into DIR
                              (any tool; explicit override of --tool defaults)
   --copy                     Used with --target: copy files instead of symlinking
@@ -51,7 +61,9 @@ Options:
 Examples:
   install.sh                                  # Claude Code, default symlinks
   install.sh --tool cursor                    # Cursor: copy into ./.cursor/rules/
-  install.sh --tool opencode                  # opencode/Codex: copy into ./.agent-fleet/
+  install.sh --tool opencode                  # opencode: copy into ./.agent-fleet/
+  install.sh --tool codex                     # Codex: copy prompt/personas + install skill
+  install.sh --tool cave                      # Cave: install into ./.cave/{agents,skills,prompts}
   install.sh --target ./custom/path --copy    # explicit target override
   install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
 
@@ -75,6 +87,8 @@ while [ $# -gt 0 ]; do
     --target) TARGET="${2:?}"; shift 2;;
     --copy) COPY=1; shift;;
     --uninstall) UNINSTALL=1; shift;;
+    --project) SCOPE="project"; shift;;
+    --user) SCOPE="user"; shift;;
     --print) PRINT=1; shift;;
     --version|-V) echo "$VERSION"; exit 0;;
     --help|-h) print_help; exit 0;;
@@ -85,6 +99,25 @@ done
 place() { # place <src-file> <dst-path>
   mkdir -p "$(dirname "$2")"
   if [ "$COPY" = "1" ]; then cp -f "$1" "$2"; else ln -sf "$1" "$2"; fi
+}
+place_dir() { # place_dir <src-dir> <dst-dir>
+  mkdir -p "$(dirname "$2")"
+  if [ "$COPY" = "1" ]; then
+    rm -rf "$2"
+    mkdir -p "$2"
+    cp -R "$1"/. "$2"/
+  else
+    ln -sfn "$1" "$2"
+  fi
+}
+place_cave_persona() { # place_cave_persona <src-file> <dst-path>
+  mkdir -p "$(dirname "$2")"
+  # Cave's tool registry uses lowercase canonical tool names. Keep source personas
+  # Claude-Code-compatible; transform only the Cave install copies.
+  awk '
+    /^tools:[[:space:]]*/ { print "tools: read, grep, find, bash"; next }
+    { print }
+  ' "$1" > "$2"
 }
 # personas: enumerate the actual persona files. Excludes:
 #   - _overlay.md.example  (overlay template, not a persona)
@@ -111,8 +144,7 @@ if [ -n "$TARGET" ]; then
   exit 0
 fi
 
-# Tool shortcuts for tools without a native dir layout: set sensible TARGET defaults and
-# re-enter the generic --target path. Each is a thin alias; no new install logic.
+# Tool shortcuts for tools with project-local layouts.
 case "$TOOL" in
   cursor)
     [ -n "$TARGET" ] || TARGET="./.cursor/rules"
@@ -123,7 +155,7 @@ case "$TOOL" in
     echo "Cursor will auto-load .cursor/rules/. Set AGENT_FLEET_HOME=$SRC so the lib/ helpers resolve."
     exit 0
     ;;
-  opencode|codex)
+  opencode)
     [ -n "$TARGET" ] || TARGET="./.agent-fleet"
     COPY=1
     for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
@@ -133,6 +165,56 @@ case "$TOOL" in
     echo "Next: ensure your project's AGENTS.md references the orchestrator at:"
     echo "  $TARGET/council-orchestrator.md"
     echo "opencode also picks up subagents from $TARGET/<persona>.md automatically."
+    echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
+    exit 0
+    ;;
+  codex)
+    [ -n "$TARGET" ] || TARGET="./.agent-fleet"
+    COPY=1
+    CODEX_SKILL_DST="${CODEX_HOME:-$HOME/.codex}/skills/council"
+    if [ "$UNINSTALL" = "1" ]; then
+      for f in $(personas); do rm -f "$TARGET/$(basename "$f")"; done
+      rm -f "$TARGET/council-orchestrator.md"
+      rm -rf "$CODEX_SKILL_DST"
+      echo "agent-fleet: uninstalled Codex project files from $TARGET and skill from $CODEX_SKILL_DST"
+      exit 0
+    fi
+    for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
+    place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
+    place_dir "$SRC/skills/council" "$CODEX_SKILL_DST"
+    echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
+    echo "agent-fleet: installed Codex skill → $CODEX_SKILL_DST"
+    echo ""
+    echo "Next: ensure your project's AGENTS.md references the orchestrator at:"
+    echo "  $TARGET/council-orchestrator.md"
+    echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
+    exit 0
+    ;;
+  cave)
+    COPY=1
+    if [ "$SCOPE" = "user" ]; then
+      CAVE_AGENTS_DST="$HOME/.cave/agent/agents"
+      CAVE_SKILL_DST="$HOME/.cave/skills/council"
+      CAVE_PROMPT_DST="$HOME/.cave/prompts/council-orchestrator.md"
+    else
+      CAVE_AGENTS_DST="./.cave/agents"
+      CAVE_SKILL_DST="./.cave/skills/council"
+      CAVE_PROMPT_DST="./.cave/prompts/council-orchestrator.md"
+    fi
+    if [ "$UNINSTALL" = "1" ]; then
+      for f in $(personas); do rm -f "$CAVE_AGENTS_DST/$(basename "$f")"; done
+      rm -f "$CAVE_PROMPT_DST"
+      rm -rf "$CAVE_SKILL_DST"
+      echo "agent-fleet: uninstalled Cave $SCOPE-scope files."
+      exit 0
+    fi
+    for f in $(personas); do place_cave_persona "$f" "$CAVE_AGENTS_DST/$(basename "$f")"; done
+    place "$SRC/prompts/council-orchestrator.md" "$CAVE_PROMPT_DST"
+    place_dir "$SRC/skills/council" "$CAVE_SKILL_DST"
+    echo "agent-fleet: installed Cave $SCOPE-scope agents → $CAVE_AGENTS_DST"
+    echo "agent-fleet: installed Cave skill → $CAVE_SKILL_DST"
+    echo "agent-fleet: installed Cave prompt → $CAVE_PROMPT_DST"
+    echo "Cave agent copies use lowercase tools: read, grep, find, bash."
     echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
     exit 0
     ;;

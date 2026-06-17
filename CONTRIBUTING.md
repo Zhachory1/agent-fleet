@@ -33,11 +33,16 @@ contributions are:
    manually before sending; some are false positives by design (the example file's own threat-
    model warning trips two patterns).
 
-4. **Match the surrounding bash style.** All shell scripts use `set -euo pipefail` at the top.
+4. **Avoid known BSD/GNU shell portability footguns.** CI runs
+   `test/test_portability_patterns.sh`, which rejects patterns like `stat -f`, `sed -i`,
+   `grep -P`, `readlink -f`, `xargs -r`, and `base64 -w0` unless the line carries a
+   `# portable: <reason>` justification. Prefer portable fallbacks over allowlisting.
+
+5. **Match the surrounding bash style.** All shell scripts use `set -euo pipefail` at the top.
    We use `bash`, not `sh` (the `[[ ]]` operator + `<<<` here-strings are fine). Indent with
    2 spaces.
 
-5. **Don't invent new abstractions.** This repo is ~5 bash helpers + ~17 persona markdown files
+6. **Don't invent new abstractions.** This repo is ~5 bash helpers + ~17 persona markdown files
    + tests. Bias toward extending the existing pattern rather than adding a layer.
 
 ## Persona contributions

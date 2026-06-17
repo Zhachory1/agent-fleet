@@ -467,14 +467,15 @@ case "$cmd" in
       | "lens-baseline arm  : \($bwins)/\($bruns) council beat same-lenses single pass\(if $bruns==0 then " (⚠ unrun — you are testing 'agents' not 'lenses')" elif $bgate=="INSUFFICIENT" then "   [gate needs n≥10: INSUFFICIENT ⚠]" else "   [gate n≥10 & ≥40%: \($bgate) \(if $bgate=="PASS" then "✓" else "✗" end)]" end)",
         # blinded-judge arm (Rev 3 schema)
         ([$r[]|select(.judge_blinded==true)]|length) as $judged
+      | ([$r[]|select(.judge_blinded==true) | .room] | unique | length) as $distinct_judged
       | ([$r[]|select(.judge_blinded==true and .net_new_catch!=null)]|length) as $judged_with_self
       | ([$r[]|select(.judge_blinded==true and .net_new_catch!=null and .net_new_catch==.judge_blinded_catch)]|length) as $agree
       | ([$r[]|select(.judge_blinded==true and .net_new_catch==null)]|length) as $judge_only
       | (if $judged>0 then ((($judged/$t)*100)|floor) else 0 end) as $judged_pct
       | (if $judged_with_self>0 then ((($agree/$judged_with_self)*100)|floor) else -1 end) as $agree_pct
       | "blinded-judge sample : \($judged) of \($t) runs judged = \($judged_pct)%",
-        (if $judged<5 then "self-vs-blind        : [calibration phase — \($judged)/5 Phase 1, dual-judging required via --phase1 judge-a|judge-b]"
-         elif $judged<50 then "self-vs-blind        : \($agree)/\($judged_with_self) agree = \($agree_pct)%   [Phase 2: \($judged)/50 judged]"
+        (if $distinct_judged<5 then "self-vs-blind        : [calibration phase — \($distinct_judged)/5 Phase 1 rooms, dual-judging required via --phase1 judge-a|judge-b]"
+         elif $distinct_judged<50 then "self-vs-blind        : \($agree)/\($judged_with_self) agree = \($agree_pct)%   [Phase 2: \($distinct_judged)/50 rooms judged]"
          else "self-vs-blind        : \($agree)/\($judged_with_self) agree = \($agree_pct)%   [bands: heuristic-pending-recalibration]"
          end),
         (if $judge_only>0 then "judge-only rows     : \($judge_only)" else empty end),

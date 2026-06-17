@@ -4,7 +4,14 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 
 ## [Unreleased]
 
-_(nothing yet — next changes land here)_
+### Added
+- `install.sh --tool cave` project/user-scope install path with Cave-compatible lowercase persona tools.
+- Codex skill installation via `install.sh --tool codex` into `~/.codex/skills/council`.
+- Portability-pattern test for known BSD/GNU shell footguns.
+
+### Fixed
+- `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.
+- Blinded-judge stale-lock default raised above the 10-minute judge stdin hold window.
 
 ## [0.1.0] — 2026-06-16
 

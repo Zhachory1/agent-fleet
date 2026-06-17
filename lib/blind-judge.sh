@@ -32,12 +32,14 @@ die() { printf 'blind-judge: %s\n' "$*" >&2; exit 1; }
 # Portable advisory lock using mkdir (atomic on POSIX). flock isn't on mac by default.
 # Usage: acquire_lock <lockdir>; ... ; release_lock <lockdir>
 # Waits up to 30s (with 10ms jitter to avoid two-process timeout-collisions), then dies.
-# Reclaims stale lockdirs older than STALE_LOCK_SECS (default 300 = 5 minutes).
+# Reclaims stale lockdirs older than STALE_LOCK_SECS (default 900 = 15 minutes).
+# Contract: STALE_LOCK_SECS must exceed the longest legitimate hold in this module
+# (currently `judge` waits up to 600s for pasted stdin) or live locks can be reclaimed.
 # Override for tests: AGENT_FLEET_STALE_LOCK_SECS=<n>.
 acquire_lock() {
   local lockdir="$1"
   local waited=0
-  local stale_secs="${AGENT_FLEET_STALE_LOCK_SECS:-300}"
+  local stale_secs="${AGENT_FLEET_STALE_LOCK_SECS:-900}"
   while ! mkdir "$lockdir" 2>/dev/null; do
     # Stale-lock recovery (#23 reliability): if the existing lockdir is older than
     # stale_secs, it survived a SIGKILL or crash. Reclaim it once; do NOT loop
@@ -47,7 +49,7 @@ acquire_lock() {
       # GNU stat -c (Linux) vs BSD stat -f (macOS). Try -c first because BSD stat -f
       # accepts the flag with a DIFFERENT meaning (filesystem info) and would return
       # success with garbage output on Linux. -c on macOS fails cleanly.
-      mtime=$(stat -c %Y "$lockdir" 2>/dev/null || stat -f %m "$lockdir" 2>/dev/null || echo 0)
+      mtime=$(stat -c %Y "$lockdir" 2>/dev/null || stat -f %m "$lockdir" 2>/dev/null || echo 0) # portable: GNU stat -c first; BSD stat -f fallback
       now=$(date +%s)
       # If parsing failed (mtime is non-numeric), skip reclaim this iteration.
       case "$mtime" in *[!0-9]*|'') waited=$((waited + 1)); sleep "0.0$((50 + RANDOM % 10))"; continue;; esac

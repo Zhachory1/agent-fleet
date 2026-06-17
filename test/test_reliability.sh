@@ -52,7 +52,7 @@ JLOCK="$AGENT_FLEET_JOURNAL.lockdir"
 mkdir -p "$(dirname "$JLOCK")"
 mkdir "$JLOCK"
 backdate "$JLOCK" 3600
-note "backdated lockdir mtime ($(stat -c %Y "$JLOCK" 2>/dev/null || stat -f %m "$JLOCK" 2>/dev/null || echo '?'))"
+note "backdated lockdir mtime ($(stat -c %Y "$JLOCK" 2>/dev/null || stat -f %m "$JLOCK" 2>/dev/null || echo '?'))" # portable: GNU stat -c first; BSD stat -f fallback
 
 # AGENT_FLEET_STALE_LOCK_SECS=1 means anything older than 1s is stale.
 # Run `record` with the env var; it should reclaim the stale lock and succeed.
@@ -98,6 +98,33 @@ else
   note "SKIP fresh-lock-not-prematurely-reclaimed (no timeout cmd available)"
 fi
 rmdir "$JLOCK" 2>/dev/null || true
+rm -f "$AGENT_FLEET_JOURNAL"
+
+# ---- Default stale threshold exceeds judge stdin hold ----
+# Regression for #55: default stale recovery must not reclaim a legitimate 10-minute
+# judge hold. A lock aged just over 600s is still live under the default 900s threshold.
+default_stale=$(grep -Eo 'AGENT_FLEET_STALE_LOCK_SECS:-[0-9]+' "$DIR/lib/blind-judge.sh" | head -1 | awk -F:- '{print $2}')
+[ "$default_stale" -gt 600 ] \
+  && note "PASS default stale threshold ($default_stale) exceeds 600s judge stdin hold" \
+  || { note "FAIL default stale threshold ($default_stale) must exceed 600s judge stdin hold"; exit 1; }
+
+if [ -n "$TIMEOUT" ]; then
+  mkdir "$JLOCK"
+  backdate "$JLOCK" 601
+  set +e
+  OUT=$($TIMEOUT 2 bash "$DIR/lib/blind-judge.sh" record "$ROOM" \
+    --catch false --why "x" --reasoning "r" --dissent-diff "- (none)" --phase1 judge-a 2>&1)
+  rc=$?
+  set -e
+  echo "$OUT" | grep -q "reclaimed stale lock" \
+    && { note "FAIL default stale threshold reclaimed a 601s lock: $OUT"; exit 1; }
+  [ "$rc" = "124" ] \
+    && note "PASS 601s lock is not stale under default threshold" \
+    || { note "FAIL expected timeout on live 601s lock, got rc=$rc out='$OUT'"; exit 1; }
+  rmdir "$JLOCK" 2>/dev/null || true
+else
+  note "SKIP default-stale-vs-10min-hold (no timeout cmd available)"
+fi
 rm -f "$AGENT_FLEET_JOURNAL"
 
 # ---- Journal-dir write-permission precheck ----

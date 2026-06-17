@@ -30,7 +30,8 @@ export AGENT_FLEET_HOME=$PWD
 bash install.sh                # Claude Code (default; symlinks)
 # OR: bash install.sh --tool cursor    # Cursor   (→ ./.cursor/rules/)
 # OR: bash install.sh --tool opencode  # opencode (→ ./.agent-fleet/)
-# OR: bash install.sh --tool codex     # Codex    (→ ./.agent-fleet/)
+# OR: bash install.sh --tool codex     # Codex    (→ ./.agent-fleet/ + ~/.codex/skills/council)
+# OR: bash install.sh --tool cave      # Cave     (→ ./.cave/{agents,skills,prompts})
 # OR: bash install.sh --print | pbcopy  # any chat: paste the prompt
 bash examples/first-council/run.sh         # see a real run end-to-end (isolated tmpdir)
 ```

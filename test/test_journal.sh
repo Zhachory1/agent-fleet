@@ -194,3 +194,20 @@ rc=$?; set -e
   || { echo "FAIL: invariants should permit catch=true + evidence non-empty"; exit 1; }
 
 echo "PASS test_journal_invariants (issue #44 item #3)"
+
+# Issue #60: Phase 1 progress is distinct judged rooms, not judge row count.
+# Dual-judged Phase 1 rooms produce two rows for one room; stats must not count
+# that as two completed calibration rooms.
+STATS_60="$(mktemp)"
+cat > "$STATS_60" <<'EOF'
+{"room":"council-a","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
+{"room":"council-a","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
+{"room":"council-b","judge_blinded":true,"net_new_catch":false,"judge_blinded_catch":false}
+EOF
+OUT=$(AGENT_FLEET_JOURNAL="$STATS_60" bash "$DIR/lib/journal.sh" stats)
+echo "$OUT" | grep -q 'blinded-judge sample : 3 of 3 runs judged' \
+  || { echo "FAIL: stats should keep row-count sample line: $OUT"; exit 1; }
+echo "$OUT" | grep -q 'calibration phase — 2/5 Phase 1 rooms' \
+  || { echo "FAIL: stats Phase 1 progress should count distinct rooms: $OUT"; exit 1; }
+
+echo "PASS test_journal_phase1_distinct_rooms (issue #60)"
