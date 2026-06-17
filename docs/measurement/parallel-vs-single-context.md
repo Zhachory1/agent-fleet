@@ -1,8 +1,8 @@
 # Parallel-subagent vs single-context council runs — measurement protocol
 
-**Status:** protocol design. No runs yet.
+**Status:** protocol + helper landed. No real paired runs yet.
 **Tracks:** issue #36.
-**Depends on:** #48 (Phase 1 calibration must be complete before Phase 2 measurement begins).
+**Depends on:** #48 (Phase 1 calibration complete as of 2026-06-16).
 
 ---
 
@@ -89,17 +89,41 @@ For each artifact `i ∈ 1..10`:
 
 ### Blinding the judge
 
-The blinded judge (`blind-judge.sh judge <room>`) reads from the room directory. For the
-A-vs-B measurement specifically:
-1. Before judging, copy each room to a temporary blinded room name: `council-X-mode-anon-<8hex>/`.
-2. Strip any operator notes that reveal which mode produced the run (the orchestrator's
-   round-1-via-Task-tool vs round-1-via-in-context note, if logged).
-3. Run `blind-judge.sh judge` against the anonymized room.
-4. Record the judge's catch decision keyed to the anonymized name.
-5. AFTER all 20 judgments are recorded, unblind: map anonymized names back to mode.
+The blinded judge (`blind-judge.sh judge <room>`) reads from the room directory and the journal
+row for that room. For the A-vs-B measurement, use the helper rather than hand-copying rooms:
 
-**This is not yet automated.** A helper script is a follow-up. For now, the operator does
-the renaming manually and records the mapping in `docs/measurement/parallel-vs-single-data/` (gitignored).
+```bash
+bash lib/parallel-vs-single.sh anonymize \
+  --pair-id 01 \
+  --parallel-room council-paired-01-parallel \
+  --single-room council-paired-01-single
+```
+
+What this does:
+1. Copies each source room to a mode-hidden name: `council-paired-<id>-anon-<8hex>/`.
+2. Appends cloned journal rows for those anonymized rooms with all `judge_*` fields reset.
+3. Writes the unblinding map to `docs/measurement/parallel-vs-single-data/mapping.jsonl`
+   (gitignored).
+4. Warns if the copied transcript contains obvious mode-revealing strings (`parallel-subagent`,
+   `single-context`, `Task tool`, `Codex`, `Cursor`, `Claude Code`). Inspect and fix those before
+   judging if the warning fires.
+
+Then run:
+
+```bash
+bash lib/blind-judge.sh judge <anon-room>
+```
+
+AFTER all judgments are recorded, unblind/analyze with:
+
+```bash
+bash lib/parallel-vs-single.sh analyze
+```
+
+The helper removes the most error-prone manual steps (renaming rooms, cloning journal rows, and
+handling `false` judge results correctly), but it does not make the study complete: the operator
+still must run 10 real paired artifacts and obtain fresh blinded judge responses for all 20
+anonymized rooms.
 
 ## Metrics
 

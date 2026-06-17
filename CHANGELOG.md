@@ -9,6 +9,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Codex skill installation via `install.sh --tool codex` into `~/.codex/skills/council`.
 - Portability-pattern test for known BSD/GNU shell footguns.
 - Generated council skill wrapper from canonical portable orchestrator prompt.
+- `lib/parallel-vs-single.sh` helper to anonymize and analyze paired mode-measurement rooms.
 
 ### Fixed
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.

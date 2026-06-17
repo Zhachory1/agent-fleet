@@ -4,4 +4,5 @@ agents/_overlay.md
 agents/_rokt-overlay.md
 # run artifacts
 /tmp-council-*
+docs/measurement/parallel-vs-single-data/
 *.local
