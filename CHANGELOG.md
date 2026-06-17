@@ -19,6 +19,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `blind-judge.sh prepare` now succeeds for the first new Phase 2 room without `--phase1` under `set -e`.
 - Cave install now maps declared tools per token, avoids destructive skill-dir pre-wipe, supports `CAVE_HOME` for user-scope installs, and rejects Cave-only scope flags on other tools.
 - `journal.sh stats` Phase 2 distinct-room progress now has regression coverage and preserves explicit `false` values during schema-default normalization.
+- Phase 1 calibration writeup no longer claims to close #1 and now names the uncalibrated catch=false arm.
 
 ## [0.1.0] — 2026-06-16
 
