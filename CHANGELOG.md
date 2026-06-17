@@ -8,6 +8,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `install.sh --tool cave` project/user-scope install path with Cave-compatible lowercase persona tools.
 - Codex skill installation via `install.sh --tool codex` into `~/.codex/skills/council`.
 - Portability-pattern test for known BSD/GNU shell footguns.
+- Generated council skill wrapper from canonical portable orchestrator prompt.
 
 ### Fixed
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.

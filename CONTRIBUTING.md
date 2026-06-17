@@ -42,7 +42,15 @@ contributions are:
    We use `bash`, not `sh` (the `[[ ]]` operator + `<<<` here-strings are fine). Indent with
    2 spaces.
 
-6. **Don't invent new abstractions.** This repo is ~5 bash helpers + ~17 persona markdown files
+6. **Edit the canonical council prompt, not generated skill output.** The source of truth for
+   the council protocol is `prompts/council-orchestrator.md`. Regenerate the local skill wrapper
+   with:
+   ```bash
+   bash lib/render-council-skill.sh > skills/council/SKILL.md
+   ```
+   `test/test_orchestrator_sync.sh` fails if the generated skill drifts.
+
+7. **Don't invent new abstractions.** This repo is ~5 bash helpers + ~17 persona markdown files
    + tests. Bias toward extending the existing pattern rather than adding a layer.
 
 ## Persona contributions

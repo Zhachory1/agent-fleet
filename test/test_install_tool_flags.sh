@@ -5,9 +5,9 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 fail=0
 
-# How many persona .md files exist (excludes INDEX.md and _overlay.md.example).
+# How many persona .md files exist (excludes catalog + private/example overlays).
 expected_personas=$(find "$DIR/agents" -maxdepth 1 -name '*.md' \
-  ! -name 'INDEX.md' ! -name '_overlay.md.example' | wc -l | tr -d ' ')
+  ! -name 'INDEX.md' ! -name '_overlay.md' ! -name '_overlay.md.example' | wc -l | tr -d ' ')
 expected_files=$((expected_personas + 1))  # personas + council-orchestrator.md
 
 for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.agent-fleet"; do

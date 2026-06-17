@@ -120,12 +120,13 @@ place_cave_persona() { # place_cave_persona <src-file> <dst-path>
   ' "$1" > "$2"
 }
 # personas: enumerate the actual persona files. Excludes:
+#   - _overlay.md          (private overlay, not a persona; gitignored)
 #   - _overlay.md.example  (overlay template, not a persona)
 #   - INDEX.md             (the catalog, not a persona)
 personas() {
   for f in "$SRC"/agents/*.md; do
     case "$(basename "$f")" in
-      _overlay.md.example|INDEX.md) continue ;;
+      _overlay.md|_overlay.md.example|INDEX.md) continue ;;
     esac
     echo "$f"
   done
