@@ -10,6 +10,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `lib/blind-judge.sh judge --judge-cli claude|agy|gemini` for non-interactive fresh CLI judging.
 - `lib/blind-judge.sh candidates` to list Phase 2 candidate rooms and flag missing synthesis/artifacts.
 - Phase 2 blinded-judge runbook at `docs/features/blinded-judge/phase2-runbook.md`.
+- Overlay preset contribution guide and GitHub issue template to unblock non-author preset contributions.
 - `install.sh --tool cave` project/user-scope install path with Cave-compatible lowercase persona tools.
 - Codex skill installation via `install.sh --tool codex` into `~/.codex/skills/council`.
 - Portability-pattern test for known BSD/GNU shell footguns.

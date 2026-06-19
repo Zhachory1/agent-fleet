@@ -233,7 +233,8 @@ presets for common org shapes live in [`agents/_overlay.example/`](agents/_overl
 | Anything else | [`_overlay.md.example`](agents/_overlay.md.example) |
 
 Each preset is edited heavily before installing. ml-scientist + ab-critic get noticeably sharper
-with a domain-rich overlay — the cost of running them against the bare skeleton is real.
+with a domain-rich overlay — the cost of running them against the bare skeleton is real. To add a
+public-safe preset, follow [`agents/_overlay.example/CONTRIBUTING.md`](agents/_overlay.example/CONTRIBUTING.md).
 
 ### Blinded judge (validation, infrastructure)
 
