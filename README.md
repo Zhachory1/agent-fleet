@@ -252,7 +252,8 @@ verbatim `EVIDENCE` quote.
 # Phase 1: first 5 dual-judged councils establish noise floor; --phase1 required
 $AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug> --phase1 judge-a
 
-# Phase 2: single-judged (every 5th council); --phase1 forbidden after Phase 1 closes
+# Phase 2: list candidate rooms, then judge one; --phase1 forbidden after Phase 1 closes
+$AGENT_FLEET_HOME/lib/blind-judge.sh candidates
 $AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug>
 
 # Optional non-interactive fresh CLI judges when available:

@@ -6,6 +6,7 @@
 #   record  <room> --catch ... --why ... [more flags]    validate + write judge_* fields + transcript line
 #   judge   <room> [--phase1 ...]                        prepare + 10min stdin wait + parse + record
 #                    [--judge-cli claude|agy|gemini]      run a fresh CLI judge instead of paste/stdin
+#   candidates [--all] [--include-paired]                list rooms to consider for Phase 2 judging
 #   backfill-artifact <room> --from <path>               rescue legacy rooms predating FR9 (deferred to PR C)
 #   parse   <response-file> <op-synthesis-file>          stand-alone parser for testing
 #
@@ -243,6 +244,49 @@ enforce_phase1() {
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
+  candidates)
+    show_all=0; include_paired=0
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --all) show_all=1; shift;;
+        --include-paired) include_paired=1; shift;;
+        *) die "unknown flag '$1'";;
+      esac
+    done
+    [ -f "$AGENT_FLEET_JOURNAL" ] && [ -s "$AGENT_FLEET_JOURNAL" ] || die "no journal at $AGENT_FLEET_JOURNAL"
+    printf 'status\troom\tpositions\tsynthesis_words\tartifact\ttask\n'
+    jq -rs --argjson show_all "$show_all" '
+      group_by(.room // "")[]
+      | select(.[-1].room != null and .[-1].room != "")
+      | {room:.[-1].room,
+         task:(.[-1].task // ""),
+         judged:(any(.[]; (.judge_blinded // false) == true))}
+      | select(($show_all == 1) or (.judged | not))
+      | [.room, .task, (.judged|tostring)] | @tsv
+    ' "$AGENT_FLEET_JOURNAL" | while IFS=$'\t' read -r room task judged; do
+      if [ "$include_paired" != "1" ]; then
+        case "$room" in council-paired-*) continue;; esac
+      fi
+      room_dir="$AGENT_CHAT_ROOT/rooms/$room"
+      artifact="no"
+      [ -f "$room_dir/artifact.txt" ] && artifact="yes"
+      positions=0
+      synth_words=0
+      if [ -f "$room_dir/log.jsonl" ]; then
+        positions=$(jq -r 'select(.from | test("#r[0-9]+$")) | .from' "$room_dir/log.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+        synth_words=$(jq -r 'select(.from=="synthesis") | .text // ""' "$room_dir/log.jsonl" 2>/dev/null | wc -w | tr -d ' ')
+      fi
+      if [ "$judged" = "true" ]; then status="judged"
+      elif [ ! -f "$room_dir/log.jsonl" ]; then status="missing-transcript"
+      elif [ "$artifact" != "yes" ]; then status="missing-artifact"
+      elif [ "$positions" -eq 0 ]; then status="no-positions"
+      elif [ "$synth_words" -eq 0 ]; then status="no-synthesis"
+      else status="ready"
+      fi
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$status" "$room" "$positions" "$synth_words" "$artifact" "$task"
+    done
+    ;;
+
   prepare)
     room="${1:?room}"; shift || true
     phase1=""

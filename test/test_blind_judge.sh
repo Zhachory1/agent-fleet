@@ -824,5 +824,55 @@ else
   note "PASS multi-synthesis-rejects-earlier-drafts (DRAFT absent)"
 fi
 
+echo "## candidates (Phase 2 room finder)"
+AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
+AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"; export AGENT_FLEET_JOURNAL
+make_candidate_room() {
+  local room="$1" synth="$2"
+  mkdir -p "$AGENT_CHAT_ROOT/rooms/$room"
+  echo "artifact" > "$AGENT_CHAT_ROOT/rooms/$room/artifact.txt"
+  if [ "$synth" = "yes" ]; then
+    bash "$DIR/lib/transcript.sh" capture "$room" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [MAJOR] finding
+@@from: synthesis
+final synthesis text
+EOF
+  else
+    bash "$DIR/lib/transcript.sh" capture "$room" <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+- [MAJOR] finding
+EOF
+  fi
+  bash "$DIR/lib/journal.sh" append "$room" "$room-task" "ship" "red-team" true "" true 0 false null 1 design >/dev/null
+}
+make_candidate_room candidate-ready yes
+make_candidate_room candidate-nosynth no
+make_candidate_room candidate-judged yes
+make_candidate_room council-paired-candidate-single yes
+bash "$DIR/lib/blind-judge.sh" record candidate-judged --catch true --why w --evidence "- [MAJOR] finding" --reasoning r --dissent-diff "- (none)" >/dev/null
+CAND=$(bash "$DIR/lib/blind-judge.sh" candidates)
+echo "$CAND" | grep -q $'^ready\tcandidate-ready\t1\t3\tyes\tcandidate-ready-task$' \
+  && note "PASS candidates lists ready room" || { note "FAIL candidates missing ready room: $CAND"; fail=1; }
+echo "$CAND" | grep -q $'^no-synthesis\tcandidate-nosynth\t1\t0\tyes\tcandidate-nosynth-task$' \
+  && note "PASS candidates flags no-synthesis room" || { note "FAIL candidates missing no-synthesis room: $CAND"; fail=1; }
+if echo "$CAND" | grep -q 'candidate-judged'; then
+  note "FAIL candidates default included already judged room"; fail=1
+else
+  note "PASS candidates default excludes judged rooms"
+fi
+if echo "$CAND" | grep -q 'council-paired-candidate-single'; then
+  note "FAIL candidates default included paired room"; fail=1
+else
+  note "PASS candidates default excludes paired rooms"
+fi
+CAND_ALL=$(bash "$DIR/lib/blind-judge.sh" candidates --all --include-paired)
+echo "$CAND_ALL" | grep -q $'^judged\tcandidate-judged\t1\t3\tyes\tcandidate-judged-task$' \
+  && note "PASS candidates --all includes judged room" || { note "FAIL candidates --all missing judged room: $CAND_ALL"; fail=1; }
+echo "$CAND_ALL" | grep -q 'council-paired-candidate-single' \
+  && note "PASS candidates --include-paired includes paired room" || { note "FAIL candidates --include-paired missing paired room: $CAND_ALL"; fail=1; }
+
 echo "---"
 if [ "$fail" = "0" ]; then echo "PASS test_blind_judge"; else echo "FAIL test_blind_judge"; exit 1; fi

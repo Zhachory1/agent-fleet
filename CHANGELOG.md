@@ -8,6 +8,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Completed the 10-pair parallel-vs-single dogfood measurement and documented the final 10/10 vs 8/10 result.
 - `lib/parallel-vs-single.sh analyze` now reports median paired delta and win/tie distribution, not just mean.
 - `lib/blind-judge.sh judge --judge-cli claude|agy|gemini` for non-interactive fresh CLI judging.
+- `lib/blind-judge.sh candidates` to list Phase 2 candidate rooms and flag missing synthesis/artifacts.
 - Phase 2 blinded-judge runbook at `docs/features/blinded-judge/phase2-runbook.md`.
 - `install.sh --tool cave` project/user-scope install path with Cave-compatible lowercase persona tools.
 - Codex skill installation via `install.sh --tool codex` into `~/.codex/skills/council`.
@@ -25,7 +26,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `journal.sh stats` Phase 2 distinct-room progress now has regression coverage and preserves explicit `false` values during schema-default normalization.
 - Phase 1 calibration writeup no longer claims to close #1 and now names the uncalibrated catch=false arm.
 - README and AGENTS now report measured mode-difference data instead of the old unmeasured single-context caveat.
-- `test_blind_judge.sh` now covers Phase 2 `--phase1` rejection, catch=false `judge --response-file` recording, and fake-CLI `--judge-cli claude` recording.
+- `test_blind_judge.sh` now covers Phase 2 `--phase1` rejection, catch=false `judge --response-file` recording, fake-CLI `--judge-cli claude` recording, and candidate listing.
 
 ## [0.1.0] — 2026-06-16
 

@@ -57,17 +57,28 @@ bash "$AGENT_FLEET_HOME/lib/blind-judge.sh" judge council-<slug> --response-file
 4. Judge one room.
 5. Run `bash lib/journal.sh stats` and record the new Phase 2 count in issue #1 if it moved.
 
-Useful local query:
+Use the helper instead of hand-rolled `jq` when possible:
 
 ```bash
-J=${AGENT_FLEET_JOURNAL:-$HOME/.local/share/agent-fleet/journal.jsonl}
-ROOT=${AGENT_CHAT_ROOT:-$HOME/.claude/agent-chat}/rooms
-jq -r 'select((.judge_blinded//false)!=true) | .room' "$J" |
-while read -r room; do
-  case "$room" in council-paired-*) continue;; esac
-  [ -f "$ROOT/$room/artifact.txt" ] && [ -s "$ROOT/$room/log.jsonl" ] && echo "$room"
-done
+bash "$AGENT_FLEET_HOME/lib/blind-judge.sh" candidates
 ```
+
+Columns:
+
+- `status`: `ready`, `no-synthesis`, `missing-artifact`, `missing-transcript`, `no-positions`, or `judged`.
+- `positions`: number of captured `#r<N>` persona position blocks.
+- `synthesis_words`: word count across synthesis blocks; `0` means dissent-erasure checking is muted.
+- `artifact`: whether `artifact.txt` exists.
+
+By default, `candidates` excludes already judged rooms and `council-paired-*` rooms. Use:
+
+```bash
+bash "$AGENT_FLEET_HOME/lib/blind-judge.sh" candidates --all
+bash "$AGENT_FLEET_HOME/lib/blind-judge.sh" candidates --include-paired
+```
+
+Only count paired rooms if they are the actual study target and their anonymized clones have not
+already been judged.
 
 ## Phase 2 close criteria
 
