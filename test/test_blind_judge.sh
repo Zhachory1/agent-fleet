@@ -134,6 +134,32 @@ bash "$DIR/lib/journal.sh" append "$R6" "t" "s" "x" true "" true 0 false null 1 
   --synthesis-word-count 1 >/dev/null
 bash "$DIR/lib/blind-judge.sh" prepare "$R6" >/dev/null 2>&1 \
   && note "PASS phase2-new-room-no-phase1-ok" || { note "FAIL phase2-new-room-no-phase1-ok"; fail=1; }
+expect_fail_msg "phase2-rejects-phase1-flag" \
+  "bash '$DIR/lib/blind-judge.sh' prepare '$R6' --phase1 judge-a" \
+  "REFUSES: --phase1 may not be used after Phase 1"
+PHASE2_FALSE_RESP=$(mktemp_d)/phase2-false-response.txt
+cat > "$PHASE2_FALSE_RESP" <<'EOF'
+===JUDGE OUTPUT===
+REASONING: Phase 2 catch=false regression test; solo already covers the only finding.
+
+DISSENT_DIFF: - (none)
+
+NET_NEW_CATCH: false
+
+WHY: no net-new issue beyond the solo decision.
+
+IMPLIED_BY: s
+
+===END===
+EOF
+bash "$DIR/lib/blind-judge.sh" judge "$R6" --response-file "$PHASE2_FALSE_RESP" >/dev/null 2>&1 \
+  && note "PASS phase2-judge-response-file-catch-false-ok" || { note "FAIL phase2-judge-response-file-catch-false-ok"; fail=1; }
+phase2_false_row=$(jq -c --arg r "$R6" 'select(.room==$r and .judge_blinded==true)' "$AGENT_FLEET_JOURNAL" | tail -1)
+if [ -n "$phase2_false_row" ] && [ "$(jq -r '.judge_blinded_catch' <<<"$phase2_false_row")" = "false" ]; then
+  note "PASS phase2-catch-false-recorded"
+else
+  note "FAIL phase2-catch-false-not-recorded: '$phase2_false_row'"; fail=1
+fi
 # Reset env for downstream tests
 AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
 AGENT_FLEET_JOURNAL="$(mktemp_d)/j.jsonl"; export AGENT_FLEET_JOURNAL

@@ -141,7 +141,18 @@ case "$cmd" in
                        (map(select(.mode=="single"))[0].agreement | if . then 1 else 0 end))}
             else empty end]) as $pairs
       | "complete judged pairs: \($pairs|length)",
-        (if ($pairs|length)>0 then "mean paired delta (parallel-single): \(([$pairs[].delta] | add / length) * 100)%" else "mean paired delta (parallel-single): pending" end)
+        (if ($pairs|length)>0 then
+           ([$pairs[].delta] | sort) as $deltas
+           | ($deltas | length) as $dn
+           | ($deltas[(($dn - 1) / 2 | floor)] + $deltas[($dn / 2 | floor)]) / 2 as $median
+           | "mean paired delta (parallel-single): \(([$pairs[].delta] | add / length) * 100)%",
+             "median paired delta (parallel-single): \($median * 100)%",
+             "paired distribution: parallel_wins=\(([$pairs[] | select(.delta==1)] | length)), single_wins=\(([$pairs[] | select(.delta==-1)] | length)), ties=\(([$pairs[] | select(.delta==0)] | length))"
+         else
+           "mean paired delta (parallel-single): pending",
+           "median paired delta (parallel-single): pending",
+           "paired distribution: pending"
+         end)
     '
     ;;
   *) die "unknown subcommand '$cmd' (try --help)";;

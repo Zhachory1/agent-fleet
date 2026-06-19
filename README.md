@@ -15,8 +15,20 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 > publishing openly. Current dogfood journal snapshot: net-new catch rate is high
 > (42/44 = 95%), but it is still mostly author/operator-run. The lens-baseline arm remains
 > insufficient (4/4; gate needs n≥10), and the blinded-judge Phase 2 arm is in progress
-> (20/50 rooms judged, 18/20 self-vs-blind agreement). Treat all metrics as directional
+> (21/50 rooms judged, 19/21 self-vs-blind agreement). Treat all metrics as directional
 > dogfood evidence until [issue #1](../../issues/1) completes the 50-run Phase 2 decision.
+
+## Current status
+
+| Area | Current state |
+|---|---|
+| Personas | 17 total: 6 core + 11 experimental |
+| Tool support | Claude Code, Cave, opencode, Codex, Cursor, generic chat |
+| Tests | 18 shell test scripts; same loop runs in CI |
+| Parallel vs single-context | 10-pair dogfood complete: parallel 10/10, single-context 8/10, mean +20pp, median 0pp |
+| Blinded judge | Phase 1 complete; Phase 2 in progress at 21/50 judged rooms |
+| Lens baseline | 4/4 so far; gate needs n≥10 |
+| External validation | Still needed: non-author operators on their own artifacts |
 
 ## Quick start
 
@@ -251,7 +263,7 @@ The canonical rubric is [`lib/blind-judge-prompt.v2.txt`](lib/blind-judge-prompt
 (visible by design; changes bump the filename version and are git-history-visible). Full design
 + Phase 1/Phase 2 calibration in
 [`docs/features/blinded-judge/PRD.md`](docs/features/blinded-judge/PRD.md). Current state:
-**Phase 1 calibration is complete; Phase 2 is in progress at 20/50 judged rooms. [Issue #1](../../issues/1)
+**Phase 1 calibration is complete; Phase 2 is in progress at 21/50 judged rooms. [Issue #1](../../issues/1)
 tracks the 50-run decision and README/stats update.**
 
 ## Tests

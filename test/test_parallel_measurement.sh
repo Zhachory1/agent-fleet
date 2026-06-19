@@ -65,6 +65,8 @@ echo "$SUMMARY" | grep -q 'parallel agreement: 1/1' || { echo "FAIL: parallel ag
 echo "$SUMMARY" | grep -q 'single agreement: 0/1' || { echo "FAIL: single agreement wrong: $SUMMARY"; exit 1; }
 echo "$SUMMARY" | grep -q 'complete judged pairs: 1' || { echo "FAIL: complete pairs wrong: $SUMMARY"; exit 1; }
 echo "$SUMMARY" | grep -q 'mean paired delta (parallel-single): 100%' || { echo "FAIL: paired delta wrong: $SUMMARY"; exit 1; }
-note "PASS analyze summarizes agreement and paired delta"
+echo "$SUMMARY" | grep -q 'median paired delta (parallel-single): 100%' || { echo "FAIL: median paired delta wrong: $SUMMARY"; exit 1; }
+echo "$SUMMARY" | grep -q 'paired distribution: parallel_wins=1, single_wins=0, ties=0' || { echo "FAIL: paired distribution wrong: $SUMMARY"; exit 1; }
+note "PASS analyze summarizes agreement and paired delta distribution"
 
 echo "PASS test_parallel_measurement"
