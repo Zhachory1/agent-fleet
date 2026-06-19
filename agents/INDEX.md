@@ -12,7 +12,7 @@ don't fit (pure statistical ML readout, tiny correctness bug fix); state the rea
 > similar issues, which inflates false-consensus pressure. The `Tends to agree with` column
 > flags pairs whose lenses partially overlap — picking both is fine if intentional, but you're not
 > getting two independent reads. **At 5–6 personas, the overlap check is MANDATORY**: with 6
-> picks from a 16-persona catalog, the probability that 2+ picks are flagged-overlap pairs is
+> picks from a 17-persona catalog, the probability that 2+ picks are flagged-overlap pairs is
 > high. Either swap orthogonal OR explicitly justify the doubled weight.
 
 ## Core six (the original lens-fleet, n≥18 validation runs)
@@ -110,8 +110,8 @@ Investigations (hypothesis generation, postmortems, audits):
 
 ## Why "experimental"
 
-The 10 personas tagged `(experimental)` were added together in one session in 2026-06. They have
-zero validation runs at time of writing — we do not yet know whether their findings are net-new vs
+The 11 personas tagged `(experimental)` were added together in one session in 2026-06. They have
+limited validation runs at time of writing — we do not yet know whether their findings are net-new vs
 the Core Six, or whether they cost more in noise than they earn in signal. Promote a persona to
 `Core` after **≥3 real runs** logged in the journal with `acted_on=true` (or, for `pre-mortem`,
 catches that an equivalent `red-team`-only run would have missed).

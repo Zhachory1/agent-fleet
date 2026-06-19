@@ -1,14 +1,19 @@
 # Parallel-subagent vs single-context council runs — measurement protocol
 
-**Status:** protocol + helper landed; 7/10 paired artifacts complete (dogfood/interim sample).
+**Status:** 10/10 paired dogfood artifacts complete and blinded-judged.
 **Tracks:** issue #36.
 **Depends on:** #48 (Phase 1 calibration complete as of 2026-06-16).
 
 ---
 
-## Interim results (dogfood sample; not final evidence)
+## Results (dogfood sample; directional, not broad external evidence)
 
-As of 2026-06-17, the first 7 paired artifacts have been run and blinded-judged (14 judgments):
+**Do not over-read this sample.** It is complete for the preregistered 10-pair dogfood run, but it
+is still author/operator-run, mostly on this repo's own tooling changes, and judged with fresh CLI
+LLM calls. It supports a directional product claim — parallel round-1 isolation is preferable when
+available — not a universal claim that all single-context councils are unreliable.
+
+As of 2026-06-19, all 10 paired artifacts have been run and blinded-judged (20 judgments):
 
 | Pair | Artifact | Parallel self/judge | Single self/judge | Paired delta |
 |---|---|---:|---:|---:|
@@ -19,17 +24,32 @@ As of 2026-06-17, the first 7 paired artifacts have been run and blinded-judged 
 | 05 | `16e4be9` default-3 + response-file + runbook | true / true | true / true | 0pp |
 | 06 | `c927302` compact judge status UX | true / true | true / true | 0pp |
 | 07 | `5d07e8a` judge SHA forwarding + empty-synthesis warning | true / true | true / true | 0pp |
+| 08 | `7e6a9c7` paired-helper hardening | true / true | true / true | 0pp |
+| 09 | `889452a` Phase 2 prepare fix | true / true | true / false | +100pp |
+| 10 | `4149e87` measurement-doc update | true / true | true / true | 0pp |
 
-Aggregate so far:
-- **parallel agreement:** 7/7
-- **single-context agreement:** 6/7
-- **mean paired delta:** +14pp parallel-minus-single
+Aggregate:
+- **parallel agreement:** 10/10
+- **single-context agreement:** 8/10
+- **mean paired delta:** +20pp parallel-minus-single
+- **distribution:** 8/10 pairs tied at 0pp; 2/10 favored parallel by +100pp; median paired delta 0pp
 
-This is **not enough to update README/AGENTS claims**. Pairs 1-4 were also dogfood runs that
-surfaced product/tooling bugs, and several fixes landed between pairs (`7e6a9c7`, `61d8f03`,
-`889452a`, `b449f34`, `b0132f3`). Pairs 5-7 are post-hardening but still use fresh Claude CLI
-for both modes rather than separate native tools. The final writeup must either separate
-pre-hardening vs post-hardening rows or explicitly justify pooling.
+Interpretation:
+- The old **"DEGRADED"** framing was too strong: single-context councils still worked on 8/10
+  paired dogfood artifacts, and reflection rounds worked in both modes.
+- The old **"unmeasured"** caveat is now outdated: this sample observed a +20pp mean advantage for
+  parallel on self-vs-blinded-judge agreement, concentrated in two outlier pairs.
+- The honest README/AGENTS claim is: **parallel is preferred when available because it preserves
+  round-1 isolation and outperformed single-context in this dogfood sample; single-context remains
+  usable but carries known round-1 contamination risk.**
+
+Caveats:
+- Pairs 1-4 were dogfood runs that surfaced product/tooling bugs; several fixes landed between
+  pairs (`7e6a9c7`, `61d8f03`, `889452a`, `b449f34`, `b0132f3`).
+- Later pairs still used the same local operator/harness rather than independent external users.
+- The sample is too small for a stable confidence band; the mean is driven by 2/10 outlier pairs.
+- Do not pool this dogfood result with future external/native-tool measurements without labeling the
+  run family.
 
 ---
 
@@ -43,9 +63,9 @@ softened that to "single-context (round-1 contamination)" with an explicit hones
 > compare the two council modes against each other. Until the dual-mode measurement lands,
 > "parallel is better" is a theoretical claim with known sign and unknown magnitude.
 
-This doc IS the measurement. It defines the protocol so when the runs happen, they answer one
-question: **is single-context-mode meaningfully worse than parallel-subagent-mode on the
-catch-rate KPI, after blinded-judge scoring?**
+This doc now records both the protocol and the completed dogfood sample. It answers one narrow
+question: **in this author-run, repo-local sample, did single-context mode perform worse than
+parallel-subagent mode on self-vs-blinded-judge agreement?**
 
 ## Hypothesis
 
@@ -173,9 +193,13 @@ Reported metrics:
 | Result | Implication for README claim |
 |---|---|
 | Paired delta within 10pp, CI crosses zero | Modes are equivalent on the practical KPI; the "DEGRADED" framing was wrong. Update README to say so. |
-| Mode A agrees with judge ≥20pp more than mode B | "DEGRADED" framing was right; we have data. Restore (with citation). |
+| Mode A agrees with judge ≥20pp more than mode B | Parallel likely has a practical advantage; update README with data, but do not restore loaded wording unless distribution + external runs support it. |
 | Modes differ by run kind (e.g. design docs equivalent, code diffs different) | Conditional claim. Update README to say which mode helps which run kind. |
 | Modes differ but in the OPPOSITE direction (B beats A) | Unexpected; investigate before claiming anything. Common cause: mode-A's parallel personas miss something the in-context contamination accidentally surfaced. |
+
+Observed outcome: the sample hit the +20pp mean threshold, but the median paired delta was 0pp
+because 8/10 pairs tied and 2/10 favored parallel. That supports "prefer parallel when available"
+rather than reviving the old "DEGRADED" label.
 
 ## What this doc is NOT
 

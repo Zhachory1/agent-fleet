@@ -20,7 +20,8 @@ Personas:
   `docs-dx` (API ergonomics / onboarding friction).
 - **Adversarial complement** — `pre-mortem` (work backward from imagined catastrophe; complement to
   red-team's attack-the-artifact lens), `mvp` (smallest-real-signal advocate; deliberately
-  oppositional to red-team and pre-mortem — cuts scope where they add).
+  oppositional to red-team and pre-mortem — cuts scope where they add), `occams-razor`
+  (complexity-cutter; cuts abstractions/layers until the payoff is real).
 - **Executive** — `cto` (3-5yr platform/tech arc), `ceo` (strategy / narrative / opportunity cost),
   `vp-eng` (capacity / sequencing / staffing reality).
 
@@ -38,9 +39,9 @@ share a same-group lens.
   sequence within one context. Round-1 POSITIONs have potential cross-persona contamination
   (persona 4 has seen personas 1–3's outputs in-context). Reflection rounds (round 2+) work
   in both modes — each persona reads peers' prior POSITIONs and must REFUTE-FIRST before
-  conceding. The magnitude of round-1 contamination is not measured; the lens-baseline arm
-  in `journal.sh stats` compares any council mode against same-lenses-single-pass, not the
-  two modes against each other.
+  conceding. In the 10-pair dogfood measurement, parallel self-vs-blinded-judge agreement was
+  10/10 vs single-context 8/10 (mean paired delta +20pp; median 0pp, with 8/10 pairs tied).
+  Prefer true parallel subagents when available; single-context remains usable with this caveat.
 
 ## Helpers (any environment with bash + jq)
 Set `AGENT_FLEET_HOME` to this repo, then:

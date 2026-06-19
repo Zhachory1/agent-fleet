@@ -5,6 +5,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+- Completed the 10-pair parallel-vs-single dogfood measurement and documented the final 10/10 vs 8/10 result.
 - `install.sh --tool cave` project/user-scope install path with Cave-compatible lowercase persona tools.
 - Codex skill installation via `install.sh --tool codex` into `~/.codex/skills/council`.
 - Portability-pattern test for known BSD/GNU shell footguns.
@@ -20,6 +21,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Cave install now maps declared tools per token, avoids destructive skill-dir pre-wipe, supports `CAVE_HOME` for user-scope installs, and rejects Cave-only scope flags on other tools.
 - `journal.sh stats` Phase 2 distinct-room progress now has regression coverage and preserves explicit `false` values during schema-default normalization.
 - Phase 1 calibration writeup no longer claims to close #1 and now names the uncalibrated catch=false arm.
+- README and AGENTS now report measured mode-difference data instead of the old unmeasured single-context caveat.
 
 ## [0.1.0] — 2026-06-16
 
