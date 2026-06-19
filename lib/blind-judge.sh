@@ -5,6 +5,7 @@
 #   prepare <room> [--phase1 judge-a|judge-b]            assemble 5 blobs, render against rubric, clipboard+banner
 #   record  <room> --catch ... --why ... [more flags]    validate + write judge_* fields + transcript line
 #   judge   <room> [--phase1 ...]                        prepare + 10min stdin wait + parse + record
+#                    [--judge-cli claude|agy|gemini]      run a fresh CLI judge instead of paste/stdin
 #   backfill-artifact <room> --from <path>               rescue legacy rooms predating FR9 (deferred to PR C)
 #   parse   <response-file> <op-synthesis-file>          stand-alone parser for testing
 #
@@ -467,16 +468,30 @@ EOF
     room="${1:?room}"; shift || true
     phase1=""
     response_file=""
+    judge_cli=""
+    model_family=""
     while [ $# -gt 0 ]; do
       case "$1" in
         --phase1) phase1="$2"; shift 2;;
         --response-file) response_file="$2"; shift 2;;
+        --judge-cli) judge_cli="$2"; shift 2;;
+        --model-family) model_family="$2"; shift 2;;
         *) die "unknown flag '$1'";;
       esac
     done
+    if [ -n "$response_file" ] && [ -n "$judge_cli" ]; then
+      die "--response-file and --judge-cli are mutually exclusive"
+    fi
     if [ -n "$response_file" ]; then
       [ -f "$response_file" ] || die "--response-file does not exist: $response_file"
       [ -s "$response_file" ] || die "--response-file is empty: $response_file"
+    fi
+    if [ -n "$judge_cli" ]; then
+      case "$judge_cli" in
+        claude|agy|gemini) command -v "$judge_cli" >/dev/null 2>&1 || die "--judge-cli '$judge_cli' not found on PATH";;
+        *) die "--judge-cli must be one of: claude, agy, gemini";;
+      esac
+      [ -n "$model_family" ] || case "$judge_cli" in claude) model_family="claude";; gemini) model_family="gemini";; agy) model_family="other";; esac
     fi
     # PR C correctness fix (#23 MAJOR #2): hold a per-room lock spanning prepare→record so two
     # terminals can't both pass enforce_phase1 simultaneously. Lock is on the room directory
@@ -501,7 +516,9 @@ EOF
     echo "prepared: room=$room phase1=${phase1:-none}"
     echo "  template_sha256: ${judge_tsh:0:16}..."
     echo "  render_sha256:   ${judge_rsh:0:16}..."
-    if [ -n "${SSH_CONNECTION:-}" ]; then
+    if [ -n "$judge_cli" ]; then
+      echo "  judge CLI: $judge_cli (model_family=$model_family)"
+    elif [ -n "${SSH_CONNECTION:-}" ]; then
       echo "  (SSH detected — prompt was NOT copied to clipboard; re-run 'prepare' standalone and copy manually)"
     elif command -v pbcopy >/dev/null 2>&1 || command -v xclip >/dev/null 2>&1; then
       echo "  prompt is on your clipboard (pbcopy/xclip)"
@@ -527,6 +544,15 @@ EOF
     if [ -n "$response_file" ]; then
       echo "reading judge response from: $response_file"
       response=$(cat "$response_file")
+    elif [ -n "$judge_cli" ]; then
+      rendered_prompt=$(printf '%s\n' "$prepare_out" | sed -n '/^# ============================================================================/,$p')
+      [ -n "$rendered_prompt" ] || die "failed to extract rendered judge prompt from prepare output"
+      echo "running judge CLI: $judge_cli"
+      case "$judge_cli" in
+        claude) response=$(claude -p "$rendered_prompt") || die "judge CLI failed: claude";;
+        agy) response=$(agy --print-timeout 10m -p "$rendered_prompt") || die "judge CLI failed: agy";;
+        gemini) response=$(gemini -p "$rendered_prompt") || die "judge CLI failed: gemini";;
+      esac
     else
       echo "Paste the judge's response below (the ===JUDGE OUTPUT=== ... ===END=== block)."
       echo "Then press Ctrl-D on a new line to submit."
@@ -567,6 +593,7 @@ EOF
     # Without these, judge_template_sha256/judge_render_sha256 land empty (silent audit gap).
     [ -n "$judge_tsh" ]  && rec_args+=(--template-sha256 "$judge_tsh")
     [ -n "$judge_rsh" ]  && rec_args+=(--render-sha256 "$judge_rsh")
+    [ -n "$model_family" ] && rec_args+=(--model-family "$model_family")
     # judge_lockdir is released by trap-on-EXIT in acquire_lock; we keep holding it through record
     [ -n "$phase1" ]     && rec_args+=(--phase1 "$phase1")
     "$0" record "${rec_args[@]}"

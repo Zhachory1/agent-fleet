@@ -255,6 +255,10 @@ $AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug> --phase1 judge-a
 # Phase 2: single-judged (every 5th council); --phase1 forbidden after Phase 1 closes
 $AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug>
 
+# Optional non-interactive fresh CLI judges when available:
+$AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug> --judge-cli claude
+$AGENT_FLEET_HOME/lib/blind-judge.sh judge council-<slug> --judge-cli agy --model-family claude
+
 # Rescue legacy rooms that predate the durable-artifact change:
 $AGENT_FLEET_HOME/lib/blind-judge.sh backfill-artifact council-<slug> --from <path>
 ```
@@ -264,7 +268,8 @@ The canonical rubric is [`lib/blind-judge-prompt.v2.txt`](lib/blind-judge-prompt
 + Phase 1/Phase 2 calibration in
 [`docs/features/blinded-judge/PRD.md`](docs/features/blinded-judge/PRD.md). Current state:
 **Phase 1 calibration is complete; Phase 2 is in progress at 21/50 judged rooms. [Issue #1](../../issues/1)
-tracks the 50-run decision and README/stats update.**
+tracks the 50-run decision and README/stats update.** See the
+[Phase 2 runbook](docs/features/blinded-judge/phase2-runbook.md) for candidate selection and judge CLI usage.
 
 ## Tests
 

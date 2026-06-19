@@ -681,6 +681,40 @@ else
   note "FAIL --response-file accepted a nonexistent path"; fail=1
 fi
 
+FAKEBIN=$(mktemp_d)
+cat > "$FAKEBIN/claude" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" != "-p" ] || ! grep -q '==== ARTIFACT ====' <<<"$2"; then
+  echo "fake claude expected -p with rendered judge prompt" >&2
+  exit 2
+fi
+cat <<'JUDGE'
+===JUDGE OUTPUT===
+REASONING: fake CLI judge says the solo decision already covered the only finding.
+
+DISSENT_DIFF: - (none)
+
+NET_NEW_CATCH: false
+
+WHY: no net-new issue beyond the solo decision.
+
+IMPLIED_BY: ship as-is
+
+===END===
+JUDGE
+EOF
+chmod +x "$FAKEBIN/claude"
+PATH="$FAKEBIN:$PATH" bash "$DIR/lib/blind-judge.sh" judge "$ROOM_RF" --phase1 judge-a --judge-cli claude >/dev/null 2>&1
+row=$(jq -c --arg r "$ROOM_RF" 'select(.room==$r and .judge_blinded==true)' "$AGENT_FLEET_JOURNAL" | tail -1)
+if [ -n "$row" ] && [ "$(jq -r '.judge_blinded_catch' <<<"$row")" = "false" ] && [ "$(jq -r '.judge_model_family_self_reported' <<<"$row")" = "claude" ]; then
+  note "PASS --judge-cli claude records catch=false and model family"
+else
+  note "FAIL --judge-cli claude row wrong: '$row'"; fail=1
+fi
+expect_fail_msg "--judge-cli and --response-file reject together" \
+  "PATH='$FAKEBIN':\$PATH bash '$DIR/lib/blind-judge.sh' judge '$ROOM_RF' --phase1 judge-a --judge-cli claude --response-file '$RF_RESP'" \
+  "mutually exclusive"
+
 echo "## empty-synthesis warning fires (issue #57)"
 # Room with NO @@from: synthesis block
 ROOM_NOSYN=council-no-synthesis-warn
