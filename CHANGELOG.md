@@ -28,6 +28,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Phase 1 calibration writeup no longer claims to close #1 and now names the uncalibrated catch=false arm.
 - README and AGENTS now report measured mode-difference data instead of the old unmeasured single-context caveat.
 - `test_blind_judge.sh` now covers Phase 2 `--phase1` rejection, catch=false `judge --response-file` recording, fake-CLI `--judge-cli claude` recording, and candidate listing.
+- `blind-judge.sh backfill-artifact` now takes the per-room lock before writing `artifact.txt`.
 
 ## [0.1.0] — 2026-06-16
 

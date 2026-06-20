@@ -579,7 +579,30 @@ UNTRACKED_SOURCE2=$(mktemp); echo "different content" > "$UNTRACKED_SOURCE2"
 rout=$(bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF" --from "$UNTRACKED_SOURCE2" --i-confirm-this-is-the-original 2>&1 1>/dev/null || true)
 echo "$rout" | grep -q "REPLACED" \
   && note "PASS backfill-warns-on-replace" || { note "FAIL backfill-warns-on-replace (got: $rout)"; fail=1; }
-rm -f "$UNTRACKED_SOURCE" "$UNTRACKED_SOURCE2"
+ROOM_BF_LOCK=council-backfill-lock
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_BF_LOCK/.judge.lockdir"
+LOCK_SOURCE=$(mktemp); echo "locked backfill content" > "$LOCK_SOURCE"
+LOCK_OUT=$(mktemp)
+(
+  bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF_LOCK" --from "$LOCK_SOURCE" --i-confirm-this-is-the-original >"$LOCK_OUT" 2>&1
+) &
+BF_PID=$!
+sleep 0.2
+if kill -0 "$BF_PID" 2>/dev/null; then
+  note "PASS backfill waits on per-room lock"
+else
+  note "FAIL backfill did not wait on held room lock: $(cat "$LOCK_OUT" 2>/dev/null || true)"; fail=1
+fi
+rmdir "$AGENT_CHAT_ROOT/rooms/$ROOM_BF_LOCK/.judge.lockdir"
+if wait "$BF_PID"; then
+  grep -q "locked backfill content" "$AGENT_CHAT_ROOT/rooms/$ROOM_BF_LOCK/artifact.txt" \
+    && note "PASS backfill writes after lock release" || { note "FAIL backfill missing artifact after lock release"; fail=1; }
+else
+  note "FAIL backfill failed after lock release: $(cat "$LOCK_OUT" 2>/dev/null || true)"; fail=1
+fi
+[ ! -d "$AGENT_CHAT_ROOT/rooms/$ROOM_BF_LOCK/.judge.lockdir" ] \
+  && note "PASS backfill room lock cleaned up" || { note "FAIL backfill room lock orphaned"; fail=1; }
+rm -f "$UNTRACKED_SOURCE" "$UNTRACKED_SOURCE2" "$LOCK_SOURCE" "$LOCK_OUT"
 
 echo "## judge subcommand forwards SHAs to record (issue #58: Phase 1 audit trail)"
 # Setup: a room with transcript + journal row so prepare can run

@@ -671,6 +671,8 @@ EOF
 
     room_dir="$AGENT_CHAT_ROOT/rooms/$room"
     mkdir -p "$room_dir"
+    room_lockdir="$room_dir/.judge.lockdir"
+    acquire_lock "$room_lockdir"
     target="$room_dir/artifact.txt"
     if [ -f "$target" ]; then
       if cmp -s "$from_path" "$target"; then
@@ -683,6 +685,7 @@ EOF
       cp "$from_path" "$target"
       echo "backfill-artifact: $room artifact.txt written from $from_path"
     fi
+    release_lock "$room_lockdir"
     ;;
 
   *)
