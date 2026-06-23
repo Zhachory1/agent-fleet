@@ -1,5 +1,7 @@
 # Iterative Reflection — Implementation Plan
 
+> **Status:** Historical implementation plan. Iterative reflection shipped in v0.1.0; current validation work lives in [`../../ROADMAP.md`](../../ROADMAP.md). Checkboxes below stay as build history, not active backlog.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Add N-iteration cross-reflection to the council: personas read peers' prior positions and revise via critique-before-concede, with verdict+issue-count convergence/mush detection, round-tagged transcript, bounded cost.
@@ -272,6 +274,9 @@ grep -qiE 'red-team.*(auto|force).*(includ|multi-iter|iterations)|force-include 
 - [ ] **Step 4: commit** any fixups.
 
 ## Verification checklist (maps to DD testing)
+
+> **Archived:** CI now owns these checks; see root [`README.md`](../../../README.md) and [`docs/ROADMAP.md`](../../ROADMAP.md) for current status.
+
 - [ ] `test_converged.sh`: CONVERGED / CHANGED / SUSPICIOUS-FLIP (sync + substance) / NO-INPUT.
 - [ ] `test_transcript.sh`: #rN stored raw, show groups by round, `#hashtag` not misread.
 - [ ] `test_orchestrator_sync.sh`: sentinels + REFUTE FIRST in both files.

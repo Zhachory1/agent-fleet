@@ -30,6 +30,8 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 | Lens baseline | 4/4 so far; gate needs n≥10 |
 | External validation | Still needed: non-author operators on their own artifacts |
 
+Current work is tracked in [`docs/ROADMAP.md`](docs/ROADMAP.md). Historical implementation plans remain archived for context.
+
 ## Quick start
 
 ```bash

@@ -1,7 +1,7 @@
 # SEPRD — Iterative cross-reflection rounds
 
 **SEPRD-ID**: SEPRD-20260612-council-iterative-reflection
-**Status**: Draft — Pending Team Ratification · **Rev 2** (post council gate #1)
+**Status**: Implemented — validation ongoing · **Rev 2** (post council gate #1)
 **Domain**: agent-fleet (personal tooling)
 **DRI**: Zhach Volker
 **Last updated**: 2026-06-12
@@ -119,5 +119,4 @@ yield < 30% after 10 runs, drop the default back to a single blind round — ref
 ---
 
 # Next Steps
-DD (round loop, reflection prompt, convergence detection, transcript round-tags) → plan → implement
-→ /code-review. `/council` review at each gate.
+Implementation shipped in v0.1.0. Current work is validation, not build: run Phase 2 blinded judging, expand lens-baseline sample, and execute operator self-test per [`../../ROADMAP.md`](../../ROADMAP.md).

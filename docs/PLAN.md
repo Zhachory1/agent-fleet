@@ -1,5 +1,7 @@
 # Agent Fleet Council — Implementation Plan
 
+> **Status:** Historical v0.1.0 build plan. Initial council shipped; current active work lives in [`docs/ROADMAP.md`](ROADMAP.md). Checkboxes below stay as implementation history, not active backlog.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build personal multi-persona council: `/council <task>` orchestrator picks 2-4 specialist agents, runs bounded debate, synthesizes decision-grade answer with dissent.
@@ -544,6 +546,8 @@ git add -A && git commit -m "docs: PRD/DD/PLAN for agent-fleet council" || true
 ---
 
 ## Verification checklist (maps to NFR6 + KPI)
+
+> **Archived:** Use CI and [`docs/ROADMAP.md`](ROADMAP.md) for current verification priorities.
 
 - [ ] All `test/*.sh` PASS.
 - [ ] `install.sh` + `--uninstall` round-trip clean.

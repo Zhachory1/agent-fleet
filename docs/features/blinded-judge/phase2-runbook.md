@@ -3,7 +3,7 @@
 **Goal:** reach ≥50 single-judged Phase 2 rooms for issue #1, then write the DRI decision at
 `docs/features/blinded-judge/decision-<date>.md`.
 
-**Current local snapshot (2026-06-19):** 21/50 distinct rooms judged, 19/21 self-vs-blind agreement.
+**Historical local snapshot (2026-06-19):** 21/50 distinct rooms judged, 19/21 self-vs-blind agreement. Run `bash lib/journal.sh stats` for current source-of-truth counts; journals are environment-specific.
 
 ## What counts
 
@@ -26,7 +26,7 @@ Rooms with no `@@from: synthesis` block may be judged, but note the caveat: diss
 
 ## Preferred judge CLI flow
 
-Use a fresh CLI judge when available:
+Use a fresh CLI judge when available. The helper invokes CLI judges with prompt mode (`claude -p`, `agy -p`, `gemini -p`):
 
 ```bash
 export AGENT_FLEET_HOME=/path/to/agent-fleet
