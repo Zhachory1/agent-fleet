@@ -9,6 +9,7 @@
 #   install.sh --tool opencode      # COPY personas + orchestrator -> ./.agent-fleet/ (current repo)
 #   install.sh --tool codex         # COPY project refs -> ./.agent-fleet/ and global payload -> ~/.codex/
 #   install.sh --tool cave          # COPY cave-compatible personas -> ./.cave/agents, skill -> ./.cave/skills/council
+#   install.sh --dir DIR            # COPY generic global payload -> DIR/{agents,skills,prompts}
 #   install.sh --target DIR [--copy]# place personas + orchestrator prompt into DIR (any tool)
 #                                   #   symlink by default; --copy to copy instead (for tools that
 #                                   #   don't follow symlinks, or sandboxed dirs)
@@ -20,7 +21,7 @@
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 VERSION="$(cat "$SRC/VERSION" 2>/dev/null || echo 'unknown')"
-TOOL="claude"; TARGET=""; COPY=0; UNINSTALL=0; PRINT=0; SCOPE="project"
+TOOL="claude"; TARGET=""; INSTALL_DIR=""; COPY=0; UNINSTALL=0; PRINT=0; SCOPE="project"
 
 print_help() {
   cat <<HELP
@@ -49,6 +50,12 @@ Options:
                              agents → \${CAVE_HOME:-~/.cave}/agent/agents,
                              skill → \${CAVE_HOME:-~/.cave}/skills/council,
                              prompt → \${CAVE_HOME:-~/.cave}/prompts/council-orchestrator.md
+  --dir DIR                  Generic user-global install for tools not known here
+                             (example: --dir ~/.mewrite). Copies:
+                             agents → DIR/agents,
+                             skill → DIR/skills/council,
+                             prompt → DIR/prompts/council-orchestrator.md
+  --dir DIR --uninstall      Remove the generic install from DIR
   --project                  Cave only. Project-scope install (default)
   --user                     Cave only. User-scope install
   --target DIR               Place personas + orchestrator prompt into DIR
@@ -66,7 +73,8 @@ Examples:
   install.sh --tool opencode                  # opencode: copy into ./.agent-fleet/
   install.sh --tool codex                     # Codex: copy prompt/personas + install skill
   install.sh --tool cave                      # Cave: install into ./.cave/{agents,skills,prompts}
-  install.sh --target ./custom/path --copy    # explicit target override
+  install.sh --dir ~/.mewrite                 # unknown TUI: generic global DIR/{agents,skills,prompts}
+  install.sh --target ./custom/path --copy    # explicit flat target override
   install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
 
 Requirements: bash, jq (and git for full functionality).
@@ -87,6 +95,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --tool) TOOL="${2:?}"; shift 2;;
     --target) TARGET="${2:?}"; shift 2;;
+    --dir) INSTALL_DIR="${2:?}"; shift 2;;
     --copy) COPY=1; shift;;
     --uninstall) UNINSTALL=1; shift;;
     --project) SCOPE="project"; shift;;
@@ -153,6 +162,31 @@ personas() {
 
 if [ "$PRINT" = "1" ]; then
   cat "$SRC/prompts/council-orchestrator.md"; exit 0
+fi
+
+# Generic global install for unknown TUI home dirs (for example ~/.mewrite).
+# This is intentionally copy-only and uses the conventional {agents,skills,prompts}
+# resource layout. Use --target for a flat directory instead.
+if [ -n "$INSTALL_DIR" ]; then
+  AGENTS_DST="$INSTALL_DIR/agents"
+  SKILL_DST="$INSTALL_DIR/skills/council"
+  PROMPT_DST="$INSTALL_DIR/prompts/council-orchestrator.md"
+  if [ "$UNINSTALL" = "1" ]; then
+    for f in $(personas); do rm -f "$AGENTS_DST/$(basename "$f")"; done
+    rm -f "$PROMPT_DST"
+    rm -rf "$SKILL_DST"
+    echo "agent-fleet: uninstalled generic payload from $INSTALL_DIR"
+    exit 0
+  fi
+  COPY=1
+  for f in $(personas); do place "$f" "$AGENTS_DST/$(basename "$f")"; done
+  place_dir "$SRC/skills/council" "$SKILL_DST"
+  place "$SRC/prompts/council-orchestrator.md" "$PROMPT_DST"
+  echo "agent-fleet: installed generic agents → $AGENTS_DST"
+  echo "agent-fleet: installed generic skill → $SKILL_DST"
+  echo "agent-fleet: installed generic prompt → $PROMPT_DST"
+  echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
+  exit 0
 fi
 
 # Generic target: drop personas + the portable orchestrator prompt into DIR.

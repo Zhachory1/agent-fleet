@@ -171,8 +171,11 @@ Install only the **agent prompts/personas/skills** into the AI TUI's normal user
 | Cave | project `.cave/{agents,skills,prompts}` or user `~/.cave` | `bash install.sh --tool cave` or `bash install.sh --tool cave --user` |
 | Cursor | project `.cursor/rules` | `bash install.sh --tool cursor` |
 | opencode | project `.agent-fleet` | `bash install.sh --tool opencode` |
+| Unknown TUI with global config dir, e.g. Mewrite | `~/.mewrite/{agents,skills,prompts}` or whatever dir your TUI documents | `bash install.sh --dir ~/.mewrite` |
 
-`npx`/npm install is **not published yet**: this repo has no `package.json` package entrypoint. For now, clone or download the repo, then run `install.sh`. If a future `npx agent-fleet install --tool <tui>` exists, it should do the same copy-only resource install into the TUI folders above.
+Use `--dir DIR` when this repo does not know your TUI by name. It copies the generic payload into `DIR/agents`, `DIR/skills/council`, and `DIR/prompts/council-orchestrator.md`; uninstall with `bash install.sh --dir DIR --uninstall`.
+
+`npx`/npm install is **not published yet**: this repo has no `package.json` package entrypoint. For now, clone or download the repo, then run `install.sh`. If a future `npx agent-fleet install --tool <tui>` exists, it should do the same copy-only resource install into the TUI folders above, with `--dir` as the escape hatch for unknown tools.
 
 ### Claude Code (recommended — full council)
 ```bash
@@ -201,6 +204,12 @@ bash "$AGENT_FLEET_HOME/install.sh" --tool cave      # → ./.cave/{agents,skill
 ```bash
 export AGENT_FLEET_HOME=~/code/agent-fleet
 bash "$AGENT_FLEET_HOME/install.sh" --tool cursor    # → ./.cursor/rules/
+```
+
+### Unknown TUI global dir, e.g. Mewrite
+```bash
+export AGENT_FLEET_HOME=~/code/agent-fleet
+bash "$AGENT_FLEET_HOME/install.sh" --dir ~/.mewrite   # → ~/.mewrite/{agents,skills,prompts}
 ```
 
 ### Any AI editor / chat

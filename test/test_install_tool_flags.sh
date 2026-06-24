@@ -66,6 +66,37 @@ for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.ag
   rm -rf "$tmp"
 done
 
+# Generic --dir installs into unknown TUI global resource homes, e.g. ~/.mewrite.
+tmp=$(mktemp_d)
+GENERIC_HOME="$tmp/mewrite-home"
+( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --dir "$GENERIC_HOME" >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --dir exited non-zero"; fail=1
+}
+if [ ! -f "$GENERIC_HOME/agents/red-team.md" ]; then
+  echo "FAIL: --dir did not install personas into DIR/agents"
+  fail=1
+fi
+if [ ! -f "$GENERIC_HOME/skills/council/SKILL.md" ]; then
+  echo "FAIL: --dir did not install council skill into DIR/skills/council"
+  fail=1
+fi
+if [ ! -f "$GENERIC_HOME/prompts/council-orchestrator.md" ]; then
+  echo "FAIL: --dir did not install prompt into DIR/prompts"
+  fail=1
+fi
+if [ -L "$GENERIC_HOME/agents/red-team.md" ]; then
+  echo "FAIL: --dir installed symlinks; should be copies for unknown TUI dirs"
+  fail=1
+fi
+( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --dir "$GENERIC_HOME" --uninstall >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --dir --uninstall exited non-zero"; fail=1
+}
+if [ -f "$GENERIC_HOME/agents/red-team.md" ] || [ -e "$GENERIC_HOME/skills/council" ] || [ -f "$GENERIC_HOME/prompts/council-orchestrator.md" ]; then
+  echo "FAIL: --dir --uninstall left installed files behind"
+  fail=1
+fi
+rm -rf "$tmp"
+
 # Cave uses distinct resource dirs and needs lowercase tool names in installed persona copies.
 tmp=$(mktemp_d)
 ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool cave >/dev/null 2>&1 ) || {

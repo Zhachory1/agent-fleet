@@ -17,6 +17,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Generated council skill wrapper from canonical portable orchestrator prompt.
 - `lib/parallel-vs-single.sh` helper to anonymize and analyze paired mode-measurement rooms.
 - `judge_ts` audit timestamp on blinded-judge records, with migration/default coverage.
+- `install.sh --dir DIR` for unknown TUI global resource dirs, copying payload into `DIR/{agents,skills,prompts}`.
 
 ### Fixed
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.
