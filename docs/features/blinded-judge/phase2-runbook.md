@@ -65,7 +65,8 @@ bash "$AGENT_FLEET_HOME/lib/blind-judge.sh" candidates
 
 Columns:
 
-- `status`: `ready`, `no-synthesis`, `missing-artifact`, `missing-transcript`, `no-positions`, or `judged`.
+- `status`: `ready`, `ambiguous-room`, `no-synthesis`, `missing-artifact`, `missing-transcript`, `no-positions`, or `judged`.
+  - `ambiguous-room` means the room has multiple journal self-report rows, so `prepare` cannot safely pair the right solo decision with the right persona positions. Use a unique room per council or split the legacy room before judging.
 - `positions`: number of captured `#r<N>` persona position blocks.
 - `synthesis_words`: word count across synthesis blocks; `0` means dissent-erasure checking is muted.
 - `artifact`: whether `artifact.txt` exists.

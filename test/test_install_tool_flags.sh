@@ -4,7 +4,9 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 EXTRA_PERSONA="$DIR/agents/cave-tool-map-fixture.md"
-trap 'rm -f "$EXTRA_PERSONA"' EXIT
+TEST_PARENT_TMP=$(mktemp -d)
+trap 'rm -f "$EXTRA_PERSONA"; rm -rf "$TEST_PARENT_TMP"' EXIT
+mktemp_d() { mktemp -d "$TEST_PARENT_TMP/d.XXXXXX"; }
 fail=0
 
 # How many persona .md files exist (excludes catalog + private/example overlays).
@@ -15,7 +17,7 @@ expected_files=$((expected_personas + 1))  # personas + council-orchestrator.md
 for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.agent-fleet"; do
   tool="${tool_spec%%:*}"
   expected_dir="${tool_spec##*:}"
-  tmp=$(mktemp -d)
+  tmp=$(mktemp_d)
   ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool "$tool" >/dev/null 2>&1 ) || {
     echo "FAIL: install.sh --tool $tool exited non-zero"; fail=1; rm -rf "$tmp"; continue
   }
@@ -41,6 +43,14 @@ for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.ag
       echo "FAIL: --tool codex did not install council skill into ~/.codex/skills/council"
       fail=1
     fi
+    if [ ! -f "$tmp/home/.codex/agent-fleet/agents/red-team.md" ]; then
+      echo "FAIL: --tool codex did not install persona payload into ~/.codex/agent-fleet/agents"
+      fail=1
+    fi
+    if [ ! -f "$tmp/home/.codex/agent-fleet/prompts/council-orchestrator.md" ]; then
+      echo "FAIL: --tool codex did not install prompt payload into ~/.codex/agent-fleet/prompts"
+      fail=1
+    fi
     ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool codex --uninstall >/dev/null 2>&1 ) || {
       echo "FAIL: install.sh --tool codex --uninstall exited non-zero"; fail=1
     }
@@ -48,12 +58,16 @@ for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.ag
       echo "FAIL: --tool codex --uninstall did not remove council skill"
       fail=1
     fi
+    if [ -e "$tmp/home/.codex/agent-fleet" ]; then
+      echo "FAIL: --tool codex --uninstall did not remove global payload"
+      fail=1
+    fi
   fi
   rm -rf "$tmp"
 done
 
 # Cave uses distinct resource dirs and needs lowercase tool names in installed persona copies.
-tmp=$(mktemp -d)
+tmp=$(mktemp_d)
 ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool cave >/dev/null 2>&1 ) || {
   echo "FAIL: install.sh --tool cave exited non-zero"; fail=1
 }
@@ -105,7 +119,7 @@ tools: Read, Write, Glob, Grep, Bash, NotReal
 ---
 body
 EOF
-tmp=$(mktemp -d)
+tmp=$(mktemp_d)
 set +e
 OUT=$(cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool cave 2>&1)
 rc=$?
@@ -123,7 +137,7 @@ rm -rf "$tmp"
 rm -f "$EXTRA_PERSONA"
 
 # Cave user-scope layout uses Cave's user resource dirs.
-tmp=$(mktemp -d)
+tmp=$(mktemp_d)
 ( cd "$tmp" && HOME="$tmp/home" CAVE_HOME="$tmp/cave-home" bash "$DIR/install.sh" --tool cave --user >/dev/null 2>&1 ) || {
   echo "FAIL: install.sh --tool cave --user exited non-zero"; fail=1
 }
@@ -142,7 +156,7 @@ fi
 rm -rf "$tmp"
 
 set +e
-OUT=$(HOME="$(mktemp -d)" bash "$DIR/install.sh" --tool codex --user 2>&1)
+OUT=$(HOME="$(mktemp_d)" bash "$DIR/install.sh" --tool codex --user 2>&1)
 rc=$?
 set -e
 [ "$rc" != "0" ] && echo "$OUT" | grep -q -- '--user/--project only applies to --tool cave' \

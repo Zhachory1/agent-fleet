@@ -52,6 +52,23 @@ for sec in '==== ARTIFACT ====' '==== SOLO_DECISION ====' '==== PERSONA_POSITION
 done
 grep -q "diff text here" <<<"$OUT" || { note "FAIL: prepare artifact not rendered"; fail=1; }
 
+# Reused legacy rooms with multiple self-report rows are ambiguous: prepare would pair
+# latest solo_decision with earliest #r1 positions, so it must refuse.
+AMB=council-ambiguous-room
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$AMB"
+echo "ambiguous artifact" > "$AGENT_CHAT_ROOT/rooms/$AMB/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture "$AMB" <<EOF >/dev/null
+@@from: red-team#r1
+prd position
+@@from: red-team#r1-DD
+dd position
+EOF
+bash "$DIR/lib/journal.sh" append "$AMB" "prd" "solo prd" "red-team" true "" true 0 false null 1 design >/dev/null
+bash "$DIR/lib/journal.sh" append "$AMB" "dd" "solo dd" "red-team" true "" true 0 false null 1 design >/dev/null
+expect_fail_msg "prepare-ambiguous-room-refuses" \
+  "bash '$DIR/lib/blind-judge.sh' prepare '$AMB' --phase1 judge-a" \
+  "multiple journal self-report rows"
+
 # PERSONA_POSITIONS contains the ml-scientist#r1 marker; OPERATOR_SYNTHESIS does not
 ps_block=$(awk '/==== PERSONA_POSITIONS ====/,/==== OPERATOR_SYNTHESIS ====/' <<<"$OUT")
 os_block=$(awk '/==== OPERATOR_SYNTHESIS ====/,/==== PERSONA_LIST ====/' <<<"$OUT")
@@ -367,8 +384,8 @@ RESP=$(build_valid_true)
 echo "$RESP" | bash "$DIR/lib/blind-judge.sh" judge "$ROOM" --phase1 judge-a >/dev/null 2>&1 \
   && note "PASS judge-end-to-end" || { note "FAIL judge-end-to-end"; fail=1; }
 
-# Journal row should now have judge_blinded=true
-jq -e --arg r "$ROOM" 'select(.room==$r and .judge_blinded==true and .judge_blinded_catch==true)' \
+# Journal row should now have judge_blinded=true and a judge_ts audit timestamp
+jq -e --arg r "$ROOM" 'select(.room==$r and .judge_blinded==true and .judge_blinded_catch==true and (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T")))' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
   && note "PASS journal-row-updated-with-judge-fields" \
   || { note "FAIL journal-row-update"; fail=1; }
@@ -406,7 +423,7 @@ bash "$DIR/lib/blind-judge.sh" record "$ROOM_J" --catch false \
   --why "stand-alone judge" --reasoning "r" --dissent-diff "- (none)" \
   && note "PASS record-judge-only-row" \
   || { note "FAIL record-judge-only-row"; fail=1; }
-jq -se --arg r "$ROOM_J" 'map(select(.room==$r)) | .[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null' \
+jq -se --arg r "$ROOM_J" 'map(select(.room==$r)) | .[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T"))' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
   && note "PASS judge-only-row-has-null-self-report" \
   || { note "FAIL judge-only-row-shape"; fail=1; }
@@ -875,12 +892,16 @@ make_candidate_room candidate-ready yes
 make_candidate_room candidate-nosynth no
 make_candidate_room candidate-judged yes
 make_candidate_room council-paired-candidate-single yes
+make_candidate_room candidate-ambiguous yes
+bash "$DIR/lib/journal.sh" append candidate-ambiguous candidate-ambiguous-dd "ship DD" "red-team" true "" true 0 false null 1 design >/dev/null
 bash "$DIR/lib/blind-judge.sh" record candidate-judged --catch true --why w --evidence "- [MAJOR] finding" --reasoning r --dissent-diff "- (none)" >/dev/null
 CAND=$(bash "$DIR/lib/blind-judge.sh" candidates)
 echo "$CAND" | grep -q $'^ready\tcandidate-ready\t1\t3\tyes\tcandidate-ready-task$' \
   && note "PASS candidates lists ready room" || { note "FAIL candidates missing ready room: $CAND"; fail=1; }
 echo "$CAND" | grep -q $'^no-synthesis\tcandidate-nosynth\t1\t0\tyes\tcandidate-nosynth-task$' \
   && note "PASS candidates flags no-synthesis room" || { note "FAIL candidates missing no-synthesis room: $CAND"; fail=1; }
+echo "$CAND" | grep -q $'^ambiguous-room\tcandidate-ambiguous\t1\t3\tyes\tcandidate-ambiguous-dd$' \
+  && note "PASS candidates flags ambiguous reused room" || { note "FAIL candidates missing ambiguous-room: $CAND"; fail=1; }
 if echo "$CAND" | grep -q 'candidate-judged'; then
   note "FAIL candidates default included already judged room"; fail=1
 else

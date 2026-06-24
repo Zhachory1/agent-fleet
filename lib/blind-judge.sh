@@ -181,6 +181,12 @@ room_already_judged() {
   if [ "${found:-0}" -gt 0 ]; then echo true; else echo false; fi
 }
 
+room_self_report_count() {
+  local room="$1"
+  [ -f "$AGENT_FLEET_JOURNAL" ] || { echo 0; return; }
+  jq -s --arg r "$room" '[.[] | select(.room == $r and (.solo_decision // null) != null)] | length' "$AGENT_FLEET_JOURNAL" 2>/dev/null || echo 0
+}
+
 # resolve_artifact ROOM -> stdout the artifact content; die on unresolvable pointer.
 resolve_artifact() {
   local room="$1"
@@ -260,10 +266,11 @@ case "$cmd" in
       | select(.[-1].room != null and .[-1].room != "")
       | {room:.[-1].room,
          task:(.[-1].task // ""),
-         judged:(any(.[]; (.judge_blinded // false) == true))}
+         judged:(any(.[]; (.judge_blinded // false) == true)),
+         self_rows:([.[] | select((.solo_decision // null) != null)] | length)}
       | select(($show_all == 1) or (.judged | not))
-      | [.room, .task, (.judged|tostring)] | @tsv
-    ' "$AGENT_FLEET_JOURNAL" | while IFS=$'\t' read -r room task judged; do
+      | [.room, .task, (.judged|tostring), (.self_rows|tostring)] | @tsv
+    ' "$AGENT_FLEET_JOURNAL" | while IFS=$'\t' read -r room task judged self_rows; do
       if [ "$include_paired" != "1" ]; then
         case "$room" in council-paired-*) continue;; esac
       fi
@@ -277,6 +284,7 @@ case "$cmd" in
         synth_words=$(jq -r 'select(.from=="synthesis") | .text // ""' "$room_dir/log.jsonl" 2>/dev/null | wc -w | tr -d ' ')
       fi
       if [ "$judged" = "true" ]; then status="judged"
+      elif [ "${self_rows:-0}" -gt 1 ]; then status="ambiguous-room"
       elif [ ! -f "$room_dir/log.jsonl" ]; then status="missing-transcript"
       elif [ "$artifact" != "yes" ]; then status="missing-artifact"
       elif [ "$positions" -eq 0 ]; then status="no-positions"
@@ -301,6 +309,11 @@ case "$cmd" in
     artifact_content=$(resolve_artifact "$room")
     room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
     [ -f "$room_log" ] || die "no transcript for room '$room'"
+
+    self_rows=$(room_self_report_count "$room")
+    if [ "${self_rows:-0}" -gt 1 ]; then
+      die "room '$room' has multiple journal self-report rows; cannot safely pair solo_decision with transcript positions. Use a unique room per council or split the legacy room before judging."
+    fi
 
     [ -f "$AGENT_FLEET_JOURNAL" ] && [ -s "$AGENT_FLEET_JOURNAL" ] || die "no journal row for room '$room'"
     row=$(jq -c --arg room "$room" 'select(.room==$room)' "$AGENT_FLEET_JOURNAL" | tail -1)
@@ -442,6 +455,7 @@ BANNER
         die "room '$room' already has judge_blinded_catch=$prior_catch; rerunning with $catch — pass --force to override"
       fi
       # Mutate in place: rewrite the journal with this row's judge_* fields updated.
+      judge_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       tmp=$(mktemp)
       jq -c --arg r "$room" \
         --argjson catch "$catch" \
@@ -454,29 +468,31 @@ BANNER
         --arg pv "$prompt_version" \
         --arg tsh "$template_sha" \
         --arg rsh "$render_sha" \
+        --arg judge_ts "$judge_ts" \
         --arg p1 "$phase1" \
         'if .room==$r and ((.judge_blinded // false) != true)
            then . + {judge_blinded:true, judge_blinded_catch:$catch, judge_why:$why,
                     judge_evidence:$ev, judge_implied_by:$ib, judge_reasoning:$reas,
                     judge_dissent_diff:$dd, judge_model_family_self_reported:$mf,
                     judge_prompt_version:$pv, judge_template_sha256:$tsh,
-                    judge_render_sha256:$rsh, judge_phase1:$p1}
+                    judge_render_sha256:$rsh, judge_ts:$judge_ts, judge_phase1:$p1}
          elif .room==$r and ((.judge_blinded // false) == true)
            then . + {judge_blinded:true, judge_blinded_catch:$catch, judge_why:$why,
                     judge_evidence:$ev, judge_implied_by:$ib, judge_reasoning:$reas,
                     judge_dissent_diff:$dd, judge_model_family_self_reported:$mf,
                     judge_prompt_version:$pv, judge_template_sha256:$tsh,
-                    judge_render_sha256:$rsh, judge_phase1:$p1}
+                    judge_render_sha256:$rsh, judge_ts:$judge_ts, judge_phase1:$p1}
          else . end' "$AGENT_FLEET_JOURNAL" > "$tmp"
       mv "$tmp" "$AGENT_FLEET_JOURNAL"
     else
       # No row exists — write a judge-only row (FR8 step-3-when-step-2-failed)
-      jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg room "$room" \
+      judge_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      jq -cn --arg ts "$judge_ts" --arg room "$room" \
         --argjson catch "$catch" \
         --arg why "$why" --arg ev "$evidence" --arg ib "$implied_by" \
         --arg reas "$reasoning" --arg dd "$dissent_diff" \
         --arg mf "$model_family" --arg pv "$prompt_version" \
-        --arg tsh "$template_sha" --arg rsh "$render_sha" --arg p1 "$phase1" \
+        --arg tsh "$template_sha" --arg rsh "$render_sha" --arg judge_ts "$judge_ts" --arg p1 "$phase1" \
         '{ts:$ts, room:$room, task:"", solo_decision:null, personas:[],
           net_new_catch:null, catch_note:"", acted_on:null, dismissed_count:0,
           lens_baseline_run:false, council_beat_baseline:null, issues_raised:0,
@@ -485,7 +501,7 @@ BANNER
           judge_evidence:$ev, judge_implied_by:$ib, judge_reasoning:$reas,
           judge_dissent_diff:$dd, judge_model_family_self_reported:$mf,
           judge_prompt_version:$pv, judge_template_sha256:$tsh,
-          judge_render_sha256:$rsh, judge_phase1:$p1,
+          judge_render_sha256:$rsh, judge_ts:$judge_ts, judge_phase1:$p1,
           solo_decision_word_count:0, synthesis_word_count:0}' \
         >> "$AGENT_FLEET_JOURNAL"
     fi

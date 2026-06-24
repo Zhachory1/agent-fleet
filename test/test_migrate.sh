@@ -22,7 +22,7 @@ JNL="$WORK/journal.jsonl"
   # Schema era 2: +run_kind (still no judge_*)
   echo '{"ts":"2026-03-01T00:00:00Z","room":"c-old2","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,"issues_raised":1,"run_kind":"design"}'
   # Schema era 3 (current): all fields
-  echo '{"ts":"2026-04-01T00:00:00Z","room":"c-new","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,"issues_raised":1,"run_kind":"code","judge_blinded":false,"judge_blinded_catch":null,"judge_why":"","judge_evidence":"","judge_implied_by":"","judge_reasoning":"","judge_dissent_diff":"","judge_model_family_self_reported":"","judge_prompt_version":null,"judge_template_sha256":"","judge_render_sha256":"","solo_decision_word_count":1,"synthesis_word_count":0}'
+  echo '{"ts":"2026-04-01T00:00:00Z","room":"c-new","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,"issues_raised":1,"run_kind":"code","judge_blinded":false,"judge_blinded_catch":null,"judge_why":"","judge_evidence":"","judge_implied_by":"","judge_reasoning":"","judge_dissent_diff":"","judge_model_family_self_reported":"","judge_prompt_version":null,"judge_template_sha256":"","judge_render_sha256":"","judge_ts":null,"solo_decision_word_count":1,"synthesis_word_count":0}'
 } > "$JNL"
 
 export AGENT_FLEET_JOURNAL="$JNL"
@@ -42,14 +42,14 @@ echo "$OUT" | grep -q "3 / 4" \
   || { note "FAIL migrate report: got '$OUT'"; exit 1; }
 [ -f "$JNL.bak" ] && note "PASS migrate created .bak" || { note "FAIL migrate did not create .bak"; exit 1; }
 
-# Every row now has the full schema (17 of the canonical fields backfilled)
+# Every row now has the full schema (18 canonical fields backfilled)
 miss=$(jq -r '. | [
   has("run_kind"), has("lens_baseline_run"), has("council_beat_baseline"),
   has("issues_raised"), has("judge_blinded"), has("judge_blinded_catch"),
   has("judge_why"), has("judge_evidence"), has("judge_implied_by"),
   has("judge_reasoning"), has("judge_dissent_diff"),
   has("judge_model_family_self_reported"), has("judge_prompt_version"),
-  has("judge_template_sha256"), has("judge_render_sha256"),
+  has("judge_template_sha256"), has("judge_render_sha256"), has("judge_ts"),
   has("solo_decision_word_count"), has("synthesis_word_count")
 ] | all' "$JNL" | sort -u)
 [ "$miss" = "true" ] && note "PASS every row has all canonical fields" \

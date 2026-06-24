@@ -16,6 +16,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Portability-pattern test for known BSD/GNU shell footguns.
 - Generated council skill wrapper from canonical portable orchestrator prompt.
 - `lib/parallel-vs-single.sh` helper to anonymize and analyze paired mode-measurement rooms.
+- `judge_ts` audit timestamp on blinded-judge records, with migration/default coverage.
 
 ### Fixed
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.
@@ -29,6 +30,9 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - README and AGENTS now report measured mode-difference data instead of the old unmeasured single-context caveat.
 - `test_blind_judge.sh` now covers Phase 2 `--phase1` rejection, catch=false `judge --response-file` recording, fake-CLI `--judge-cli claude` recording, and candidate listing.
 - `blind-judge.sh backfill-artifact` now takes the per-room lock before writing `artifact.txt`.
+- `blind-judge.sh prepare` now refuses ambiguous legacy rooms with multiple self-report rows instead of pairing latest solo decisions with stale `#r1` positions.
+- Test temp-dir cleanup is more consistent across journal/transcript/install/blinded-judge tests.
+- Install docs now state the TUI-global resource folders clearly and call out that no `npx` package is published yet.
 
 ## [0.1.0] — 2026-06-16
 

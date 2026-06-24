@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-AGENT_CHAT_ROOT="$(mktemp -d)"; export AGENT_CHAT_ROOT
+TEST_PARENT_TMP=$(mktemp -d)
+trap 'rm -rf "$TEST_PARENT_TMP"' EXIT
+mktemp_d() { mktemp -d "$TEST_PARENT_TMP/d.XXXXXX"; }
+AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
 ROOM="test-room"
 "$DIR/lib/transcript.sh" append "$ROOM" "ml-scientist" "verdict=BLOCK calibration off"
 "$DIR/lib/transcript.sh" append "$ROOM" "red-team" "what about cold start"

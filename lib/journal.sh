@@ -2,7 +2,7 @@
 # Counterfactual journal — powers the catch-rate KPI + the kill-gate.
 #
 # CONTRACT: blind-judge.sh reads judge_* fields from this file's row format.
-# Field-name changes to the 13 judge_* fields are breaking changes.
+# Field-name changes to the 14 judge_* fields are breaking changes.
 #
 # Usage:
 #   journal.sh append <room> <task> <solo_decision> <personas_csv> <net_new_catch> <catch_note> \
@@ -14,6 +14,7 @@
 #                     [--judge-prompt-version <str>] [--judge-template-sha256 <hex>] \
 #                     [--judge-render-sha256 <hex>] [--solo-decision-word-count <int>] \
 #                     [--synthesis-word-count <int>]
+#                     judge_ts is set automatically when judge_blinded=true.
 #   journal.sh append-judge-only <room> <task> --judge-* ...  (judge-only row, self-report=null)
 #   journal.sh stats  [N]      summarize last N runs (0/omitted = all) vs the gate
 #   journal.sh stats  --judged     show last 5 judged rows (timestamp | self | judge | why | evidence)
@@ -118,6 +119,7 @@ journal.sh append (kw-args form, PREFERRED):
   --judge-prompt-version <vN>  rubric version that was used
   --judge-template-sha256 <hex>  drift-detection hash of the rubric template
   --judge-render-sha256 <hex>    per-call audit hash of the full prepared prompt
+  --judge-ts <auto>            audit timestamp set automatically when judge_blinded=true
   --solo-decision-word-count <int>   confound; auto-computed from --solo if 0
   --synthesis-word-count <int>      confound; auto-computed from transcript if 0
 
@@ -263,6 +265,9 @@ case "$cmd" in
         exit 2
       fi
     fi
+    row_ts="$(ac_now)"
+    judge_ts=""
+    [ "$judge_blinded" = "true" ] && judge_ts="$row_ts"
     _check_journal_writable
     mkdir -p "$(dirname "$JOURNAL")"
     # flock wrapper (Rev 2: added in Chunk 1 per PLAN)
@@ -270,7 +275,7 @@ case "$cmd" in
     if command -v flock >/dev/null 2>&1; then
       (
         flock -x 200
-        jq -cn --arg ts "$(ac_now)" --arg room "$room" --arg task "$task" --arg solo "$solo" \
+        jq -cn --arg ts "$row_ts" --arg room "$room" --arg task "$task" --arg solo "$solo" \
           --arg personas "$personas" --argjson catch "$catch" --arg note "$note" \
           --argjson acted "$acted" --argjson dis "$dis" \
           --argjson base_run "$base_run" --argjson beat "$beat" --argjson raised "$raised" \
@@ -281,6 +286,7 @@ case "$cmd" in
           --arg judge_dissent_diff "$judge_dissent_diff" \
           --arg judge_model_family "$judge_model_family" --arg judge_prompt_version "$judge_prompt_version" \
           --arg judge_template_sha256 "$judge_template_sha256" --arg judge_render_sha256 "$judge_render_sha256" \
+          --arg judge_ts "$judge_ts" \
           --argjson solo_wc "$solo_wc" --argjson synth_wc "$synth_wc" \
           '{ts:$ts, room:$room, task:$task, solo_decision:$solo, personas:($personas|split(",")),
             net_new_catch:$catch, catch_note:$note, acted_on:$acted, dismissed_count:$dis,
@@ -290,12 +296,13 @@ case "$cmd" in
             judge_reasoning:$judge_reasoning, judge_dissent_diff:$judge_dissent_diff,
             judge_model_family_self_reported:$judge_model_family, judge_prompt_version:(if $judge_prompt_version=="" then null else $judge_prompt_version end),
             judge_template_sha256:$judge_template_sha256, judge_render_sha256:$judge_render_sha256,
+            judge_ts:(if $judge_ts=="" then null else $judge_ts end),
             solo_decision_word_count:$solo_wc, synthesis_word_count:$synth_wc}' \
           >> "$JOURNAL"
       ) 200>"$JOURNAL.lock"
     else
       # Fallback: no locking (macOS without util-linux)
-      jq -cn --arg ts "$(ac_now)" --arg room "$room" --arg task "$task" --arg solo "$solo" \
+      jq -cn --arg ts "$row_ts" --arg room "$room" --arg task "$task" --arg solo "$solo" \
         --arg personas "$personas" --argjson catch "$catch" --arg note "$note" \
         --argjson acted "$acted" --argjson dis "$dis" \
         --argjson base_run "$base_run" --argjson beat "$beat" --argjson raised "$raised" \
@@ -306,6 +313,7 @@ case "$cmd" in
         --arg judge_dissent_diff "$judge_dissent_diff" \
         --arg judge_model_family "$judge_model_family" --arg judge_prompt_version "$judge_prompt_version" \
         --arg judge_template_sha256 "$judge_template_sha256" --arg judge_render_sha256 "$judge_render_sha256" \
+        --arg judge_ts "$judge_ts" \
         --argjson solo_wc "$solo_wc" --argjson synth_wc "$synth_wc" \
         '{ts:$ts, room:$room, task:$task, solo_decision:$solo, personas:($personas|split(",")),
           net_new_catch:$catch, catch_note:$note, acted_on:$acted, dismissed_count:$dis,
@@ -315,6 +323,7 @@ case "$cmd" in
           judge_reasoning:$judge_reasoning, judge_dissent_diff:$judge_dissent_diff,
           judge_model_family_self_reported:$judge_model_family, judge_prompt_version:(if $judge_prompt_version=="" then null else $judge_prompt_version end),
           judge_template_sha256:$judge_template_sha256, judge_render_sha256:$judge_render_sha256,
+          judge_ts:(if $judge_ts=="" then null else $judge_ts end),
           solo_decision_word_count:$solo_wc, synthesis_word_count:$synth_wc}' \
         >> "$JOURNAL"
     fi
@@ -363,19 +372,23 @@ case "$cmd" in
       echo "journal: invariant violated — judge_blinded_catch=false requires judge_evidence empty" >&2
       exit 1
     fi
+    row_ts="$(ac_now)"
+    judge_ts=""
+    [ "$judge_blinded" = "true" ] && judge_ts="$row_ts"
     _check_journal_writable
     mkdir -p "$(dirname "$JOURNAL")"
     # flock wrapper
     if command -v flock >/dev/null 2>&1; then
       (
         flock -x 200
-        jq -cn --arg ts "$(ac_now)" --arg room "$room" --arg task "$task" \
+        jq -cn --arg ts "$row_ts" --arg room "$room" --arg task "$task" \
           --argjson judge_blinded "$judge_blinded" --argjson judge_catch "$judge_catch" \
           --arg judge_why "$judge_why" --arg judge_evidence "$judge_evidence" \
           --arg judge_implied_by "$judge_implied_by" --arg judge_reasoning "$judge_reasoning" \
           --arg judge_dissent_diff "$judge_dissent_diff" \
           --arg judge_model_family "$judge_model_family" --arg judge_prompt_version "$judge_prompt_version" \
           --arg judge_template_sha256 "$judge_template_sha256" --arg judge_render_sha256 "$judge_render_sha256" \
+          --arg judge_ts "$judge_ts" \
           '{ts:$ts, room:$room, task:$task, solo_decision:null, personas:null,
             net_new_catch:null, catch_note:null, acted_on:null, dismissed_count:null,
             lens_baseline_run:null, council_beat_baseline:null, issues_raised:null,
@@ -384,17 +397,19 @@ case "$cmd" in
             judge_reasoning:$judge_reasoning, judge_dissent_diff:$judge_dissent_diff,
             judge_model_family_self_reported:$judge_model_family, judge_prompt_version:(if $judge_prompt_version=="" then null else $judge_prompt_version end),
             judge_template_sha256:$judge_template_sha256, judge_render_sha256:$judge_render_sha256,
+            judge_ts:(if $judge_ts=="" then null else $judge_ts end),
             solo_decision_word_count:null, synthesis_word_count:null}' \
           >> "$JOURNAL"
       ) 200>"$JOURNAL.lock"
     else
-      jq -cn --arg ts "$(ac_now)" --arg room "$room" --arg task "$task" \
+      jq -cn --arg ts "$row_ts" --arg room "$room" --arg task "$task" \
         --argjson judge_blinded "$judge_blinded" --argjson judge_catch "$judge_catch" \
         --arg judge_why "$judge_why" --arg judge_evidence "$judge_evidence" \
         --arg judge_implied_by "$judge_implied_by" --arg judge_reasoning "$judge_reasoning" \
         --arg judge_dissent_diff "$judge_dissent_diff" \
         --arg judge_model_family "$judge_model_family" --arg judge_prompt_version "$judge_prompt_version" \
         --arg judge_template_sha256 "$judge_template_sha256" --arg judge_render_sha256 "$judge_render_sha256" \
+        --arg judge_ts "$judge_ts" \
         '{ts:$ts, room:$room, task:$task, solo_decision:null, personas:null,
           net_new_catch:null, catch_note:null, acted_on:null, dismissed_count:null,
           lens_baseline_run:null, council_beat_baseline:null, issues_raised:null,
@@ -403,6 +418,7 @@ case "$cmd" in
           judge_reasoning:$judge_reasoning, judge_dissent_diff:$judge_dissent_diff,
           judge_model_family_self_reported:$judge_model_family, judge_prompt_version:(if $judge_prompt_version=="" then null else $judge_prompt_version end),
           judge_template_sha256:$judge_template_sha256, judge_render_sha256:$judge_render_sha256,
+          judge_ts:(if $judge_ts=="" then null else $judge_ts end),
           solo_decision_word_count:null, synthesis_word_count:null}' \
         >> "$JOURNAL"
     fi
@@ -416,12 +432,13 @@ case "$cmd" in
                    judge_blinded_catch: (.judge_blinded_catch // null),
                    net_new_catch: (.net_new_catch // null),
                    judge_why: (.judge_why // ""),
-                   judge_evidence: (.judge_evidence // "")} |
+                   judge_evidence: (.judge_evidence // ""),
+                   judge_ts: (.judge_ts // null)} |
              select(.judge_blinded==true) |
-             [.ts[0:10], (.net_new_catch|tostring), (.judge_blinded_catch|tostring),
+             [((.judge_ts // .ts // "")[0:10]), (.net_new_catch|tostring), (.judge_blinded_catch|tostring),
               .judge_why, .judge_evidence] | @tsv' "$JOURNAL" \
         | tail -5 \
-        | { printf "timestamp\tself_catch\tjudge_catch\twhy\tevidence\n"; cat; }
+        | { printf "judge_ts\tself_catch\tjudge_catch\twhy\tevidence\n"; cat; }
       exit 0
     fi
     n="$flag"
@@ -512,6 +529,7 @@ case "$cmd" in
       (has("judge_prompt_version")|not) or
       (has("judge_template_sha256")|not) or
       (has("judge_render_sha256")|not) or
+      (has("judge_ts")|not) or
       (has("solo_decision_word_count")|not) or
       (has("synthesis_word_count")|not)
     )] | length' "$JOURNAL")
@@ -543,6 +561,7 @@ case "$cmd" in
       | (.judge_prompt_version              //= null)
       | (.judge_template_sha256             //= "")
       | (.judge_render_sha256               //= "")
+      | (.judge_ts                          //= null)
       | (.solo_decision_word_count          //= 0)
       | (.synthesis_word_count              //= 0)
     ' "$JOURNAL" > "$tmp" || { rm -f "$tmp"; echo "migrate: jq failed; $JOURNAL untouched ($JOURNAL.bak preserved)" >&2; exit 1; }

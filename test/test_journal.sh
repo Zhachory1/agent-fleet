@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-AGENT_CHAT_ROOT="$(mktemp -d)"; export AGENT_CHAT_ROOT
-AGENT_FLEET_JOURNAL="$(mktemp -d)/journal.jsonl"; export AGENT_FLEET_JOURNAL
+TEST_PARENT_TMP=$(mktemp -d)
+trap 'rm -rf "$TEST_PARENT_TMP"' EXIT
+mktemp_d() { mktemp -d "$TEST_PARENT_TMP/d.XXXXXX"; }
+mktemp_f() { mktemp "$TEST_PARENT_TMP/f.XXXXXX"; }
+
+AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
+AGENT_FLEET_JOURNAL="$(mktemp_d)/journal.jsonl"; export AGENT_FLEET_JOURNAL
 ROOM="council-review-model-x"
 
 # GUARD: append must REFUSE (exit 2) when the room has no transcript
@@ -53,7 +58,7 @@ echo "$OUT" | grep -q "hypotheses pursued (investigations): 1/1" || { echo "FAIL
 echo "$OUT" | grep -q "runs by kind       : code=2, design=0, investigation=1" || { echo "FAIL: stats run-kind breakdown wrong: $OUT"; exit 1; }
 
 # empty journal -> graceful
-AGENT_FLEET_JOURNAL="$(mktemp -d)/empty.jsonl"; export AGENT_FLEET_JOURNAL; touch "$AGENT_FLEET_JOURNAL"
+AGENT_FLEET_JOURNAL="$(mktemp_d)/empty.jsonl"; export AGENT_FLEET_JOURNAL; touch "$AGENT_FLEET_JOURNAL"
 "$DIR/lib/journal.sh" stats | grep -q "no runs logged yet" || { echo "FAIL: empty-journal stats not graceful"; exit 1; }
 echo "PASS test_journal"
 
@@ -63,9 +68,10 @@ LEGACY='{"ts":"2026-06-01T00:00:00Z","room":"c-legacy","task":"old","solo_decisi
          "personas":["x"],"net_new_catch":true,"catch_note":"","acted_on":true,
          "dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,
          "issues_raised":0,"run_kind":"code"}'
-echo "$LEGACY" > /tmp/journal-legacy.jsonl
+LEGACY_JOURNAL="$(mktemp_f)"
+echo "$LEGACY" > "$LEGACY_JOURNAL"
 # stats must report 'blinded-judge sample : 0 of 1 runs judged' for legacy-only data
-OUT=$(AGENT_FLEET_JOURNAL=/tmp/journal-legacy.jsonl bash "$DIR/lib/journal.sh" stats)
+OUT=$(AGENT_FLEET_JOURNAL="$LEGACY_JOURNAL" bash "$DIR/lib/journal.sh" stats)
 echo "$OUT" | grep -q 'blinded-judge sample : 0 of 1' || { echo "FAIL: stats new-arm legacy: $OUT"; exit 1; }
 echo "$OUT" | grep -qi 'calibration phase' || { echo "FAIL: stats calibration-phase label missing: $OUT"; exit 1; }
 
@@ -82,6 +88,7 @@ verdict: BLOCK"
   --solo-decision-word-count 1 --synthesis-word-count 5
 jq -se '.[-1] | .judge_blinded==true and .judge_blinded_catch==true and .judge_evidence!="" and
         .judge_prompt_version=="v2" and .judge_reasoning!="" and .judge_dissent_diff!="" and
+        (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T")) and
         .synthesis_word_count==5' "$AGENT_FLEET_JOURNAL" >/dev/null \
   || { echo "FAIL: new judge_* fields not written through append"; exit 1; }
 
@@ -94,7 +101,7 @@ verdict: SHIP"
   --judge-model-family gpt --judge-prompt-version v2 \
   --judge-template-sha256 deadbeef --judge-render-sha256 baadf00d \
   --judge-reasoning "solo already named the issue" --judge-dissent-diff "- (none)"
-jq -se '.[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and .room=="'"$ROOM_K"'"' \
+jq -se '.[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and .room=="'"$ROOM_K"'" and (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T"))' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
   || { echo "FAIL: judge-only row should have judge_blinded=true and self-report fields=null"; exit 1; }
 
@@ -118,6 +125,13 @@ verdict: SHIP"
 jq -se --arg r "$ROOM_KW" '.[-1] | .room==$r and .task=="kwargs-test" and .net_new_catch==true and .acted_on==true and .dismissed_count==2 and .lens_baseline_run==true and .council_beat_baseline==true and .issues_raised==4 and .run_kind=="design"' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
   || { echo "FAIL: kw-args write didn't populate all fields correctly"; exit 1; }
+
+# stats --judged shows judge_ts column when present
+JUDGED_OUT=$("$DIR/lib/journal.sh" stats --judged)
+echo "$JUDGED_OUT" | grep -q '^judge_ts	self_catch	judge_catch' \
+  || { echo "FAIL: stats --judged missing judge_ts header: $JUDGED_OUT"; exit 1; }
+echo "$JUDGED_OUT" | grep -qE '^20[0-9]{2}-[0-9]{2}-[0-9]{2}	' \
+  || { echo "FAIL: stats --judged missing judge_ts row: $JUDGED_OUT"; exit 1; }
 
 # kw-args: missing required field MUST error
 set +e
@@ -198,7 +212,7 @@ echo "PASS test_journal_invariants (issue #44 item #3)"
 # Issue #60: Phase 1 progress is distinct judged rooms, not judge row count.
 # Dual-judged Phase 1 rooms produce two rows for one room; stats must not count
 # that as two completed calibration rooms.
-STATS_60="$(mktemp)"
+STATS_60="$(mktemp_f)"
 cat > "$STATS_60" <<'EOF'
 {"room":"council-a","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
 {"room":"council-a","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
@@ -214,7 +228,7 @@ echo "PASS test_journal_phase1_distinct_rooms (issue #60)"
 
 # Phase 2 branch: once 5 distinct rooms are judged, stats should leave the
 # calibration label and report Phase 2 progress by distinct rooms.
-STATS_PHASE2="$(mktemp)"
+STATS_PHASE2="$(mktemp_f)"
 cat > "$STATS_PHASE2" <<'EOF'
 {"room":"council-1","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}
 {"room":"council-2","judge_blinded":true,"net_new_catch":true,"judge_blinded_catch":true}

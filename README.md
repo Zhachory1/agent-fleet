@@ -160,6 +160,20 @@ persona still reads peers' prior-round POSITIONs and must REFUTE-FIRST before co
 
 ## Install (full per-tool snippets)
 
+### Agent/operator install rule
+
+Install only the **agent prompts/personas/skills** into the AI TUI's normal user/project resource folder. Do not move your codebase, vendor this repo into another repo, or paste giant prompts into app config when a resource folder exists.
+
+| TUI | Preferred install location | Command |
+|---|---|---|
+| Claude Code | `~/.claude/agents` + `~/.claude/skills/council` | `bash install.sh --tool claude` |
+| Codex CLI | `~/.codex/skills/council` + `~/.codex/agent-fleet` payload | `bash install.sh --tool codex` |
+| Cave | project `.cave/{agents,skills,prompts}` or user `~/.cave` | `bash install.sh --tool cave` or `bash install.sh --tool cave --user` |
+| Cursor | project `.cursor/rules` | `bash install.sh --tool cursor` |
+| opencode | project `.agent-fleet` | `bash install.sh --tool opencode` |
+
+`npx`/npm install is **not published yet**: this repo has no `package.json` package entrypoint. For now, clone or download the repo, then run `install.sh`. If a future `npx agent-fleet install --tool <tui>` exists, it should do the same copy-only resource install into the TUI folders above.
+
 ### Claude Code (recommended — full council)
 ```bash
 git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
@@ -172,8 +186,8 @@ bash install.sh --uninstall         # reversible
 ### Codex CLI / opencode
 ```bash
 export AGENT_FLEET_HOME=~/code/agent-fleet
+bash "$AGENT_FLEET_HOME/install.sh" --tool codex     # → ~/.codex/{skills/council,agent-fleet} + ./.agent-fleet refs
 bash "$AGENT_FLEET_HOME/install.sh" --tool opencode  # → ./.agent-fleet/
-bash "$AGENT_FLEET_HOME/install.sh" --tool codex     # → ./.agent-fleet/ + ~/.codex/skills/council
 # then ask the agent: "act as the council orchestrator in ./.agent-fleet/council-orchestrator.md"
 ```
 

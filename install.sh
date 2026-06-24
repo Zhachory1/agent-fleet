@@ -7,7 +7,7 @@
 #   install.sh --tool claude --uninstall
 #   install.sh --tool cursor        # COPY personas + orchestrator -> ./.cursor/rules/ (current repo)
 #   install.sh --tool opencode      # COPY personas + orchestrator -> ./.agent-fleet/ (current repo)
-#   install.sh --tool codex         # COPY personas + orchestrator -> ./.agent-fleet/ and skill -> ~/.codex/skills/council
+#   install.sh --tool codex         # COPY project refs -> ./.agent-fleet/ and global payload -> ~/.codex/
 #   install.sh --tool cave          # COPY cave-compatible personas -> ./.cave/agents, skill -> ./.cave/skills/council
 #   install.sh --target DIR [--copy]# place personas + orchestrator prompt into DIR (any tool)
 #                                   #   symlink by default; --copy to copy instead (for tools that
@@ -37,9 +37,11 @@ Options:
                              (Cursor reads .cursor/rules/, not AGENTS.md)
   --tool opencode            COPY personas + orchestrator → ./.agent-fleet/
                              (opencode reads AGENTS.md from repo root + subagents)
-  --tool codex               COPY personas + orchestrator → ./.agent-fleet/,
-                             skill → \${CODEX_HOME:-~/.codex}/skills/council
-                             (Codex reads AGENTS.md from repo root)
+  --tool codex               COPY project refs → ./.agent-fleet/ AND install
+                             global Codex payload under \${CODEX_HOME:-~/.codex}:
+                             skill → .../skills/council,
+                             personas/prompt → .../agent-fleet/
+                             (Codex has no native persona dir; skill loads these by path)
   --tool cave                COPY cave-compatible personas → ./.cave/agents/,
                              skill → ./.cave/skills/council,
                              prompt → ./.cave/prompts/council-orchestrator.md
@@ -189,19 +191,25 @@ case "$TOOL" in
   codex)
     [ -n "$TARGET" ] || TARGET="./.agent-fleet"
     COPY=1
-    CODEX_SKILL_DST="${CODEX_HOME:-$HOME/.codex}/skills/council"
+    CODEX_BASE="${CODEX_HOME:-$HOME/.codex}"
+    CODEX_SKILL_DST="$CODEX_BASE/skills/council"
+    CODEX_BUNDLE_DST="$CODEX_BASE/agent-fleet"
     if [ "$UNINSTALL" = "1" ]; then
       for f in $(personas); do rm -f "$TARGET/$(basename "$f")"; done
       rm -f "$TARGET/council-orchestrator.md"
-      rm -rf "$CODEX_SKILL_DST"
-      echo "agent-fleet: uninstalled Codex project files from $TARGET and skill from $CODEX_SKILL_DST"
+      rm -rf "$CODEX_SKILL_DST" "$CODEX_BUNDLE_DST"
+      echo "agent-fleet: uninstalled Codex project files from $TARGET and global payload from $CODEX_BASE"
       exit 0
     fi
     for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
     place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
     place_dir "$SRC/skills/council" "$CODEX_SKILL_DST"
+    mkdir -p "$CODEX_BUNDLE_DST/agents" "$CODEX_BUNDLE_DST/prompts"
+    for f in $(personas); do place "$f" "$CODEX_BUNDLE_DST/agents/$(basename "$f")"; done
+    place "$SRC/prompts/council-orchestrator.md" "$CODEX_BUNDLE_DST/prompts/council-orchestrator.md"
     echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
     echo "agent-fleet: installed Codex skill → $CODEX_SKILL_DST"
+    echo "agent-fleet: installed Codex global payload → $CODEX_BUNDLE_DST"
     echo ""
     echo "Next: ensure your project's AGENTS.md references the orchestrator at:"
     echo "  $TARGET/council-orchestrator.md"
