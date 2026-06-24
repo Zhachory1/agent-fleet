@@ -7,6 +7,28 @@ Tools that read `AGENTS.md` (Codex, opencode, …) pick this up automatically. C
 `.cursor/rules/` instead — `install.sh --target ./.cursor/rules --copy` places the personas +
 orchestrator prompt where Cursor will find them.
 
+## Installing agent-fleet into a TUI
+
+If you are an AI coding agent installing this repo for a user: **do not vendor this repo into the user's project**. Install only the payload files into the TUI's resource folder:
+
+- personas: `agents/*.md`
+- skill: `skills/council/`
+- prompt: `prompts/council-orchestrator.md`
+
+Decision tree:
+
+- Claude Code: `bash install.sh --tool claude` → `~/.claude/agents` + `~/.claude/skills/council`
+- Codex CLI: `bash install.sh --tool codex` → `~/.codex/skills/council` + `~/.codex/agent-fleet`
+- Cave project: `bash install.sh --tool cave` → `./.cave/{agents,skills,prompts}`
+- Cave user-global: `bash install.sh --tool cave --user` → `${CAVE_HOME:-~/.cave}`
+- Cursor: `bash install.sh --tool cursor` → `./.cursor/rules`
+- opencode: `bash install.sh --tool opencode` → `./.agent-fleet`
+- Unknown TUI with a global config dir: ask the user for that dir, then run `bash install.sh --dir <DIR>`
+  - Example: Mewrite → `bash install.sh --dir ~/.mewrite`
+- Generic flat rules dir: `bash install.sh --target <DIR> --copy`
+
+Before guessing, run `bash install.sh --agent-instructions` or read `INSTALL.md` / `install.manifest.json`.
+
 ## To run a council
 Load the orchestrator prompt at `prompts/council-orchestrator.md` and follow it. The reviewer
 personas live in `agents/*.md` — each is a self-contained system prompt (one judgment lens).

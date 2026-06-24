@@ -18,6 +18,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `lib/parallel-vs-single.sh` helper to anonymize and analyze paired mode-measurement rooms.
 - `judge_ts` audit timestamp on blinded-judge records, with migration/default coverage.
 - `install.sh --dir DIR` for unknown TUI global resource dirs, copying payload into `DIR/{agents,skills,prompts}`.
+- Agent-facing install guidance in `AGENTS.md`, `INSTALL.md`, `install.manifest.json`, and `install.sh --agent-instructions`.
 
 ### Fixed
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.

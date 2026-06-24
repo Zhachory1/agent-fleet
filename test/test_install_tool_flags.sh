@@ -193,4 +193,16 @@ set -e
 [ "$rc" != "0" ] && echo "$OUT" | grep -q -- '--user/--project only applies to --tool cave' \
   || { echo "FAIL: --tool codex --user should reject as Cave-only scope flag: rc=$rc out='$OUT'"; fail=1; }
 
+HELP_OUT=$(bash "$DIR/install.sh" --help)
+echo "$HELP_OUT" | grep -q -- '--agent-instructions' \
+  || { echo "FAIL: --help missing --agent-instructions"; fail=1; }
+AGENT_OUT=$(bash "$DIR/install.sh" --agent-instructions)
+echo "$AGENT_OUT" | grep -q 'do NOT vendor this repo' \
+  || { echo "FAIL: --agent-instructions missing anti-vendor rule"; fail=1; }
+echo "$AGENT_OUT" | grep -q 'bash install.sh --dir ~/.mewrite' \
+  || { echo "FAIL: --agent-instructions missing unknown TUI --dir example"; fail=1; }
+jq -e '.tools.unknown_global_tui.command == "bash install.sh --dir <TUI_CONFIG_DIR>" and .tools.claude.command == "bash install.sh --tool claude"' \
+  "$DIR/install.manifest.json" >/dev/null \
+  || { echo "FAIL: install.manifest.json missing expected commands"; fail=1; }
+
 [ "$fail" = "0" ] && echo "PASS test_install_tool_flags" || exit 1

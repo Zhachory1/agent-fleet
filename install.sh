@@ -13,6 +13,7 @@
 #   install.sh --target DIR [--copy]# place personas + orchestrator prompt into DIR (any tool)
 #                                   #   symlink by default; --copy to copy instead (for tools that
 #                                   #   don't follow symlinks, or sandboxed dirs)
+#   install.sh --agent-instructions # print install decision tree for AI agents
 #   install.sh --print              # print the portable orchestrator prompt to stdout (paste anywhere)
 #
 # AGENT_FLEET_HOME is this repo. Personas (agents/*.md) and the portable prompt
@@ -21,7 +22,41 @@
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 VERSION="$(cat "$SRC/VERSION" 2>/dev/null || echo 'unknown')"
-TOOL="claude"; TARGET=""; INSTALL_DIR=""; COPY=0; UNINSTALL=0; PRINT=0; SCOPE="project"
+TOOL="claude"; TARGET=""; INSTALL_DIR=""; COPY=0; UNINSTALL=0; PRINT=0; AGENT_INSTRUCTIONS=0; SCOPE="project"
+
+print_agent_instructions() {
+  cat <<'HELP'
+AGENT-FLEET INSTALL INSTRUCTIONS FOR AI AGENTS
+
+Rule: do NOT vendor this repo into the user's project. Install only:
+- agents/*.md persona files
+- skills/council/ skill directory
+- prompts/council-orchestrator.md prompt
+
+Pick one:
+- Claude Code: bash install.sh --tool claude
+  -> ~/.claude/agents + ~/.claude/skills/council
+- Codex CLI: bash install.sh --tool codex
+  -> ~/.codex/skills/council + ~/.codex/agent-fleet
+- Cave project: bash install.sh --tool cave
+  -> ./.cave/{agents,skills,prompts}
+- Cave user-global: bash install.sh --tool cave --user
+  -> ${CAVE_HOME:-~/.cave}
+- Cursor: bash install.sh --tool cursor
+  -> ./.cursor/rules
+- opencode: bash install.sh --tool opencode
+  -> ./.agent-fleet
+- Unknown TUI with global config dir: ask user for dir, then:
+  bash install.sh --dir <DIR>
+  Example: bash install.sh --dir ~/.mewrite
+  -> <DIR>/agents + <DIR>/skills/council + <DIR>/prompts
+- Generic flat rules dir:
+  bash install.sh --target <DIR> --copy
+
+More: INSTALL.md and install.manifest.json.
+No npm/npx package is published yet; clone/download repo and run install.sh.
+HELP
+}
 
 print_help() {
   cat <<HELP
@@ -62,6 +97,7 @@ Options:
                              (any tool; explicit override of --tool defaults)
   --copy                     Used with --target: copy files instead of symlinking
                              (for tools that don't follow symlinks or sandboxed dirs)
+  --agent-instructions       Print the install decision tree for AI coding agents
   --print                    Print the portable orchestrator prompt to stdout
                              (paste into any AI chat that doesn't have a plugin model)
   --version, -V              Print version and exit
@@ -75,21 +111,13 @@ Examples:
   install.sh --tool cave                      # Cave: install into ./.cave/{agents,skills,prompts}
   install.sh --dir ~/.mewrite                 # unknown TUI: generic global DIR/{agents,skills,prompts}
   install.sh --target ./custom/path --copy    # explicit flat target override
+  install.sh --agent-instructions             # agent-facing install decision tree
   install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
 
 Requirements: bash, jq (and git for full functionality).
   Run \`bash $SRC/lib/journal.sh --help\` for journal CLI usage.
 HELP
 }
-
-# Dependency precheck (fast-fail with a clear message if jq missing).
-if ! command -v jq >/dev/null 2>&1; then
-  echo "install.sh: jq is required but not found on PATH." >&2
-  echo "  macOS:  brew install jq" >&2
-  echo "  Debian: apt-get install jq" >&2
-  echo "  Other:  https://jqlang.github.io/jq/download/" >&2
-  exit 1
-fi
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -100,6 +128,7 @@ while [ $# -gt 0 ]; do
     --uninstall) UNINSTALL=1; shift;;
     --project) SCOPE="project"; shift;;
     --user) SCOPE="user"; shift;;
+    --agent-instructions) AGENT_INSTRUCTIONS=1; shift;;
     --print) PRINT=1; shift;;
     --version|-V) echo "$VERSION"; exit 0;;
     --help|-h) print_help; exit 0;;
@@ -108,6 +137,24 @@ while [ $# -gt 0 ]; do
 done
 if [ "$SCOPE" != "project" ] && [ "$TOOL" != "cave" ]; then
   echo "install.sh: --user/--project only applies to --tool cave" >&2
+  exit 1
+fi
+if [ "$AGENT_INSTRUCTIONS" = "1" ]; then
+  print_agent_instructions
+  exit 0
+fi
+if [ "$PRINT" = "1" ]; then
+  cat "$SRC/prompts/council-orchestrator.md"
+  exit 0
+fi
+
+# Dependency precheck (fast-fail with a clear message if jq missing). --help,
+# --version, --print, and --agent-instructions intentionally work without jq.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "install.sh: jq is required but not found on PATH." >&2
+  echo "  macOS:  brew install jq" >&2
+  echo "  Debian: apt-get install jq" >&2
+  echo "  Other:  https://jqlang.github.io/jq/download/" >&2
   exit 1
 fi
 
@@ -159,10 +206,6 @@ personas() {
     echo "$f"
   done
 }
-
-if [ "$PRINT" = "1" ]; then
-  cat "$SRC/prompts/council-orchestrator.md"; exit 0
-fi
 
 # Generic global install for unknown TUI home dirs (for example ~/.mewrite).
 # This is intentionally copy-only and uses the conventional {agents,skills,prompts}

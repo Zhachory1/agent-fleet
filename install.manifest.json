@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "purpose": "Machine-readable install map for AI agents installing agent-fleet into TUI resource folders.",
+  "rule": "Install only personas, skills, and prompts into the target TUI resource folder. Do not vendor this repository into another project.",
+  "commands": {
+    "agent_instructions": "bash install.sh --agent-instructions",
+    "help": "bash install.sh --help"
+  },
+  "tools": {
+    "claude": {
+      "command": "bash install.sh --tool claude",
+      "installs": ["~/.claude/agents", "~/.claude/skills/council"],
+      "scope": "user-global"
+    },
+    "codex": {
+      "command": "bash install.sh --tool codex",
+      "installs": ["~/.codex/skills/council", "~/.codex/agent-fleet"],
+      "scope": "user-global plus project refs"
+    },
+    "cave_project": {
+      "command": "bash install.sh --tool cave",
+      "installs": ["./.cave/agents", "./.cave/skills/council", "./.cave/prompts"],
+      "scope": "project"
+    },
+    "cave_user": {
+      "command": "bash install.sh --tool cave --user",
+      "installs": ["${CAVE_HOME:-~/.cave}/agent/agents", "${CAVE_HOME:-~/.cave}/skills/council", "${CAVE_HOME:-~/.cave}/prompts"],
+      "scope": "user-global"
+    },
+    "cursor": {
+      "command": "bash install.sh --tool cursor",
+      "installs": ["./.cursor/rules"],
+      "scope": "project"
+    },
+    "opencode": {
+      "command": "bash install.sh --tool opencode",
+      "installs": ["./.agent-fleet"],
+      "scope": "project"
+    },
+    "unknown_global_tui": {
+      "command": "bash install.sh --dir <TUI_CONFIG_DIR>",
+      "uninstall": "bash install.sh --dir <TUI_CONFIG_DIR> --uninstall",
+      "installs": ["<TUI_CONFIG_DIR>/agents", "<TUI_CONFIG_DIR>/skills/council", "<TUI_CONFIG_DIR>/prompts"],
+      "example": "bash install.sh --dir ~/.mewrite",
+      "scope": "user-global"
+    },
+    "generic_flat_rules_dir": {
+      "command": "bash install.sh --target <DIR> --copy",
+      "installs": ["<DIR>/*.md"],
+      "scope": "project-or-user-defined"
+    }
+  }
+}

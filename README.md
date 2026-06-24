@@ -175,6 +175,8 @@ Install only the **agent prompts/personas/skills** into the AI TUI's normal user
 
 Use `--dir DIR` when this repo does not know your TUI by name. It copies the generic payload into `DIR/agents`, `DIR/skills/council`, and `DIR/prompts/council-orchestrator.md`; uninstall with `bash install.sh --dir DIR --uninstall`.
 
+If you are an AI agent doing the install, run `bash install.sh --agent-instructions` first. The same decision tree is also in [`INSTALL.md`](INSTALL.md) and [`install.manifest.json`](install.manifest.json).
+
 `npx`/npm install is **not published yet**: this repo has no `package.json` package entrypoint. For now, clone or download the repo, then run `install.sh`. If a future `npx agent-fleet install --tool <tui>` exists, it should do the same copy-only resource install into the TUI folders above, with `--dir` as the escape hatch for unknown tools.
 
 ### Claude Code (recommended — full council)
