@@ -31,6 +31,20 @@ fi
 
 die() { printf 'blind-judge: %s\n' "$*" >&2; exit 1; }
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'
+  else die "sha256sum or shasum required"
+  fi
+}
+sha256_text() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then shasum -a 256 | awk '{print $1}'
+  else die "sha256sum or shasum required"
+  fi
+}
+norm_ws() { tr '\n' ' ' | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
+
 # Portable advisory lock using mkdir (atomic on POSIX). flock isn't on mac by default.
 # Usage: acquire_lock <lockdir>; ... ; release_lock <lockdir>
 # Waits up to 30s (with 10ms jitter to avoid two-process timeout-collisions), then dies.
@@ -136,12 +150,16 @@ parse_response() {
   # Both are the same attack shape: operator's words quoted back as the judge's evidence of
   # the operator's claim. -F substring (not -Fx exact-line) catches partial-line quoting.
   if [ -n "$evidence" ] && [ -n "$op_synth" ]; then
-    if grep -qF -- "$evidence" <<<"$op_synth"; then
+    op_synth_norm=$(printf '%s' "$op_synth" | norm_ws)
+    evidence_norm=$(printf '%s' "$evidence" | norm_ws)
+    if grep -qF -- "$evidence_norm" <<<"$op_synth_norm"; then
       die "EVIDENCE appears in OPERATOR_SYNTHESIS ('$evidence'); must quote PERSONA_POSITIONS only"
     fi
   fi
   if [ -n "$evidence" ] && [ -n "$solo_decision" ]; then
-    if grep -qF -- "$evidence" <<<"$solo_decision"; then
+    solo_norm=$(printf '%s' "$solo_decision" | norm_ws)
+    evidence_norm=$(printf '%s' "$evidence" | norm_ws)
+    if grep -qF -- "$evidence_norm" <<<"$solo_norm"; then
       die "EVIDENCE appears in SOLO_DECISION ('$evidence'); the operator's pre-decision risks cannot self-validate"
     fi
   fi
@@ -284,6 +302,7 @@ case "$cmd" in
         synth_words=$(jq -r 'select(.from=="synthesis") | .text // ""' "$room_dir/log.jsonl" 2>/dev/null | wc -w | tr -d ' ')
       fi
       if [ "$judged" = "true" ]; then status="judged"
+      elif [ "${self_rows:-0}" -eq 0 ]; then status="missing-journal"
       elif [ "${self_rows:-0}" -gt 1 ]; then status="ambiguous-room"
       elif [ ! -f "$room_dir/log.jsonl" ]; then status="missing-transcript"
       elif [ "$artifact" != "yes" ]; then status="missing-artifact"
@@ -335,8 +354,8 @@ case "$cmd" in
     rendered="${rendered//\{OPERATOR_SYNTHESIS\}/$OPERATOR_SYNTHESIS}"
     rendered="${rendered//\{PERSONA_LIST\}/$PERSONA_LIST}"
 
-    judge_template_sha256=$(sha256sum "$rubric_file" | awk '{print $1}')
-    judge_render_sha256=$(printf '%s' "$rendered" | sha256sum | awk '{print $1}')
+    judge_template_sha256=$(sha256_file "$rubric_file")
+    judge_render_sha256=$(printf '%s' "$rendered" | sha256_text)
 
     if [ -z "${SSH_CONNECTION:-}" ]; then
       if command -v pbcopy >/dev/null 2>&1; then
@@ -424,15 +443,23 @@ BANNER
       room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
       [ -f "$room_log" ] || die "no transcript for room '$room'"
       op_synth=$(extract_operator_synthesis "$room_log")
-      if [ -n "$op_synth" ] && grep -qF -- "$evidence" <<<"$op_synth"; then
-        die "EVIDENCE appears in OPERATOR_SYNTHESIS; must quote PERSONA_POSITIONS only"
+      if [ -n "$op_synth" ]; then
+        op_synth_norm=$(printf '%s' "$op_synth" | norm_ws)
+        evidence_norm=$(printf '%s' "$evidence" | norm_ws)
+        if grep -qF -- "$evidence_norm" <<<"$op_synth_norm"; then
+          die "EVIDENCE appears in OPERATOR_SYNTHESIS; must quote PERSONA_POSITIONS only"
+        fi
       fi
       if [ -f "$AGENT_FLEET_JOURNAL" ] && [ -s "$AGENT_FLEET_JOURNAL" ]; then
         existing_row=$(jq -c --arg r "$room" 'select(.room==$r)' "$AGENT_FLEET_JOURNAL" | tail -1)
         if [ -n "$existing_row" ]; then
           solo_dec=$(jq -r '.solo_decision // ""' <<<"$existing_row")
-          if [ -n "$solo_dec" ] && grep -qF -- "$evidence" <<<"$solo_dec"; then
-            die "EVIDENCE appears in SOLO_DECISION; the operator's pre-decision risks cannot self-validate"
+          if [ -n "$solo_dec" ]; then
+            solo_norm=$(printf '%s' "$solo_dec" | norm_ws)
+            evidence_norm=$(printf '%s' "$evidence" | norm_ws)
+            if grep -qF -- "$evidence_norm" <<<"$solo_norm"; then
+              die "EVIDENCE appears in SOLO_DECISION; the operator's pre-decision risks cannot self-validate"
+            fi
           fi
         fi
       fi
@@ -451,13 +478,30 @@ BANNER
     if [ -n "$existing" ]; then
       prior_judged=$(jq -r '.judge_blinded // false' <<<"$existing")
       prior_catch=$(jq -r '.judge_blinded_catch // "null"' <<<"$existing")
-      if [ "$prior_judged" = "true" ] && [ "$prior_catch" != "$catch" ] && [ "$prior_catch" != "null" ] && [ "$force" != "1" ]; then
-        die "room '$room' already has judge_blinded_catch=$prior_catch; rerunning with $catch — pass --force to override"
-      fi
-      # Mutate in place: rewrite the journal with this row's judge_* fields updated.
+      prior_phase1=$(jq -r '.judge_phase1 // ""' <<<"$existing")
       judge_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      tmp=$(mktemp)
-      jq -c --arg r "$room" \
+      if [ "$prior_judged" = "true" ] && [ -n "$phase1" ] && [ "$prior_phase1" != "$phase1" ] && [ "$force" != "1" ]; then
+        # Phase 1 dual-judging must preserve both judge rows. Copy the self-report
+        # fields from the latest row and append a second judged row instead of
+        # overwriting judge-a with judge-b.
+        jq -cn --argjson base "$existing" \
+          --argjson catch "$catch" \
+          --arg why "$why" --arg ev "$evidence" --arg ib "$implied_by" \
+          --arg reas "$reasoning" --arg dd "$dissent_diff" \
+          --arg mf "$model_family" --arg pv "$prompt_version" \
+          --arg tsh "$template_sha" --arg rsh "$render_sha" --arg judge_ts "$judge_ts" --arg p1 "$phase1" \
+          '$base + {judge_blinded:true, judge_blinded_catch:$catch, judge_why:$why,
+                    judge_evidence:$ev, judge_implied_by:$ib, judge_reasoning:$reas,
+                    judge_dissent_diff:$dd, judge_model_family_self_reported:$mf,
+                    judge_prompt_version:$pv, judge_template_sha256:$tsh,
+                    judge_render_sha256:$rsh, judge_ts:$judge_ts, judge_phase1:$p1}' \
+          >> "$AGENT_FLEET_JOURNAL"
+      elif [ "$prior_judged" = "true" ] && [ "$prior_catch" != "$catch" ] && [ "$prior_catch" != "null" ] && [ "$force" != "1" ]; then
+        die "room '$room' already has judge_blinded_catch=$prior_catch; rerunning with $catch — pass --force to override"
+      else
+        # Mutate in place: rewrite the journal with this row's judge_* fields updated.
+        tmp=$(mktemp)
+        jq -c --arg r "$room" \
         --argjson catch "$catch" \
         --arg why "$why" \
         --arg ev "$evidence" \
@@ -483,7 +527,8 @@ BANNER
                     judge_prompt_version:$pv, judge_template_sha256:$tsh,
                     judge_render_sha256:$rsh, judge_ts:$judge_ts, judge_phase1:$p1}
          else . end' "$AGENT_FLEET_JOURNAL" > "$tmp"
-      mv "$tmp" "$AGENT_FLEET_JOURNAL"
+        mv "$tmp" "$AGENT_FLEET_JOURNAL"
+      fi
     else
       # No row exists — write a judge-only row (FR8 step-3-when-step-2-failed)
       judge_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

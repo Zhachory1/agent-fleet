@@ -116,7 +116,10 @@ bash "$DIR/lib/blind-judge.sh" record "phase-room-2" --catch true --why w2 --evi
 bash "$DIR/lib/blind-judge.sh" record "phase-room-3" --catch true --why w3 --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b >/dev/null
 bash "$DIR/lib/blind-judge.sh" record "phase-room-4" --catch true --why w4 --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b >/dev/null
 # Now distinct_rooms=4. Repeat-record on phase-room-1 with judge-b: room_already_judged=true, distinct stays 4.
-bash "$DIR/lib/blind-judge.sh" record "phase-room-1" --catch true --why w1b --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b --force >/dev/null
+# Must append a second judged row, not overwrite judge-a.
+bash "$DIR/lib/blind-judge.sh" record "phase-room-1" --catch true --why w1b --evidence "- p" --reasoning r --dissent-diff "- (none)" --phase1 judge-b >/dev/null
+phase1_dual_rows=$(jq -s '[.[] | select(.room=="phase-room-1" and (.judge_blinded // false)==true)] | length' "$AGENT_FLEET_JOURNAL")
+[ "$phase1_dual_rows" = "2" ] && note "PASS phase1-dual-judge-preserves-two-rows" || { note "FAIL phase1 dual judge rows: $phase1_dual_rows"; fail=1; }
 # Setup a 5th room (the boundary case) — prepare should require --phase1 (still in Phase 1).
 R5=phase-room-5
 mkdir -p "$AGENT_CHAT_ROOT/rooms/$R5"
@@ -328,6 +331,9 @@ expect_fail_msg "fixture-bad-value"          "bash '$DIR/lib/blind-judge.sh' par
 expect_fail_msg "fixture-missing-evidence"   "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/missing-evidence.txt' '$OP_SYNTH_FILE'"    "EVIDENCE required"
 expect_fail_msg "fixture-evidence-on-false"  "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-on-false.txt' '$OP_SYNTH_FILE'"   "EVIDENCE must be empty"
 expect_fail_msg "fixture-evidence-quotes-synthesis" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-quotes-synthesis.txt' '$OP_SYNTH_FILE'" "EVIDENCE appears in OPERATOR_SYNTHESIS"
+OP_SYNTH_WRAPPED="$FIXDIR/op-synth-wrapped.txt"
+printf 'Council verdict: BLOCK\n1. [BLOCKER] train/serve\nskew detected\n' > "$OP_SYNTH_WRAPPED"
+expect_fail_msg "fixture-evidence-quotes-synthesis-wrapped" "bash '$DIR/lib/blind-judge.sh' parse '$FIXDIR/evidence-quotes-synthesis.txt' '$OP_SYNTH_WRAPPED'" "EVIDENCE appears in OPERATOR_SYNTHESIS"
 
 # Post-/code-review hardening: substring (not just line-exact) attack on EVIDENCE
 # operator's synthesis contains "train/serve skew detected" as part of a longer line;
@@ -894,6 +900,15 @@ make_candidate_room candidate-judged yes
 make_candidate_room council-paired-candidate-single yes
 make_candidate_room candidate-ambiguous yes
 bash "$DIR/lib/journal.sh" append candidate-ambiguous candidate-ambiguous-dd "ship DD" "red-team" true "" true 0 false null 1 design >/dev/null
+mkdir -p "$AGENT_CHAT_ROOT/rooms/candidate-missing-journal"
+echo "artifact" > "$AGENT_CHAT_ROOT/rooms/candidate-missing-journal/artifact.txt"
+bash "$DIR/lib/transcript.sh" capture candidate-missing-journal <<EOF >/dev/null
+@@from: red-team#r1
+verdict: BLOCK
+@@from: synthesis
+final synthesis text
+EOF
+jq -cn '{room:"candidate-missing-journal", task:"candidate-missing-journal-task"}' >> "$AGENT_FLEET_JOURNAL"
 bash "$DIR/lib/blind-judge.sh" record candidate-judged --catch true --why w --evidence "- [MAJOR] finding" --reasoning r --dissent-diff "- (none)" >/dev/null
 CAND=$(bash "$DIR/lib/blind-judge.sh" candidates)
 echo "$CAND" | grep -q $'^ready\tcandidate-ready\t1\t3\tyes\tcandidate-ready-task$' \
@@ -902,6 +917,8 @@ echo "$CAND" | grep -q $'^no-synthesis\tcandidate-nosynth\t1\t0\tyes\tcandidate-
   && note "PASS candidates flags no-synthesis room" || { note "FAIL candidates missing no-synthesis room: $CAND"; fail=1; }
 echo "$CAND" | grep -q $'^ambiguous-room\tcandidate-ambiguous\t1\t3\tyes\tcandidate-ambiguous-dd$' \
   && note "PASS candidates flags ambiguous reused room" || { note "FAIL candidates missing ambiguous-room: $CAND"; fail=1; }
+echo "$CAND" | grep -q $'^missing-journal\tcandidate-missing-journal\t1\t3\tyes\tcandidate-missing-journal-task$' \
+  && note "PASS candidates flags missing journal row" || { note "FAIL candidates missing missing-journal: $CAND"; fail=1; }
 if echo "$CAND" | grep -q 'candidate-judged'; then
   note "FAIL candidates default included already judged room"; fail=1
 else

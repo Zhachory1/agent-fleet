@@ -160,6 +160,19 @@ jq -se --arg r "$ROOM_MIXED" '.[-1] | .room==$r and .judge_blinded==true and .ju
   "$AGENT_FLEET_JOURNAL" >/dev/null \
   || { echo "FAIL: mixed positional + judge-* kw-args broke"; exit 1; }
 
+# Legacy positional form with only 8 positional args + --judge-* must not treat
+# --judge-blinded as optional positional base_run.
+ROOM_SHORT=council-short-positional
+"$DIR/lib/transcript.sh" capture "$ROOM_SHORT" <<<"@@from: a
+verdict: SHIP"
+"$DIR/lib/journal.sh" append "$ROOM_SHORT" short s a true "" true 0 \
+  --judge-blinded true --judge-catch false --judge-why "covered" \
+  --judge-reasoning "r" --judge-dissent-diff "- (none)" \
+  --judge-model-family claude --judge-prompt-version v2
+jq -se --arg r "$ROOM_SHORT" '.[-1] | .room==$r and .lens_baseline_run==false and .run_kind=="code" and .judge_blinded==true and .judge_blinded_catch==false' \
+  "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: 8-positional + judge flags parsed incorrectly"; exit 1; }
+
 # Issue #44 item #3: data-quality invariants in `append` (not just `append-judge-only`).
 # These code paths existed; the tests did not. PR fills the test gap.
 ROOM_INV=council-invariants

@@ -19,6 +19,8 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `judge_ts` audit timestamp on blinded-judge records, with migration/default coverage.
 - `install.sh --dir DIR` for unknown TUI global resource dirs, copying payload into `DIR/{agents,skills,prompts}`.
 - Agent-facing install guidance in `AGENTS.md`, `INSTALL.md`, `install.manifest.json`, and `install.sh --agent-instructions`.
+- Journal scan capacity note showing 10k-row `journal.sh stats` runs in ~0.17s median locally, so no cache/index is needed yet.
+- Fresh-context blinded-judge helper implementation review writeup at `docs/features/blinded-judge/helper-review-2026-06-23.md`.
 
 ### Fixed
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.
@@ -35,6 +37,13 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `blind-judge.sh prepare` now refuses ambiguous legacy rooms with multiple self-report rows instead of pairing latest solo decisions with stale `#r1` positions.
 - Test temp-dir cleanup is more consistent across journal/transcript/install/blinded-judge tests.
 - Install docs now state the TUI-global resource folders clearly and call out that no `npx` package is published yet.
+- `journal.sh migrate` now preserves explicit `false` values instead of clobbering them with defaults.
+- `journal.sh append` now uses the same portable journal lock as `blind-judge.sh record`, avoiding append/record races.
+- Phase 1 dual-judge records now preserve both judge rows instead of overwriting judge-a with judge-b.
+- Legacy positional `journal.sh append` now handles 8 positional args followed by `--judge-*` flags correctly.
+- `blind-judge.sh candidates` now reports `missing-journal` for transcript/artifact rooms without a self-report row.
+- Blinded-judge evidence self-quote guards now normalize whitespace before checking synthesis/solo quotes.
+- `blind-judge.sh prepare` now uses a portable SHA256 helper (`sha256sum` or `shasum -a 256`).
 
 ## [0.1.0] — 2026-06-16
 

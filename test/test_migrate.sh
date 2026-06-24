@@ -19,8 +19,8 @@ JNL="$WORK/journal.jsonl"
   echo '{"ts":"2026-01-01T00:00:00Z","room":"c-old0","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0}'
   # Schema era 1: +lens_baseline_run, +council_beat_baseline, +issues_raised (still no run_kind)
   echo '{"ts":"2026-02-01T00:00:00Z","room":"c-old1","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,"issues_raised":1}'
-  # Schema era 2: +run_kind (still no judge_*)
-  echo '{"ts":"2026-03-01T00:00:00Z","room":"c-old2","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,"issues_raised":1,"run_kind":"design"}'
+  # Schema era 2: +run_kind and explicit false values that migrate must preserve.
+  echo '{"ts":"2026-03-01T00:00:00Z","room":"c-old2","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":false,"issues_raised":1,"run_kind":"design","judge_blinded":true,"judge_blinded_catch":false}'
   # Schema era 3 (current): all fields
   echo '{"ts":"2026-04-01T00:00:00Z","room":"c-new","task":"t","solo_decision":"s","personas":["a"],"net_new_catch":true,"catch_note":"","acted_on":true,"dismissed_count":0,"lens_baseline_run":false,"council_beat_baseline":null,"issues_raised":1,"run_kind":"code","judge_blinded":false,"judge_blinded_catch":null,"judge_why":"","judge_evidence":"","judge_implied_by":"","judge_reasoning":"","judge_dissent_diff":"","judge_model_family_self_reported":"","judge_prompt_version":null,"judge_template_sha256":"","judge_render_sha256":"","judge_ts":null,"solo_decision_word_count":1,"synthesis_word_count":0}'
 } > "$JNL"
@@ -65,6 +65,9 @@ oldest_judge=$(jq -r 'select(.room=="c-old0") | .judge_blinded' "$JNL")
 oldest_baseline=$(jq -r 'select(.room=="c-old0") | .council_beat_baseline' "$JNL")
 [ "$oldest_baseline" = "null" ] && note "PASS oldest row got council_beat_baseline=null default" \
   || { note "FAIL oldest council_beat_baseline: $oldest_baseline"; exit 1; }
+explicit_false=$(jq -r 'select(.room=="c-old2") | [.council_beat_baseline, .judge_blinded_catch] | @tsv' "$JNL")
+[ "$explicit_false" = $'false\tfalse' ] && note "PASS migrate preserved explicit false values" \
+  || { note "FAIL migrate clobbered explicit false values: $explicit_false"; exit 1; }
 
 # Current-schema row is byte-identical (no fields touched)
 new_after=$(jq -c 'select(.room=="c-new")' "$JNL")
