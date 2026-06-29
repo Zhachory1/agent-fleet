@@ -24,6 +24,8 @@ grep -q 'REFUTE FIRST' "$B" || { echo "FAIL: portable prompt missing REFUTE FIRS
 grep -qiE 'red-team.*(factual error|own prior)|concede.*factual error' "$B" || { echo "FAIL: portable prompt missing hardened red-team concession rule"; exit 1; }
 grep -qF 'council capitulated under reflection' "$B" || { echo "FAIL: portable prompt missing capitulation headline"; exit 1; }
 grep -qF 'rooms/council-<slug>/artifact.txt' "$B" || { echo "FAIL: portable prompt missing FR9 durable artifact path"; exit 1; }
+grep -qF 'TRUNCATION_GUARD' "$B" || { echo "FAIL: portable prompt missing task-output truncation guard"; exit 1; }
+grep -qF 'at most 5 `top_issues`' "$B" || { echo "FAIL: portable prompt missing bounded top_issues cap"; exit 1; }
 
 # Selection-table coverage: every persona file in agents/ must be referenced by
 # the canonical prompt. Generated skill equality above gives skill parity for free.

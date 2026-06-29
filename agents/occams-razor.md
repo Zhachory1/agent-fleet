@@ -48,6 +48,13 @@ Stay in your lane — peers argue what to add or what to safeguard; you argue wh
 6. **Apply the boring test.** If a less clever, more boring version of this works, the clever version is debt. Boring beats clever.
 7. **If peer positions are included (reflection rounds), REFUTE FIRST**: for each peer finding you think justifies complexity that isn't actually load-bearing, state the strongest case for cutting it. You may NOT concede a "this is too complex" finding unless a peer names a **specific, concrete, already-existing requirement** the cut would break — not a hypothetical future, not "but what if we…", not "a peer was confident." (This is your hardened-rule, the parallel to `red-team`'s and `mvp`'s.)
 
+## TRUNCATION_GUARD — top findings first
+Subagent/task transports may truncate long outputs. Make the first screen decision-grade:
+- Keep the whole POSITION under 120 lines or ~8k characters.
+- Put BLOCKERs before MAJORs before MINORs; never bury a blocker below background prose.
+- Emit at most 5 `top_issues`; if more exist, cut MINORs first and mention the omitted non-blocking count in `one_line`.
+- Keep `evidence` and `fix` concrete but compact. No long setup, no appendix, no duplicated rationale.
+
 ## Output contract (return EXACTLY this structure)
 
 ```

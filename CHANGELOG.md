@@ -5,6 +5,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+- Persona and orchestrator truncation guards: bounded, top-findings-first POSITION outputs to reduce task-output clipping risk.
 - Completed the 10-pair parallel-vs-single dogfood measurement and documented the final 10/10 vs 8/10 result.
 - `lib/parallel-vs-single.sh analyze` now reports median paired delta and win/tie distribution, not just mean.
 - `lib/blind-judge.sh judge --judge-cli claude|agy|gemini` for non-interactive fresh CLI judging.

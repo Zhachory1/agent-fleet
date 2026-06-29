@@ -12,6 +12,7 @@ for name in "${EXPECTED[@]}"; do
   grep -q "^name: $name$" "$f" || { echo "FAIL: $name name field wrong"; fail=1; }
   grep -q "^tools:" "$f" || { echo "FAIL: $name no tools"; fail=1; }
   grep -q "strongest_counterargument" "$f" || { echo "FAIL: $name missing mandatory dissent"; fail=1; }
+  grep -q "TRUNCATION_GUARD" "$f" || { echo "FAIL: $name missing truncation guard"; fail=1; }
   grep -q "_overlay.md" "$f" || { echo "FAIL: $name no overlay hook"; fail=1; }
   # reflection alignment: no stale soft round-2 line (contradicts REFUTE-FIRST); must carry REFUTE FIRST
   grep -qi 'agree, refute, or sharpen' "$f" && { echo "FAIL: $name has stale soft round-2 line"; fail=1; }
