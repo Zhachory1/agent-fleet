@@ -35,7 +35,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `test_blind_judge.sh` now covers Phase 2 `--phase1` rejection, catch=false `judge --response-file` recording, fake-CLI `--judge-cli claude` recording, and candidate listing.
 - `blind-judge.sh backfill-artifact` now takes the per-room lock before writing `artifact.txt`.
 - `blind-judge.sh prepare` now refuses ambiguous legacy rooms with multiple self-report rows instead of pairing latest solo decisions with stale `#r1` positions.
-- Test temp-dir cleanup is more consistent across journal/transcript/install/blinded-judge tests.
+- Test temp-dir cleanup is more consistent across journal/transcript/install/blinded-judge tests, including tracked temporary files in `test_blind_judge.sh`.
 - Install docs now state the TUI-global resource folders clearly and call out that no `npx` package is published yet.
 - `journal.sh migrate` now preserves explicit `false` values instead of clobbering them with defaults.
 - `journal.sh append` now uses the same portable journal lock as `blind-judge.sh record`, avoiding append/record races.

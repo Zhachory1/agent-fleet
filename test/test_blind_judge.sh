@@ -23,6 +23,7 @@ expect_fail_msg() {
 TEST_PARENT_TMP=$(mktemp -d)
 trap 'rm -rf "$TEST_PARENT_TMP"' EXIT
 mktemp_d() { mktemp -d "$TEST_PARENT_TMP/d.XXXXXX"; }
+mktemp_f() { mktemp "$TEST_PARENT_TMP/f.XXXXXX"; }
 
 # Set up isolated env
 AGENT_CHAT_ROOT="$(mktemp_d)"; export AGENT_CHAT_ROOT
@@ -568,7 +569,7 @@ ROOM_BF=council-backfill-test
 mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_BF"
 # Use a git-tracked file in this repo as the legitimate --from source
 GIT_TRACKED_SOURCE="$DIR/lib/blind-judge-prompt.v2.txt"
-UNTRACKED_SOURCE=$(mktemp); echo "fabricated artifact content" > "$UNTRACKED_SOURCE"
+UNTRACKED_SOURCE=$(mktemp_f); echo "fabricated artifact content" > "$UNTRACKED_SOURCE"
 
 # Refuses without --from
 expect_fail_msg "backfill-without-from" \
@@ -598,14 +599,14 @@ mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_BF2"
 bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF2" --from "$GIT_TRACKED_SOURCE" >/dev/null \
   && note "PASS backfill-git-tracked-no-confirm-needed" || { note "FAIL backfill-git-tracked-no-confirm-needed"; fail=1; }
 # Replace with different content prints a warning to stderr
-UNTRACKED_SOURCE2=$(mktemp); echo "different content" > "$UNTRACKED_SOURCE2"
+UNTRACKED_SOURCE2=$(mktemp_f); echo "different content" > "$UNTRACKED_SOURCE2"
 rout=$(bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF" --from "$UNTRACKED_SOURCE2" --i-confirm-this-is-the-original 2>&1 1>/dev/null || true)
 echo "$rout" | grep -q "REPLACED" \
   && note "PASS backfill-warns-on-replace" || { note "FAIL backfill-warns-on-replace (got: $rout)"; fail=1; }
 ROOM_BF_LOCK=council-backfill-lock
 mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM_BF_LOCK/.judge.lockdir"
-LOCK_SOURCE=$(mktemp); echo "locked backfill content" > "$LOCK_SOURCE"
-LOCK_OUT=$(mktemp)
+LOCK_SOURCE=$(mktemp_f); echo "locked backfill content" > "$LOCK_SOURCE"
+LOCK_OUT=$(mktemp_f)
 (
   bash "$DIR/lib/blind-judge.sh" backfill-artifact "$ROOM_BF_LOCK" --from "$LOCK_SOURCE" --i-confirm-this-is-the-original >"$LOCK_OUT" 2>&1
 ) &
@@ -625,7 +626,6 @@ else
 fi
 [ ! -d "$AGENT_CHAT_ROOT/rooms/$ROOM_BF_LOCK/.judge.lockdir" ] \
   && note "PASS backfill room lock cleaned up" || { note "FAIL backfill room lock orphaned"; fail=1; }
-rm -f "$UNTRACKED_SOURCE" "$UNTRACKED_SOURCE2" "$LOCK_SOURCE" "$LOCK_OUT"
 
 echo "## judge subcommand forwards SHAs to record (issue #58: Phase 1 audit trail)"
 # Setup: a room with transcript + journal row so prepare can run

@@ -144,8 +144,8 @@ case "$cmd" in
         (if ($pairs|length)>0 then
            ([$pairs[].delta] | sort) as $deltas
            | ($deltas | length) as $dn
-           | ($deltas[(($dn - 1) / 2 | floor)] + $deltas[($dn / 2 | floor)]) / 2 as $median
-           | "mean paired delta (parallel-single): \(([$pairs[].delta] | add / length) * 100)%",
+           | (($deltas[(($dn - 1) / 2 | floor)] + $deltas[($dn / 2 | floor)]) / 2) as $median
+           | "mean paired delta (parallel-single): \((([$pairs[].delta] | add) / ($pairs | length)) * 100)%",
              "median paired delta (parallel-single): \($median * 100)%",
              "paired distribution: parallel_wins=\(([$pairs[] | select(.delta==1)] | length)), single_wins=\(([$pairs[] | select(.delta==-1)] | length)), ties=\(([$pairs[] | select(.delta==0)] | length))"
          else
