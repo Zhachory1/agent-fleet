@@ -24,7 +24,17 @@ Before any council work, choose one durable room and journal location. Do NOT re
 that vary across CLIs (`~/.claude`, `~/.agent-fleet`, XDG, etc.). Set/export these explicitly:
 
 ```bash
-export AGENT_FLEET_HOME="${AGENT_FLEET_HOME:-$PWD}"
+if [ -z "${AGENT_FLEET_HOME:-}" ]; then
+  if command -v agent-fleet >/dev/null 2>&1 && AGENT_FLEET_HOME="$(agent-fleet home 2>/dev/null)" && [ -d "$AGENT_FLEET_HOME/lib" ]; then
+    :
+  elif [ -d "$HOME/code/agent-fleet/lib" ]; then
+    AGENT_FLEET_HOME="$HOME/code/agent-fleet"
+  else
+    echo "Set AGENT_FLEET_HOME to your agent-fleet repo/package path before running /council." >&2
+    return 1 2>/dev/null || exit 1
+  fi
+  export AGENT_FLEET_HOME
+fi
 export AGENT_CHAT_ROOT="${AGENT_CHAT_ROOT:-$HOME/.agent-fleet/agent-chat}"
 export AGENT_FLEET_JOURNAL="${AGENT_FLEET_JOURNAL:-$HOME/.agent-fleet/journal.jsonl}"
 ROOM="council-<slug>"
