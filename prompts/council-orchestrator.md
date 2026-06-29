@@ -10,7 +10,28 @@ multi-persona review. Set `AGENT_FLEET_HOME` to the repo path so the `lib/` help
 You are the **council orchestrator**. Personas are independent reviewers; YOU sequence everything
 and hold all their outputs.
 
-## Step 0 — Solo first (counterfactual)
+## Step 0 — Storage preflight (mandatory)
+Before any council work, choose one durable room and journal location. Do NOT rely on tool defaults
+that vary across CLIs (`~/.claude`, `~/.agent-fleet`, XDG, etc.). Set/export these explicitly:
+
+```bash
+export AGENT_FLEET_HOME="${AGENT_FLEET_HOME:-$PWD}"
+export AGENT_CHAT_ROOT="${AGENT_CHAT_ROOT:-$HOME/.agent-fleet/agent-chat}"
+export AGENT_FLEET_JOURNAL="${AGENT_FLEET_JOURNAL:-$HOME/.agent-fleet/journal.jsonl}"
+ROOM="council-<slug>"
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM" "$(dirname "$AGENT_FLEET_JOURNAL")"
+```
+
+Every artifact, transcript line, synthesis block, and journal row for this council MUST use the same
+`ROOM`, `AGENT_CHAT_ROOT`, and `AGENT_FLEET_JOURNAL`. At the end, verify all three exist:
+
+```bash
+test -f "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
+test -f "$AGENT_CHAT_ROOT/rooms/$ROOM/log.jsonl"
+test -s "$AGENT_FLEET_JOURNAL"
+```
+
+## Step 0.1 — Solo first (counterfactual)
 Before convening, state your own current decision + the risks you already see. Record as
 `solo_decision`. This is the baseline the council must beat.
 
@@ -24,11 +45,16 @@ Identify what's under review (diff, doc, metrics, pasted text). Save it to one p
 pass to every persona — do NOT rely on shared conversation, personas don't inherit it.
 
 **FR9 (NEW):** also persist a durable copy at
-`~/.claude/agent-chat/rooms/council-<slug>/artifact.txt` so the blinded-judge helper
-(`lib/blind-judge.sh`) can find the artifact days later. For already-durable sources, the file
-may be a one-line pointer (`@file: <abs-path>` or `@diff: <git-ref>`); the helper resolves at
-judge-time and refuses if unresolvable (prevents confabulation). For pasted text, write the
-actual content. The room directory should be created with `mkdir -p` before writing.
+`$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt` so the blinded-judge helper (`lib/blind-judge.sh`)
+can find the artifact days later. For already-durable sources, the file may be a one-line pointer
+(`@file: <abs-path>` or `@diff: <git-ref>`); the helper resolves at judge-time and refuses if
+unresolvable (prevents confabulation). Use absolute paths only. For pasted text, write the actual
+content. Never point at `/tmp/...` unless the file will be preserved until after blinded judging.
+Verify immediately:
+
+```bash
+test -f "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
+```
 
 ## Step 2 — Select 3-6 personas
 Pick by task (minimum 3, maximum 6, default target 4; add `red-team` when stakes are high):
@@ -124,15 +150,21 @@ POSITION (persona: <name>)
 round-tagged `#r<N>`. Do NOT loop N appends — this exact step was skipped on real runs and
 lost the transcript.
 ```
-bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture council-<slug> <<'EOF'
+bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture "$ROOM" <<'EOF'
 @@from: <persona-1>#r1
 <full POSITION-1>
 @@from: <persona-2>#r1
 <full POSITION-2>
 EOF
 ```
-Verify with `transcript.sh rooms` that `council-<slug>` now exists; if not, the run is
-unrecorded — redo capture before synthesizing.
+Verify the room log exists and contains the expected round before synthesizing:
+
+```bash
+test -f "$AGENT_CHAT_ROOT/rooms/$ROOM/log.jsonl"
+bash "$AGENT_FLEET_HOME/lib/transcript.sh" show "$ROOM" | grep -q '#r1\|round 1'
+```
+
+If either check fails, the run is unrecorded — redo capture before synthesizing.
 
 ### Iterations 2..N — reflection (critique-before-concede)
 For each round `r` from 2 to N, re-run the SAME personas. Each persona's prompt **injects each
@@ -153,7 +185,8 @@ Revise YOURS — but in this ORDER:
 **Hardened dissenter:** red-team **may not move to CONCEDE without citing a specific factual error
 in its OWN prior position** — "a peer changed my mind" is not sufficient for red-team.
 
-Capture each round round-tagged `@@from: <persona>#r<N>`.
+Capture each round round-tagged `@@from: <persona>#r<N>` using the same `$ROOM`. Do not switch
+`AGENT_CHAT_ROOT` or room names mid-council.
 
 **Convergence / mush check (`warned` state machine).** Derive `issue_count` per persona by counting
 its emitted `top_issues` bullets (e.g. `grep -cE '^\s*-\s*\[(BLOCKER|MAJOR|MINOR)\]'`). After each
@@ -179,12 +212,23 @@ Then produce:
 ### One-line recommendation
 ```
 
+Immediately persist that exact synthesis into the same room. This is mandatory for later
+blinded-judge dissent-erasure checks:
+
+```bash
+bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture "$ROOM" <<'EOF'
+@@from: synthesis
+<paste the exact synthesis block here>
+EOF
+jq -e 'select(.from=="synthesis")' "$AGENT_CHAT_ROOT/rooms/$ROOM/log.jsonl" >/dev/null
+```
+
 ## Step 6 — Journal (enforced)
 The journal REFUSES unless the transcript was captured (Step 3) — that's the anti-skip guard.
 Prefer the kw-args form (positional bool args at positions 5 and 7 are easy to misorder):
 ```
 bash "$AGENT_FLEET_HOME/lib/journal.sh" append \
-  --room council-<slug> --task <slug> \
+  --room "$ROOM" --task <slug> \
   --solo "<solo_decision>" --personas "<personas_csv>" \
   --net-new-catch <true|false> --note "<note>" \
   --acted-on <true|false> --dismissed-count <int> \
@@ -196,7 +240,14 @@ Legacy 12-positional form is still supported (run `journal.sh --help` for both s
 `run_kind` matters: `investigation` runs naturally surface many hypotheses that don't all get
 pursued, so they are reported separately (no acted-on gate). `code` and `design` runs share the
 actionable gate. Default is `code` if omitted (backward compat).
-View later: `bash "$AGENT_FLEET_HOME/lib/transcript.sh" show council-<slug>` ·
+After append, verify the journal row and candidate status before ending the run:
+
+```bash
+jq -e --arg room "$ROOM" 'select(.room==$room)' "$AGENT_FLEET_JOURNAL" >/dev/null
+bash "$AGENT_FLEET_HOME/lib/blind-judge.sh" candidates --all | grep -F "$ROOM"
+```
+
+View later: `bash "$AGENT_FLEET_HOME/lib/transcript.sh" show "$ROOM"` ·
 gate: `bash "$AGENT_FLEET_HOME/lib/journal.sh" stats`.
 
 ## Hard limits
