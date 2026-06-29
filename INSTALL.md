@@ -60,6 +60,21 @@ After install, verify expected files exist in the TUI resource dir. Do not guess
 
 ## npx/npm
 
-No npm package is published yet. There is no `npx agent-fleet` installer today. Clone/download this repo and run `install.sh`.
+Use the scoped package. The unscoped npm name `agent-fleet` belongs to another project.
 
-Future `npx` support should only wrap the same behavior: copy the payload into the TUI resource folder, with `--dir` as the escape hatch for unknown tools.
+```bash
+npx @zhachory1/agent-fleet install --tool claude
+npx @zhachory1/agent-fleet install --tool cave --user
+npx @zhachory1/agent-fleet install --dir ~/.mewrite
+npx @zhachory1/agent-fleet --print
+```
+
+The npm wrapper delegates to `install.sh` and defaults to copying payload files, so installs do not depend on symlinks into npm's cache. For repeated use across repos, a global install gives a stable helper path:
+
+```bash
+npm install -g @zhachory1/agent-fleet
+export AGENT_FLEET_HOME="$(agent-fleet home)"
+agent-fleet install --tool claude
+```
+
+Clone/download installs remain supported; direct `bash install.sh --tool claude` keeps its symlink behavior.

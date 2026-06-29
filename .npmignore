@@ -1,0 +1,12 @@
+# private/local context
+agents/_overlay.md
+agents/_rokt-overlay.md
+*.local
+
+# run artifacts
+docs/measurement/parallel-vs-single-data/
+/tmp-council-*
+
+# repo/dev metadata not needed in published package
+.git/
+.github/

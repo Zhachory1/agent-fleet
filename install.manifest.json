@@ -4,9 +4,16 @@
   "rule": "Install only personas, skills, and prompts into the target TUI resource folder. Do not vendor this repository into another project.",
   "commands": {
     "agent_instructions": "bash install.sh --agent-instructions",
-    "help": "bash install.sh --help"
+    "help": "bash install.sh --help",
+    "npm_install": "npx @zhachory1/agent-fleet install --tool <tool>",
+    "npm_note": "Use the scoped package; unscoped agent-fleet belongs to another npm project."
   },
   "tools": {
+    "npm": {
+      "command": "npx @zhachory1/agent-fleet install --tool <tool>",
+      "examples": ["npx @zhachory1/agent-fleet install --tool claude", "npx @zhachory1/agent-fleet install --dir ~/.mewrite"],
+      "scope": "wrapper; delegates to install.sh with copy-by-default"
+    },
     "claude": {
       "command": "bash install.sh --tool claude",
       "installs": ["~/.claude/agents", "~/.claude/skills/council"],

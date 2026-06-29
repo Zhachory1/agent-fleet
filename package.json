@@ -1,0 +1,79 @@
+{
+  "name": "@zhachory1/agent-fleet",
+  "version": "0.1.0",
+  "description": "Portable council of specialist AI review personas for high-stakes engineering decisions.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agent-fleet": "bin/agent-fleet.js"
+  },
+  "files": [
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "INSTALL.md",
+    "VERSION",
+    "agents/_overlay.example/*.md",
+    "agents/_overlay.md.example",
+    "agents/INDEX.md",
+    "agents/ab-critic.md",
+    "agents/ceo.md",
+    "agents/cost-finops.md",
+    "agents/cto.md",
+    "agents/data-engineer.md",
+    "agents/docs-dx.md",
+    "agents/generalist-swe.md",
+    "agents/ml-scientist.md",
+    "agents/mvp.md",
+    "agents/occams-razor.md",
+    "agents/perf-engineer.md",
+    "agents/pre-mortem.md",
+    "agents/product-pm.md",
+    "agents/red-team.md",
+    "agents/reliability-sentinel.md",
+    "agents/software-architect.md",
+    "agents/vp-eng.md",
+    "assets/fleet.jpg",
+    "bin/agent-fleet.js",
+    "docs/**/*.md",
+    "examples/**/*",
+    "install.manifest.json",
+    "install.sh",
+    "lib/**/*",
+    "prompts/**/*.md",
+    "skills/**/*.md"
+  ],
+  "scripts": {
+    "test": "npm run test:bash",
+    "test:bash": "bash -n install.sh lib/*.sh test/*.sh && fail=0; for t in test/test_*.sh; do echo \"=== $t ===\"; bash \"$t\" || fail=1; done; exit $fail",
+    "test:shellcheck": "shellcheck --severity=warning lib/*.sh install.sh test/*.sh",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "npm test && npm run test:shellcheck && npm pack --dry-run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ai-agents",
+    "council",
+    "claude-code",
+    "codex",
+    "cursor",
+    "opencode",
+    "cave",
+    "prompt-engineering",
+    "code-review"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Zhachory1/agent-fleet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Zhachory1/agent-fleet/issues"
+  },
+  "homepage": "https://github.com/Zhachory1/agent-fleet#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -5,6 +5,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+- Scoped npm package metadata and `agent-fleet` CLI wrapper for `npx @zhachory1/agent-fleet install --tool <tool>`.
 - Completed the 10-pair parallel-vs-single dogfood measurement and documented the final 10/10 vs 8/10 result.
 - `lib/parallel-vs-single.sh analyze` now reports median paired delta and win/tie distribution, not just mean.
 - `lib/blind-judge.sh judge --judge-cli claude|agy|gemini` for non-interactive fresh CLI judging.
@@ -36,7 +37,7 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - `blind-judge.sh backfill-artifact` now takes the per-room lock before writing `artifact.txt`.
 - `blind-judge.sh prepare` now refuses ambiguous legacy rooms with multiple self-report rows instead of pairing latest solo decisions with stale `#r1` positions.
 - Test temp-dir cleanup is more consistent across journal/transcript/install/blinded-judge tests.
-- Install docs now state the TUI-global resource folders clearly and call out that no `npx` package is published yet.
+- Install docs now state the TUI-global resource folders clearly and document scoped npm usage; the unscoped `agent-fleet` package name is unrelated.
 - `journal.sh migrate` now preserves explicit `false` values instead of clobbering them with defaults.
 - `journal.sh append` now uses the same portable journal lock as `blind-judge.sh record`, avoiding append/record races.
 - Phase 1 dual-judge records now preserve both judge rows instead of overwriting judge-a with judge-b.

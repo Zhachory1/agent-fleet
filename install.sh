@@ -16,6 +16,9 @@
 #   install.sh --agent-instructions # print install decision tree for AI agents
 #   install.sh --print              # print the portable orchestrator prompt to stdout (paste anywhere)
 #
+# npm wrapper:
+#   npx @zhachory1/agent-fleet install --tool claude
+#
 # AGENT_FLEET_HOME is this repo. Personas (agents/*.md) and the portable prompt
 # (prompts/council-orchestrator.md) are the cross-tool payload; the council skill
 # (skills/council) is installed for tools with local skill directories.
@@ -54,7 +57,8 @@ Pick one:
   bash install.sh --target <DIR> --copy
 
 More: INSTALL.md and install.manifest.json.
-No npm/npx package is published yet; clone/download repo and run install.sh.
+Npm package: npx @zhachory1/agent-fleet install --tool <tool>
+Note: the unscoped npm name `agent-fleet` belongs to another project.
 HELP
 }
 
@@ -113,6 +117,8 @@ Examples:
   install.sh --target ./custom/path --copy    # explicit flat target override
   install.sh --agent-instructions             # agent-facing install decision tree
   install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
+  npx @zhachory1/agent-fleet install --tool claude
+                                              # npm wrapper; unscoped agent-fleet is unrelated
 
 Requirements: bash, jq (and git for full functionality).
   Run \`bash $SRC/lib/journal.sh --help\` for journal CLI usage.
@@ -163,6 +169,7 @@ place() { # place <src-file> <dst-path>
   if [ "$COPY" = "1" ]; then cp -f "$1" "$2"; else ln -sf "$1" "$2"; fi
 }
 place_dir() { # place_dir <src-dir> <dst-dir>; copy-only for sandboxed tool resource dirs
+  if [ -L "$2" ]; then rm -f "$2"; fi
   mkdir -p "$(dirname "$2")" "$2"
   cp -R "$1"/. "$2"/
 }
@@ -330,12 +337,19 @@ case "$TOOL" in
     AGENTS_DST="$HOME/.claude/agents"; SKILL_DST="$HOME/.claude/skills/council"
     if [ "$UNINSTALL" = "1" ]; then
       for f in $(personas); do rm -f "$AGENTS_DST/$(basename "$f")"; done
-      rm -f "$SKILL_DST"; echo "agent-fleet: uninstalled Claude symlinks."; exit 0
+      rm -rf "$SKILL_DST"; echo "agent-fleet: uninstalled Claude files."; exit 0
     fi
     mkdir -p "$AGENTS_DST" "$HOME/.claude/skills"
-    for f in $(personas); do ln -sf "$f" "$AGENTS_DST/$(basename "$f")"; done
-    ln -sfn "$SRC/skills/council" "$SKILL_DST"
-    echo "agent-fleet: installed for Claude Code. agents → $AGENTS_DST ; skill → $SKILL_DST"
+    if [ "$COPY" = "1" ]; then
+      for f in $(personas); do place "$f" "$AGENTS_DST/$(basename "$f")"; done
+      place_dir "$SRC/skills/council" "$SKILL_DST"
+      echo "agent-fleet: installed for Claude Code. copied agents → $AGENTS_DST ; skill → $SKILL_DST"
+    else
+      for f in $(personas); do ln -sf "$f" "$AGENTS_DST/$(basename "$f")"; done
+      if [ -e "$SKILL_DST" ] && [ ! -L "$SKILL_DST" ]; then rm -rf "$SKILL_DST"; fi
+      ln -sfn "$SRC/skills/council" "$SKILL_DST"
+      echo "agent-fleet: installed for Claude Code. agents → $AGENTS_DST ; skill → $SKILL_DST"
+    fi
     echo ""
     echo "Optional next steps:"
     echo "  - Set a private overlay for your org's KPIs/stack/hot-paths/priorities:"

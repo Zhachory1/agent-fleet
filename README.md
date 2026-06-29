@@ -24,7 +24,7 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 |---|---|
 | Personas | 17 total: 6 core + 11 experimental |
 | Tool support | Claude Code, Cave, opencode, Codex, Cursor, generic chat |
-| Tests | 18 shell test scripts; same loop runs in CI |
+| Tests | 19 shell test scripts; same loop runs in CI |
 | Parallel vs single-context | 10-pair dogfood complete: parallel 10/10, single-context 8/10, mean +20pp, median 0pp |
 | Blinded judge | Phase 1 complete; Phase 2 in progress at 21/50 judged rooms |
 | Lens baseline | 4/4 so far; gate needs n≥10 |
@@ -35,16 +35,21 @@ Current work is tracked in [`docs/ROADMAP.md`](docs/ROADMAP.md). Historical impl
 ## Quick start
 
 ```bash
-git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
-cd ~/code/agent-fleet
-export AGENT_FLEET_HOME=$PWD
 # Read the maturity disclaimer above before relying on output as decision-grade.
+npx @zhachory1/agent-fleet install --tool claude
+# OR: npx @zhachory1/agent-fleet install --tool cursor    # Cursor   (→ ./.cursor/rules/)
+# OR: npx @zhachory1/agent-fleet install --tool opencode  # opencode (→ ./.agent-fleet/)
+# OR: npx @zhachory1/agent-fleet install --tool codex     # Codex    (→ ./.agent-fleet/ + ~/.codex/skills/council)
+# OR: npx @zhachory1/agent-fleet install --tool cave      # Cave     (→ ./.cave/{agents,skills,prompts})
+# OR: npx @zhachory1/agent-fleet --print | pbcopy         # any chat: paste the prompt
+```
+
+Clone-based install still works and is best if you want to edit personas locally:
+
+```bash
+git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
+cd ~/code/agent-fleet && export AGENT_FLEET_HOME=$PWD
 bash install.sh                # Claude Code (default; symlinks)
-# OR: bash install.sh --tool cursor    # Cursor   (→ ./.cursor/rules/)
-# OR: bash install.sh --tool opencode  # opencode (→ ./.agent-fleet/)
-# OR: bash install.sh --tool codex     # Codex    (→ ./.agent-fleet/ + ~/.codex/skills/council)
-# OR: bash install.sh --tool cave      # Cave     (→ ./.cave/{agents,skills,prompts})
-# OR: bash install.sh --print | pbcopy  # any chat: paste the prompt
 bash examples/first-council/run.sh         # see a real run end-to-end (isolated tmpdir)
 ```
 
@@ -177,7 +182,24 @@ Use `--dir DIR` when this repo does not know your TUI by name. It copies the gen
 
 If you are an AI agent doing the install, run `bash install.sh --agent-instructions` first. The same decision tree is also in [`INSTALL.md`](INSTALL.md) and [`install.manifest.json`](install.manifest.json).
 
-`npx`/npm install is **not published yet**: this repo has no `package.json` package entrypoint. For now, clone or download the repo, then run `install.sh`. If a future `npx agent-fleet install --tool <tui>` exists, it should do the same copy-only resource install into the TUI folders above, with `--dir` as the escape hatch for unknown tools.
+npm package: `@zhachory1/agent-fleet`. The unscoped npm name `agent-fleet` is unrelated, so use the scoped package:
+
+```bash
+npx @zhachory1/agent-fleet install --tool claude
+npx @zhachory1/agent-fleet install --tool cave --user
+npx @zhachory1/agent-fleet install --dir ~/.mewrite
+npx @zhachory1/agent-fleet --print
+```
+
+The npm wrapper delegates to `install.sh` and defaults to copying payload files, so installs do not depend on symlinks into npm's cache. For repeated use across repos, a global install gives a stable helper path:
+
+```bash
+npm install -g @zhachory1/agent-fleet
+export AGENT_FLEET_HOME="$(agent-fleet home)"
+agent-fleet install --tool claude
+```
+
+Clone/download installs remain supported; direct `bash install.sh --tool claude` keeps its symlink behavior.
 
 ### Claude Code (recommended — full council)
 ```bash
