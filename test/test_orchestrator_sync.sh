@@ -23,6 +23,7 @@ done
 grep -q 'REFUTE FIRST' "$B" || { echo "FAIL: portable prompt missing REFUTE FIRST"; exit 1; }
 grep -qiE 'red-team.*(factual error|own prior)|concede.*factual error' "$B" || { echo "FAIL: portable prompt missing hardened red-team concession rule"; exit 1; }
 grep -qF 'council capitulated under reflection' "$B" || { echo "FAIL: portable prompt missing capitulation headline"; exit 1; }
+grep -qF 'agent-fleet home' "$B" || { echo "FAIL: portable prompt missing agent-fleet home fallback"; exit 1; }
 grep -qF 'AGENT_CHAT_ROOT' "$B" || { echo "FAIL: portable prompt missing explicit AGENT_CHAT_ROOT"; exit 1; }
 grep -qF 'AGENT_FLEET_JOURNAL' "$B" || { echo "FAIL: portable prompt missing explicit AGENT_FLEET_JOURNAL"; exit 1; }
 grep -qF '$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt' "$B" || { echo "FAIL: portable prompt missing FR9 durable artifact path"; exit 1; }
