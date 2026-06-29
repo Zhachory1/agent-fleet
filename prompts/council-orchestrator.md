@@ -110,7 +110,7 @@ state each one fresh; do NOT let an earlier persona bias a later one. (Note: sin
 is closer to the lens-baseline than a true multi-agent council — see Step 0.5.)
 This first iteration is **blind** — no peer context. Capture round-tagged `@@from: <persona>#r1`.
 
-Each persona returns:
+Each persona returns a bounded, top-findings-first POSITION. **TRUNCATION_GUARD:** subagent/task transports may clip long responses, so the first screen must be decision-grade: ≤120 lines or ~8k chars, at most 5 `top_issues`, BLOCKERs before MAJORs before MINORs, cut minor/background prose before any blocker, and mention omitted non-blocking count in `one_line`.
 ```
 POSITION (persona: <name>)
 - verdict: SHIP | SHIP-WITH-CHANGES | BLOCK | NEED-MORE-INFO
