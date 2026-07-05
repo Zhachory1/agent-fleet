@@ -615,8 +615,8 @@ EOF
       prepare_out=$("$0" prepare "$room")
     fi
     # Extract the SHAs from prepare's stdout (lines: 'judge_template_sha256: <hex>' etc.).
-    judge_tsh=$(printf '%s\n' "$prepare_out" | awk -F': ' '/^judge_template_sha256:/ {print $2; exit}')
-    judge_rsh=$(printf '%s\n' "$prepare_out" | awk -F': ' '/^judge_render_sha256:/ {print $2; exit}')
+    judge_tsh=$(awk -F': ' '/^judge_template_sha256:/ {print $2; exit}' <<<"$prepare_out")
+    judge_rsh=$(awk -F': ' '/^judge_render_sha256:/ {print $2; exit}' <<<"$prepare_out")
     # Show the operator a compact status line, NOT the whole rendered prompt.
     echo "prepared: room=$room phase1=${phase1:-none}"
     echo "  template_sha256: ${judge_tsh:0:16}..."
@@ -650,7 +650,7 @@ EOF
       echo "reading judge response from: $response_file"
       response=$(cat "$response_file")
     elif [ -n "$judge_cli" ]; then
-      rendered_prompt=$(printf '%s\n' "$prepare_out" | sed -n '/^# ============================================================================/,$p')
+      rendered_prompt=$(sed -n '/^# ============================================================================/,$p' <<<"$prepare_out")
       [ -n "$rendered_prompt" ] || die "failed to extract rendered judge prompt from prepare output"
       echo "running judge CLI: $judge_cli"
       case "$judge_cli" in

@@ -3,7 +3,9 @@
 **Goal:** reach ≥50 single-judged Phase 2 rooms for issue #1, then write the DRI decision at
 `docs/features/blinded-judge/decision-<date>.md`.
 
-**Historical local snapshot (2026-06-19):** 21/50 distinct rooms judged, 19/21 self-vs-blind agreement. Run `bash lib/journal.sh stats` for current source-of-truth counts; journals are environment-specific.
+**Historical local snapshot (2026-06-19):** 21/50 paired-inclusive rooms judged, 19/21 self-vs-blind agreement. Later room recovery found that snapshot mixed paired-study rooms into the non-paired Phase 2 denominator.
+
+**Strict active-root snapshot (2026-07-05):** 26/50 distinct rooms judged, 27 judged journal rows, 25/27 self-vs-blind agreement, and 0 ready unjudged rooms. See `docs/measurement/council-room-audit-2026-07-05.md`. Run `bash lib/journal.sh stats` for current source-of-truth counts; journals are environment-specific.
 
 ## What counts
 

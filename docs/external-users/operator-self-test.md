@@ -2,6 +2,7 @@
 
 > **Status**: 0/3 complete. Deadline: 2026-07-15.
 > Per issue #13 (operator-as-candidate comment): the operator (also the author) runs 3 councils on real artifacts, records verbatim friction *as a user*, separately from their friction *as the author*. This does NOT satisfy the "non-author external user" milestone — that stays open.
+> 2026-07-05 room audit note: existing council rooms do not backfill this tracker because this file requires immediate verbatim friction notes, not metadata-only reconstruction.
 
 ## Why this file exists
 

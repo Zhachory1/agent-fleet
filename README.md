@@ -13,10 +13,11 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 
 > ⚠ **Research-grade, not production-grade.** This is a tool I built for myself and am
 > publishing openly. Current dogfood journal snapshot: net-new catch rate is high
-> (42/44 = 95%), but it is still mostly author/operator-run. The lens-baseline arm remains
-> insufficient (4/4; gate needs n≥10), and the blinded-judge Phase 2 arm is in progress
-> (21/50 rooms judged, 19/21 self-vs-blind agreement). Treat all metrics as directional
-> dogfood evidence until [issue #1](../../issues/1) completes the 50-run Phase 2 decision.
+> (54/56 = 96%), but it is still mostly author/operator-run. The lens-baseline arm now
+> passes its current gate (26/28 council beat same-lens single pass), and the strict
+> blinded-judge Phase 2 arm is in progress (26/50 distinct rooms judged; 27 judged rows;
+> 25/27 self-vs-blind agreement). Treat all metrics as directional dogfood evidence until
+> [issue #1](../../issues/1) completes the 50-run Phase 2 decision.
 
 ## Current status
 
@@ -26,8 +27,8 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 | Tool support | Claude Code, Cave, opencode, Codex, Cursor, generic chat |
 | Tests | 18 shell test scripts; same loop runs in CI |
 | Parallel vs single-context | 10-pair dogfood complete: parallel 10/10, single-context 8/10, mean +20pp, median 0pp |
-| Blinded judge | Phase 1 complete; Phase 2 in progress at 21/50 judged rooms |
-| Lens baseline | 4/4 so far; gate needs n≥10 |
+| Blinded judge | Phase 1 complete; strict Phase 2 in progress at 26/50 distinct judged rooms |
+| Lens baseline | 26/28 councils beat same-lens single pass; current gate passed |
 | External validation | Still needed: non-author operators on their own artifacts |
 
 Current work is tracked in [`docs/ROADMAP.md`](docs/ROADMAP.md). Historical implementation plans remain archived for context.
@@ -296,9 +297,11 @@ The canonical rubric is [`lib/blind-judge-prompt.v2.txt`](lib/blind-judge-prompt
 (visible by design; changes bump the filename version and are git-history-visible). Full design
 + Phase 1/Phase 2 calibration in
 [`docs/features/blinded-judge/PRD.md`](docs/features/blinded-judge/PRD.md). Current state:
-**Phase 1 calibration is complete; Phase 2 is in progress at 21/50 judged rooms. [Issue #1](../../issues/1)
-tracks the 50-run decision and README/stats update.** See the
-[Phase 2 runbook](docs/features/blinded-judge/phase2-runbook.md) for candidate selection and judge CLI usage.
+**Phase 1 calibration is complete; strict Phase 2 is in progress at 26/50 distinct judged rooms
+(27 judged rows; 25/27 self-vs-blind agreement). [Issue #1](../../issues/1) tracks the 50-run
+decision and README/stats update.** See the
+[Phase 2 runbook](docs/features/blinded-judge/phase2-runbook.md) and the
+[2026-07-05 room audit](docs/measurement/council-room-audit-2026-07-05.md) for candidate selection and current local readiness.
 
 ## Tests
 

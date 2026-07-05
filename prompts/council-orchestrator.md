@@ -67,7 +67,23 @@ test -f "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
 ```
 
 ## Step 2 — Select 3-6 personas
-Pick by task (minimum 3, maximum 6, default target 4; add `red-team` when stakes are high):
+Pick by explicit operator override first, then mode, then task (minimum 3, maximum 6, default target 4; add `red-team` when stakes are high).
+
+**Operator-forced roster:** if the operator passes `--personas a,b,c` or names an exact council ("use ab-critic, ml-scientist, data-engineer"), honor that exact 3-6 persona set unless a named persona does not exist. Still run the overlap check and state that the roster was operator-forced.
+
+**Council mode (`--mode`):** if no exact roster is forced, choose mode before applying the task table:
+
+| Mode | Selection behavior | Use when |
+|---|---|---|
+| `--mode ship` (default) | Default-3 enabled: start with `red-team`, `mvp`, `occams-razor`, then fill 0-3 task-specific slots. | Real ship / PR / design gate where scope creep, over-engineering, and false-positive blockers are likely. |
+| `--mode research` | Coverage-aware: default-3 is NOT automatic; pick the best task lenses but break ties toward underused relevant personas. Include at least 2 non-default-3 personas unless the operator forces otherwise. | Evaluation, dogfood, measurement, or "learn whether councils work" runs. Avoid validating the same six personas against themselves. |
+| `--mode domain` | Domain-first: default-3 disabled unless the task itself calls for one. Pick specialized domain lenses before general SWE lenses. | ML, experiment, data, perf, cost, product, docs/DX, SDK/API, telemetry, or support-diagnostics reviews. |
+| `--mode exec` | Executive/product-first: default-3 disabled unless explicitly requested. Pick `ceo`, `cto`, `vp-eng`, `product-pm`, plus one relevant technical skeptic. | Roadmap, company bet, staffing, platform direction, build-vs-buy, opportunity cost. |
+| `--mode minimal` | Pick exactly 3 personas; no default-3 unless one is directly task-relevant. | Small reversible change, low-stakes review, or operator wants low cost/noise. |
+
+**Coverage-aware tie-breaker (research/domain modes):** when two personas are similarly relevant, prefer the less-used lens over the habitual SWE set. Common swaps: `ab-critic`/`ml-scientist` for experiment/model claims, `data-engineer` for schemas/pipelines/diagnostics data, `perf-engineer` for hot paths, `product-pm` for scope/user value, `cost-finops` for capacity/vendor/TCO, `docs-dx` for CLI/API/onboarding, `pre-mortem` for launch failure modes, `cto`/`ceo`/`vp-eng` for long-horizon or execution tradeoffs. Do not add diversity for its own sake: relevance still wins.
+
+Task table:
 
 | Task signal | Personas |
 |---|---|
@@ -105,27 +121,32 @@ is a deliberate doubled-weight pick when the artifact is suspected of being bloa
 AND complexity — they attack different axes, so the "agreement" is real evidence rather than
 false-consensus. Justify the pick in one line when you make it.
 
-**Default-3 auto-include (Rev 4):** auto-include `red-team`, `mvp`, and `occams-razor` in every
-council regardless of what the rules table picked — they are the standing scope-and-realism
-controls. red-team finds the kill-shot; mvp cuts unnecessary scope; occams-razor cuts unnecessary
-complexity. Together they keep councils realistic about what's actually being built and what's
-actually a blocker. The rules-table picks then fill the remaining 0-3 slots with task-specific
-lenses (the cap stays at 6 personas total).
+**Default-3 auto-include (Rev 5):** in `--mode ship` and in the no-flag default, auto-include `red-team`, `mvp`, and `occams-razor` unless the operator opts out. They are the standing
+scope-and-realism controls. red-team finds the kill-shot; mvp cuts unnecessary scope;
+occams-razor cuts unnecessary complexity. Together they keep councils realistic about what's
+actually being built and what's actually a blocker. The rules-table picks then fill the remaining
+0-3 slots with task-specific lenses (the cap stays at 6 personas total). In `--mode research`,
+`--mode domain`, `--mode exec`, and `--mode minimal`, do NOT auto-include all three; include only
+those that fit the task or were explicitly requested.
 
-**Opt-out:** if the operator explicitly says `--no-default-3` or names personas to exclude (e.g.
-"skip mvp for this — it's not a scope question"), honor that. Cases where opting out is
-reasonable: an ML readout where the question is about statistical validity (mvp's lens doesn't
-fit), a pure correctness review of a tiny bug fix (occams-razor's complexity-cut has nothing
-to attack). When opting out, state the reason in one line so the choice is visible.
+**Opt-out / force controls:** if the operator explicitly says `--no-default-3` or names personas
+to exclude (e.g. "skip mvp for this — it's not a scope question"), honor that. If the operator
+uses `--mode research`, `--mode domain`, `--mode exec`, or `--mode minimal`, that is also an
+implicit opt-out from automatic default-3. Cases where opting out is reasonable: an ML readout
+where the question is about statistical validity (mvp's lens doesn't fit), a pure correctness
+review of a tiny bug fix (occams-razor's complexity-cut has nothing to attack), or a research
+run where persona coverage is part of the measurement. When opting out, state the reason in one
+line so the choice is visible.
 
-**Overlap acknowledgment:** the default-3 triples the adversarial weight (3 personas that skew
-BLOCK). This is intentional for THIS repo's failure profile — operator-driven work where scope
-creep + over-engineering + false-positives are the dominant failure modes. The SUSPICIOUS-FLIP
-detector still catches convergence-as-capitulation, but be aware that a unanimous BLOCK from
-the default-3 may reflect their shared bias rather than truly fatal flaws. Weight task-specific
-personas' SHIP verdicts proportionally.
+**Overlap acknowledgment:** default-3 triples the adversarial weight (3 personas that skew BLOCK).
+This is intentional for THIS repo's ship-mode failure profile — operator-driven work where scope
+creep + over-engineering + false-positives are the dominant failure modes. It is NOT intended to
+monopolize research/domain/exec councils. The SUSPICIOUS-FLIP detector still catches
+convergence-as-capitulation, but be aware that a unanimous BLOCK from default-3 may reflect their
+shared bias rather than truly fatal flaws. Weight task-specific personas' SHIP verdicts
+proportionally.
 
-**Overlap check at >4 personas (Rev 3):** with the cap raised, picking 5-6 from the 16-persona catalog
+**Overlap check at >4 personas (Rev 3):** with the cap raised, picking 5-6 from the 17-persona catalog
 makes flagged-overlap pairs (per `agents/INDEX.md`'s `Tends to agree with` column) more likely. Overlap
 check is MANDATORY at >4 personas. If 2+ flagged pairs land in the same set, either swap one for an
 orthogonal pick OR explicitly justify the doubled weight.

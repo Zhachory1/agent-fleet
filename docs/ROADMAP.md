@@ -6,19 +6,22 @@
 
 1. Finish blinded-judge Phase 2.
    - Goal: ≥50 distinct judged rooms for issue #1.
+   - Current strict active-root snapshot: 26/50 judged; 0 ready candidates.
    - Source of truth: `bash lib/journal.sh stats`, not static docs.
    - Use `bash lib/blind-judge.sh candidates`.
    - Prefer synthesis-bearing rooms, varied outcomes, low-signal / likely `catch=false`, same-family / GPT coverage.
+   - Latest audit: `docs/measurement/council-room-audit-2026-07-05.md`.
    - Close with `docs/features/blinded-judge/decision-<date>.md`.
 
-2. Grow lens-baseline arm.
+2. Maintain lens-baseline arm.
    - Source of truth: `bash lib/journal.sh stats`.
-   - Gate: n≥10 before stronger README claim.
+   - Current gate passed: 26/28 council beat same-lens single pass.
    - Keep same-lens single-pass baseline separate from council result.
 
 3. Run operator self-test.
    - Tracker: `docs/external-users/operator-self-test.md`.
    - Need 3 real councils: code, design, investigation.
+   - Do not backfill from room audit; need immediate verbatim friction notes.
    - Outcome: onboarding friction + artifact quality notes.
 
 ## Next

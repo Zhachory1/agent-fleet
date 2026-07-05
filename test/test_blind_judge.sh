@@ -757,6 +757,14 @@ if [ -n "$row" ] && [ "$(jq -r '.judge_blinded_catch' <<<"$row")" = "false" ] &&
 else
   note "FAIL --judge-cli claude row wrong: '$row'"; fail=1
 fi
+# Regression: large rendered prompts used to fail under `set -o pipefail` because
+# `printf "$prepare_out" | awk ... exit` caused SIGPIPE while extracting SHAs.
+head -c 120000 /dev/zero | tr '\0' 'x' > "$AGENT_CHAT_ROOT/rooms/$ROOM_RF/artifact.txt"
+if PATH="$FAKEBIN:$PATH" bash "$DIR/lib/blind-judge.sh" judge "$ROOM_RF" --phase1 judge-a --judge-cli claude >/dev/null 2>&1; then
+  note "PASS --judge-cli handles large prompt without pipefail SIGPIPE"
+else
+  note "FAIL --judge-cli large prompt failed"; fail=1
+fi
 expect_fail_msg "--judge-cli and --response-file reject together" \
   "PATH='$FAKEBIN':\$PATH bash '$DIR/lib/blind-judge.sh' judge '$ROOM_RF' --phase1 judge-a --judge-cli claude --response-file '$RF_RESP'" \
   "mutually exclusive"

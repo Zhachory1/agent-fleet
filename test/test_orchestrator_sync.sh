@@ -31,6 +31,12 @@ grep -qF '@@from: synthesis' "$B" || { echo "FAIL: portable prompt missing synth
 grep -qF 'blind-judge.sh" candidates --all' "$B" || { echo "FAIL: portable prompt missing candidate verification"; exit 1; }
 grep -qF 'TRUNCATION_GUARD' "$B" || { echo "FAIL: portable prompt missing task-output truncation guard"; exit 1; }
 grep -qF 'at most 5 `top_issues`' "$B" || { echo "FAIL: portable prompt missing bounded top_issues cap"; exit 1; }
+grep -qF -- '--mode ship' "$B" || { echo "FAIL: portable prompt missing ship mode"; exit 1; }
+grep -qF -- '--mode research' "$B" || { echo "FAIL: portable prompt missing research mode"; exit 1; }
+grep -qF -- '--mode domain' "$B" || { echo "FAIL: portable prompt missing domain mode"; exit 1; }
+grep -qF -- '--mode exec' "$B" || { echo "FAIL: portable prompt missing exec mode"; exit 1; }
+grep -qF -- '--mode minimal' "$B" || { echo "FAIL: portable prompt missing minimal mode"; exit 1; }
+grep -qF -- '--personas a,b,c' "$B" || { echo "FAIL: portable prompt missing forced persona roster"; exit 1; }
 
 # Selection-table coverage: every persona file in agents/ must be referenced by
 # the canonical prompt. Generated skill equality above gives skill parity for free.

@@ -5,6 +5,12 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+
+### Fixed
+
+## [0.2.0] — 2026-07-05
+
+### Added
 - Persona and orchestrator truncation guards: bounded, top-findings-first POSITION outputs to reduce task-output clipping risk.
 - Completed the 10-pair parallel-vs-single dogfood measurement and documented the final 10/10 vs 8/10 result.
 - `lib/parallel-vs-single.sh analyze` now reports median paired delta and win/tie distribution, not just mean.
@@ -24,6 +30,9 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 - Fresh-context blinded-judge helper implementation review writeup at `docs/features/blinded-judge/helper-review-2026-06-23.md`.
 
 ### Fixed
+- `blind-judge.sh judge --judge-cli` no longer trips `set -o pipefail`/SIGPIPE when extracting metadata from large rendered prompts.
+- Council selection now supports `--mode ship|research|domain|exec|minimal` and forced `--personas` rosters so non-default personas are chosen more reliably for research/domain councils.
+- Council room audit/recovery advanced strict blinded-judge Phase 2 from 15/50 to 26/50 distinct judged rooms and documented recovered artifacts.
 - `journal.sh stats` Phase 1 progress now counts distinct judged rooms, not judge rows.
 - Blinded-judge stale-lock default raised above the 10-minute judge stdin hold window.
 - Paired-mode helper now avoids GNU-only `sha256sum`, scans copied rooms recursively for mode leaks, anonymizes cloned journal `task`, and merges sparse judge rows during analysis.
