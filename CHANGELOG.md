@@ -5,6 +5,14 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.3.0] — 2026-07-07
+
+### Added
 - `ship` implementation workflow skill with scope-lock, implementation, spec-check/test-writer, doc-writer, occams-principles, and focused validation.
 - `ship-agents/` implementation agents: `ship-implementation-lead`, `ship-spec-checker`, `ship-test-writer`, `ship-doc-writer`, and `ship-occams-principles`.
 
