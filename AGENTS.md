@@ -37,13 +37,12 @@ Personas:
 - **Core six** — `ml-scientist` (model quality), `ab-critic` (experiment validity),
   `reliability-sentinel` (production/blast-radius), `software-architect` (boundaries/coupling),
   `generalist-swe` (simplicity/correctness), `red-team` (adversarial).
-- **Promoted dogfood-validated** — `data-engineer` (pipelines/schemas/backfills), `product-pm`
-  (user value / scope), `docs-dx` (API ergonomics / onboarding friction), `mvp`
-  (smallest-real-signal advocate; cuts scope), `occams-razor` (complexity-cutter).
-- **Experimental** — `perf-engineer` (tail latency / throughput), `cost-finops` ($/req / TCO /
-  build-vs-buy), `pre-mortem` (work backward from imagined catastrophe), `cto` (3-5yr platform /
-  tech arc), `ceo` (strategy / narrative / opportunity cost), `vp-eng` (capacity / sequencing /
-  staffing reality).
+- **Promoted dogfood-validated** — `data-engineer` (pipelines/schemas/backfills), `perf-engineer`
+  (tail latency / throughput), `product-pm` (user value / scope), `cost-finops` ($/req / TCO /
+  build-vs-buy), `docs-dx` (API ergonomics / onboarding friction), `mvp` (smallest-real-signal
+  advocate; cuts scope), `occams-razor` (complexity-cutter), `cto` (3-5yr platform / tech arc),
+  `ceo` (strategy / narrative / opportunity cost), `vp-eng` (capacity / sequencing / staffing reality).
+- **Experimental** — `pre-mortem` (work backward from imagined catastrophe).
 
 Pick 3-6 by task (Rev 3: was 2-4). Rev 5: `--mode ship` and no-flag default auto-include
 `red-team`, `mvp`, and `occams-razor` as standing scope-and-realism controls; `--mode research`,

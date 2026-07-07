@@ -2,8 +2,8 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CORE=(ml-scientist ab-critic reliability-sentinel software-architect generalist-swe red-team)
-PROMOTED=(data-engineer product-pm docs-dx mvp occams-razor)
-EXPERIMENTAL=(perf-engineer cost-finops pre-mortem cto ceo vp-eng)
+PROMOTED=(data-engineer perf-engineer product-pm cost-finops docs-dx mvp occams-razor cto ceo vp-eng)
+EXPERIMENTAL=(pre-mortem)
 STABLE=("${CORE[@]}" "${PROMOTED[@]}")
 EXPECTED=("${STABLE[@]}" "${EXPERIMENTAL[@]}")
 fail=0

@@ -15,19 +15,19 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 > publishing openly. Current dogfood journal snapshot: net-new catch rate is high
 > (54/56 = 96%), but it is still mostly author/operator-run. The lens-baseline arm now
 > passes its current gate (26/28 council beat same-lens single pass), and the strict
-> blinded-judge Phase 2 arm is in progress (26/50 distinct rooms judged; 27 judged rows;
-> 25/27 self-vs-blind agreement). Treat all metrics as directional dogfood evidence until
+> blinded-judge Phase 2 arm is in progress (29/50 distinct rooms judged; 30 judged rows;
+> 28/30 self-vs-blind agreement). Treat all metrics as directional dogfood evidence until
 > [issue #1](../../issues/1) completes the 50-run Phase 2 decision.
 
 ## Current status
 
 | Area | Current state |
 |---|---|
-| Personas | 17 total: 6 core + 5 promoted + 6 experimental |
+| Personas | 17 total: 6 core + 10 promoted + 1 experimental |
 | Tool support | Claude Code, Cave, opencode, Codex, Cursor, generic chat |
 | Tests | 18 shell test scripts; same loop runs in CI |
 | Parallel vs single-context | 10-pair dogfood complete: parallel 10/10, single-context 8/10, mean +20pp, median 0pp |
-| Blinded judge | Phase 1 complete; strict Phase 2 in progress at 26/50 distinct judged rooms |
+| Blinded judge | Phase 1 complete; strict Phase 2 in progress at 29/50 distinct judged rooms |
 | Lens baseline | 26/28 councils beat same-lens single pass; current gate passed |
 | External validation | Still needed: non-author operators on their own artifacts |
 
@@ -102,28 +102,28 @@ rationale: [`docs/PRD.md`](docs/PRD.md), [`docs/DD.md`](docs/DD.md).
 | `generalist-swe` | pragmatic IC | simplicity, over-engineering, correctness, edge cases |
 | `red-team` | adversary | strongest case against, hand-waved assumptions, what breaks first |
 
-**Promoted dogfood-validated five** (added 2026-06; promoted after ≥3 logged real runs with
+**Promoted dogfood-validated ten** (added 2026-06; promoted after ≥3 logged real runs with
 `acted_on=true` per [`agents/INDEX.md`](agents/INDEX.md). Promotion removes the `[experimental]`
 frontmatter warning, but evidence is still mostly operator-run dogfood, not external validation):
 
 | Persona | Group | Lens | Catches |
 |---|---|---|---|
 | `data-engineer` | domain | pipelines-first | idempotency, schema evolution, lineage, backfills, late-data |
+| `perf-engineer` | domain | tail-latency-first | p99, allocation pressure, algorithmic complexity, caching, I/O patterns |
 | `product-pm` | domain | user-value-first | problem clarity, scope, outcome-vs-output, adoption story, reversibility |
+| `cost-finops` | domain | unit-economics-first | $/req, capacity, vendor lock, hidden costs, build-vs-buy TCO |
 | `docs-dx` | domain | developer-experience-first | API ergonomics, error messages, onboarding friction, examples |
 | `mvp` | adversarial | smallest-real-signal advocate | scope creep, polish creep, severity inflation across review rounds, two-way-door reversibility |
 | `occams-razor` | adversarial | complexity-cutter | premature abstraction, speculative flexibility, indirection without payoff, framework-itis, rule-of-three violations |
-
-**Experimental six** (still carry `[experimental]` in YAML frontmatter so selection UIs surface the warning):
-
-| Persona | Group | Lens | Catches |
-|---|---|---|---|
-| `perf-engineer` | domain | tail-latency-first | p99, allocation pressure, algorithmic complexity, caching, I/O patterns |
-| `cost-finops` | domain | unit-economics-first | $/req, capacity, vendor lock, hidden costs, build-vs-buy TCO |
-| `pre-mortem` | adversarial | reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors |
 | `cto` | executive | 3–5 year platform/tech arc | strategic fit, stack coherence, migration asymmetry, talent/hire, one-way doors |
 | `ceo` | executive | strategy and narrative | why-this-why-now, opportunity cost, differentiation, brand, first-customer |
 | `vp-eng` | executive | capacity and execution | who actually does this, sequencing, hiring-assumption risk, opportunity cost |
+
+**Experimental one** (still carries `[experimental]` in YAML frontmatter so selection UIs surface the warning):
+
+| Persona | Group | Lens | Catches |
+|---|---|---|---|
+| `pre-mortem` | adversarial | reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors |
 
 The **adversarial pair `red-team` + `pre-mortem`** are methodologically distinct (red-team
 attacks the artifact as written; pre-mortem assumes it shipped + failed and reasons backward).
@@ -301,8 +301,8 @@ The canonical rubric is [`lib/blind-judge-prompt.v2.txt`](lib/blind-judge-prompt
 (visible by design; changes bump the filename version and are git-history-visible). Full design
 + Phase 1/Phase 2 calibration in
 [`docs/features/blinded-judge/PRD.md`](docs/features/blinded-judge/PRD.md). Current state:
-**Phase 1 calibration is complete; strict Phase 2 is in progress at 26/50 distinct judged rooms
-(27 judged rows; 25/27 self-vs-blind agreement). [Issue #1](../../issues/1) tracks the 50-run
+**Phase 1 calibration is complete; strict Phase 2 is in progress at 29/50 distinct judged rooms
+(30 judged rows; 28/30 self-vs-blind agreement). [Issue #1](../../issues/1) tracks the 50-run
 decision and README/stats update.** See the
 [Phase 2 runbook](docs/features/blinded-judge/phase2-runbook.md) and the
 [2026-07-05 room audit](docs/measurement/council-room-audit-2026-07-05.md) for candidate selection and current local readiness.

@@ -7,7 +7,8 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ### Added
 
 ### Changed
-- Promoted `data-engineer`, `product-pm`, `docs-dx`, `mvp`, and `occams-razor` after meeting the ≥3 acted-on real-run criterion; remaining under-sampled personas keep `[experimental]` frontmatter warnings.
+- Promoted `data-engineer`, `product-pm`, `docs-dx`, `mvp`, and `occams-razor` after meeting the ≥3 acted-on real-run criterion.
+- Promoted `ceo`, `cto`, `vp-eng`, `perf-engineer`, and `cost-finops` after the C-suite/FinOps stress-test councils produced ≥3 official acted-on, blind-judged research runs; only `pre-mortem` remains experimental.
 
 ### Fixed
 

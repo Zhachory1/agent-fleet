@@ -37,12 +37,17 @@ operator-run dogfood unless a non-author operator used the persona on their own 
 | Persona | Group | Lens | Picks up | Tends to agree with |
 |---|---|---|---|---|
 | `data-engineer` | domain | Pipelines-first | idempotency, schema evolution, lineage, backfills, late data | `software-architect` on contracts |
+| `perf-engineer` | domain | Tail-latency-first | p99, allocation pressure, algorithmic complexity, caching, I/O patterns | `reliability-sentinel` |
 | `product-pm` | domain | User-value-first | problem clarity, scope, outcome-vs-output, adoption story, reversibility | `ceo` (both ask "should we build this") |
+| `cost-finops` | domain | Unit-economics-first | $/req, capacity, vendor lock, hidden costs, build-vs-buy TCO | `cto` on platform bets |
 | `docs-dx` | domain | Developer-experience-first | API ergonomics, error messages, onboarding friction, examples | — (broadly orthogonal) |
 | `mvp` | adversarial complement | **Aggressive** smallest-real-signal advocate; cuts SCOPE | scope creep, polish-creep, severity inflation across review rounds, two-way-door reversibility, acceptance bloat | `occams-razor` (same direction, different axis — see note below) |
 | `occams-razor` | adversarial complement | **Aggressive** complexity-cutter; cuts COMPLEXITY | premature abstraction, speculative flexibility, indirection without payoff, layering for its own sake, "while we're here" refactors, framework-itis, rule-of-three violations | `mvp`; `generalist-swe` (overlapping — occams is over-engineering-FIRST) |
+| `cto` | executive | 3–5 year platform/tech arc | strategic fit, stack coherence, migration asymmetry, talent/hire, one-way doors | `software-architect` (same domain, near-vs-far horizon) |
+| `ceo` | executive | Strategy and narrative | why-this-why-now, opportunity cost, differentiation, brand, first-customer | `product-pm` |
+| `vp-eng` | executive | Capacity and execution | who actually does this, sequencing, hiring-assumption risk, opportunity cost | `product-pm` on scope |
 
-Promotion evidence from the 2026-07-05 local journal audit:
+Promotion evidence from official local journal audits:
 
 | Persona | Total runs | `acted_on=true` runs | Note |
 |---|---:|---:|---|
@@ -50,18 +55,18 @@ Promotion evidence from the 2026-07-05 local journal audit:
 | `occams-razor` | 21 | 13 | Strong dogfood signal, but many uses came from default-3 auto-include. |
 | `docs-dx` | 18 | 10 | Strongest promoted domain signal. |
 | `product-pm` | 9 | 6 | Enough acted-on product/scope catches to drop experimental warning. |
-| `data-engineer` | 3 | 3 | Barely meets threshold; keep watching noise rate. |
+| `data-engineer` | 3 | 3 | Barely met threshold; keep watching noise rate. |
+| `perf-engineer` | 6 | 4 | Earned promotion through serving-path and high-scale research councils. |
+| `cost-finops` | 3 | 3 | Earned promotion through C-suite/FinOps stress-test councils; keep gathering non-research runs. |
+| `cto` | 3 | 3 | Earned promotion through platform-bet stress-test councils; keep gathering non-research runs. |
+| `ceo` | 3 | 3 | Earned promotion through strategy/market-entry stress-test councils; keep gathering non-research runs. |
+| `vp-eng` | 3 | 3 | Earned promotion through execution/capacity stress-test councils; keep gathering non-research runs. |
 
 ## Still experimental
 
 | Persona | Group | Lens | Picks up | Tends to agree with |
 |---|---|---|---|---|
-| `perf-engineer` *(experimental)* | domain | Tail-latency-first | p99, allocation pressure, algorithmic complexity, caching, I/O patterns | `reliability-sentinel` |
-| `cost-finops` *(experimental)* | domain | Unit-economics-first | $/req, capacity, vendor lock, hidden costs, build-vs-buy TCO | `cto` on platform bets |
 | `pre-mortem` *(experimental)* | adversarial complement | Reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors | `red-team` (both adversarial, **methods differ**) |
-| `cto` *(experimental)* | executive | 3–5 year platform/tech arc | strategic fit, stack coherence, migration asymmetry, talent/hire, one-way doors | `software-architect` (same domain, near-vs-far horizon) |
-| `ceo` *(experimental)* | executive | Strategy and narrative | why-this-why-now, opportunity cost, differentiation, brand, first-customer | `product-pm` |
-| `vp-eng` *(experimental)* | executive | Capacity and execution | who actually does this, sequencing, hiring-assumption risk, opportunity cost | `product-pm` on scope |
 
 ## Pairing notes
 
