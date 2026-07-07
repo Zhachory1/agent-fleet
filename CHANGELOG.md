@@ -6,6 +6,9 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 
 ### Added
 
+### Changed
+- Promoted `data-engineer`, `product-pm`, `docs-dx`, `mvp`, and `occams-razor` after meeting the ≥3 acted-on real-run criterion; remaining under-sampled personas keep `[experimental]` frontmatter warnings.
+
 ### Fixed
 
 ## [0.2.0] — 2026-07-05

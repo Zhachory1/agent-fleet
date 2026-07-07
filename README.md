@@ -23,7 +23,7 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 
 | Area | Current state |
 |---|---|
-| Personas | 17 total: 6 core + 11 experimental |
+| Personas | 17 total: 6 core + 5 promoted + 6 experimental |
 | Tool support | Claude Code, Cave, opencode, Codex, Cursor, generic chat |
 | Tests | 18 shell test scripts; same loop runs in CI |
 | Parallel vs single-context | 10-pair dogfood complete: parallel 10/10, single-context 8/10, mean +20pp, median 0pp |
@@ -102,21 +102,25 @@ rationale: [`docs/PRD.md`](docs/PRD.md), [`docs/DD.md`](docs/DD.md).
 | `generalist-swe` | pragmatic IC | simplicity, over-engineering, correctness, edge cases |
 | `red-team` | adversary | strongest case against, hand-waved assumptions, what breaks first |
 
-**Experimental eleven** (added 2026-06; not yet promoted to Core — promotion criterion is ≥3
-logged real runs with `acted_on=true` per [`agents/INDEX.md`](agents/INDEX.md), which most
-haven't hit yet; descriptions are `[experimental]`-prefixed in the YAML frontmatter so any
-selection UI carries the warning):
+**Promoted dogfood-validated five** (added 2026-06; promoted after ≥3 logged real runs with
+`acted_on=true` per [`agents/INDEX.md`](agents/INDEX.md). Promotion removes the `[experimental]`
+frontmatter warning, but evidence is still mostly operator-run dogfood, not external validation):
 
 | Persona | Group | Lens | Catches |
 |---|---|---|---|
 | `data-engineer` | domain | pipelines-first | idempotency, schema evolution, lineage, backfills, late-data |
-| `perf-engineer` | domain | tail-latency-first | p99, allocation pressure, algorithmic complexity, caching, I/O patterns |
 | `product-pm` | domain | user-value-first | problem clarity, scope, outcome-vs-output, adoption story, reversibility |
-| `cost-finops` | domain | unit-economics-first | $/req, capacity, vendor lock, hidden costs, build-vs-buy TCO |
 | `docs-dx` | domain | developer-experience-first | API ergonomics, error messages, onboarding friction, examples |
-| `pre-mortem` | adversarial | reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors |
 | `mvp` | adversarial | smallest-real-signal advocate | scope creep, polish creep, severity inflation across review rounds, two-way-door reversibility |
 | `occams-razor` | adversarial | complexity-cutter | premature abstraction, speculative flexibility, indirection without payoff, framework-itis, rule-of-three violations |
+
+**Experimental six** (still carry `[experimental]` in YAML frontmatter so selection UIs surface the warning):
+
+| Persona | Group | Lens | Catches |
+|---|---|---|---|
+| `perf-engineer` | domain | tail-latency-first | p99, allocation pressure, algorithmic complexity, caching, I/O patterns |
+| `cost-finops` | domain | unit-economics-first | $/req, capacity, vendor lock, hidden costs, build-vs-buy TCO |
+| `pre-mortem` | adversarial | reasons backward from imagined catastrophe | no-owner failure modes, slow-motion disasters, recovery story, one-way doors |
 | `cto` | executive | 3–5 year platform/tech arc | strategic fit, stack coherence, migration asymmetry, talent/hire, one-way doors |
 | `ceo` | executive | strategy and narrative | why-this-why-now, opportunity cost, differentiation, brand, first-customer |
 | `vp-eng` | executive | capacity and execution | who actually does this, sequencing, hiring-assumption risk, opportunity cost |

@@ -37,22 +37,21 @@ Personas:
 - **Core six** — `ml-scientist` (model quality), `ab-critic` (experiment validity),
   `reliability-sentinel` (production/blast-radius), `software-architect` (boundaries/coupling),
   `generalist-swe` (simplicity/correctness), `red-team` (adversarial).
-- **Domain** — `data-engineer` (pipelines/schemas/backfills), `perf-engineer` (tail latency /
-  throughput), `product-pm` (user value / scope), `cost-finops` ($/req / TCO / build-vs-buy),
-  `docs-dx` (API ergonomics / onboarding friction).
-- **Adversarial complement** — `pre-mortem` (work backward from imagined catastrophe; complement to
-  red-team's attack-the-artifact lens), `mvp` (smallest-real-signal advocate; deliberately
-  oppositional to red-team and pre-mortem — cuts scope where they add), `occams-razor`
-  (complexity-cutter; cuts abstractions/layers until the payoff is real).
-- **Executive** — `cto` (3-5yr platform/tech arc), `ceo` (strategy / narrative / opportunity cost),
-  `vp-eng` (capacity / sequencing / staffing reality).
+- **Promoted dogfood-validated** — `data-engineer` (pipelines/schemas/backfills), `product-pm`
+  (user value / scope), `docs-dx` (API ergonomics / onboarding friction), `mvp`
+  (smallest-real-signal advocate; cuts scope), `occams-razor` (complexity-cutter).
+- **Experimental** — `perf-engineer` (tail latency / throughput), `cost-finops` ($/req / TCO /
+  build-vs-buy), `pre-mortem` (work backward from imagined catastrophe), `cto` (3-5yr platform /
+  tech arc), `ceo` (strategy / narrative / opportunity cost), `vp-eng` (capacity / sequencing /
+  staffing reality).
 
-Pick 3-6 by task (Rev 3: was 2-4). Rev 4: `red-team`, `mvp`, `occams-razor` are auto-included
-in every council as the standing scope-and-realism controls (opt out per-call with reason). See
-`agents/INDEX.md` for the catalog + decision tree (including
-overlap flags), and the orchestrator prompt's selection table for the routing rules. At >4 personas,
-the overlap check is mandatory: high persona counts amplify false-consensus pressure if multiple picks
-share a same-group lens.
+Pick 3-6 by task (Rev 3: was 2-4). Rev 5: `--mode ship` and no-flag default auto-include
+`red-team`, `mvp`, and `occams-razor` as standing scope-and-realism controls; `--mode research`,
+`--mode domain`, `--mode exec`, and `--mode minimal` do not auto-include all three. `--personas`
+forces an exact 3-6 persona roster. See `agents/INDEX.md` for the catalog + decision tree
+(including overlap flags), and the orchestrator prompt's selection table for routing rules. At >4
+personas, overlap check is mandatory: high persona counts amplify false-consensus pressure if
+multiple picks share a same-group lens.
 
 ## What you get depends on your tool
 - **Subagent-capable** (Claude Code Task tool, opencode subagents): each persona's round-1

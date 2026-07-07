@@ -30,7 +30,7 @@ for f in "$DIR/skills/council/SKILL.md" "$DIR/prompts/council-orchestrator.md"; 
   fi
 done
 
-# Verify ALL 16 personas appear in the selection table — both Core Six and the 10 experimentals.
+# Verify all personas appear in the selection table — Core, promoted, and experimental.
 for name in ml-scientist ab-critic reliability-sentinel software-architect generalist-swe red-team \
             data-engineer perf-engineer product-pm cost-finops docs-dx pre-mortem cto ceo vp-eng mvp; do
   # The selection table is between '## Step 2' and 'State the selected personas'

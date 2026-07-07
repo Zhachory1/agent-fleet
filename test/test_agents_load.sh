@@ -2,8 +2,10 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CORE=(ml-scientist ab-critic reliability-sentinel software-architect generalist-swe red-team)
-EXPERIMENTAL=(data-engineer perf-engineer product-pm cost-finops docs-dx pre-mortem cto ceo vp-eng mvp occams-razor)
-EXPECTED=("${CORE[@]}" "${EXPERIMENTAL[@]}")
+PROMOTED=(data-engineer product-pm docs-dx mvp occams-razor)
+EXPERIMENTAL=(perf-engineer cost-finops pre-mortem cto ceo vp-eng)
+STABLE=("${CORE[@]}" "${PROMOTED[@]}")
+EXPECTED=("${STABLE[@]}" "${EXPERIMENTAL[@]}")
 fail=0
 for name in "${EXPECTED[@]}"; do
   f="$DIR/agents/$name.md"
@@ -21,12 +23,12 @@ done
 
 # Issue #9: surface (experimental) tag on persona descriptions so selection UIs that read
 # frontmatter (not INDEX.md) carry the warning. Invariant:
-#   Core Six persona description MUST NOT start with '[experimental]'
+#   Stable personas (Core Six + promoted) MUST NOT start with '[experimental]'
 #   Experimental persona description MUST start with '[experimental]'
-for name in "${CORE[@]}"; do
+for name in "${STABLE[@]}"; do
   f="$DIR/agents/$name.md"
   if grep -q '^description:.*\[experimental\]' "$f"; then
-    echo "FAIL: $name is Core but description starts with [experimental]"; fail=1
+    echo "FAIL: $name is stable/promoted but description starts with [experimental]"; fail=1
   fi
 done
 for name in "${EXPERIMENTAL[@]}"; do
