@@ -9,10 +9,12 @@ trap 'rm -f "$EXTRA_PERSONA"; rm -rf "$TEST_PARENT_TMP"' EXIT
 mktemp_d() { mktemp -d "$TEST_PARENT_TMP/d.XXXXXX"; }
 fail=0
 
-# How many persona .md files exist (excludes catalog + private/example overlays).
+# How many installable agent .md files exist (council personas + ship implementation agents).
 expected_personas=$(find "$DIR/agents" -maxdepth 1 -name '*.md' \
   ! -name 'INDEX.md' ! -name '_overlay.md' ! -name '_overlay.md.example' | wc -l | tr -d ' ')
-expected_files=$((expected_personas + 1))  # personas + council-orchestrator.md
+expected_ship_agents=$(find "$DIR/ship-agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
+expected_agents=$((expected_personas + expected_ship_agents))
+expected_files=$((expected_agents + 2))  # agents + council-orchestrator.md + ship-orchestrator.md
 
 for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.agent-fleet"; do
   tool="${tool_spec%%:*}"
@@ -33,6 +35,9 @@ for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.ag
   if [ ! -f "$placed_dir/council-orchestrator.md" ]; then
     echo "FAIL: --tool $tool did not place council-orchestrator.md"; fail=1
   fi
+  if [ ! -f "$placed_dir/ship-orchestrator.md" ]; then
+    echo "FAIL: --tool $tool did not place ship-orchestrator.md"; fail=1
+  fi
   sample=$(find "$placed_dir" -maxdepth 1 -name 'red-team.md' | head -1)
   if [ -L "$sample" ]; then
     echo "FAIL: --tool $tool placed symlinks; should be copies (sandboxes break symlinks)"
@@ -43,12 +48,20 @@ for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.ag
       echo "FAIL: --tool codex did not install council skill into ~/.codex/skills/council"
       fail=1
     fi
+    if [ ! -f "$tmp/home/.codex/skills/ship/SKILL.md" ]; then
+      echo "FAIL: --tool codex did not install ship skill into ~/.codex/skills/ship"
+      fail=1
+    fi
     if [ ! -f "$tmp/home/.codex/agent-fleet/agents/red-team.md" ]; then
       echo "FAIL: --tool codex did not install persona payload into ~/.codex/agent-fleet/agents"
       fail=1
     fi
     if [ ! -f "$tmp/home/.codex/agent-fleet/prompts/council-orchestrator.md" ]; then
       echo "FAIL: --tool codex did not install prompt payload into ~/.codex/agent-fleet/prompts"
+      fail=1
+    fi
+    if [ ! -f "$tmp/home/.codex/agent-fleet/prompts/ship-orchestrator.md" ]; then
+      echo "FAIL: --tool codex did not install ship prompt payload into ~/.codex/agent-fleet/prompts"
       fail=1
     fi
     ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool codex --uninstall >/dev/null 2>&1 ) || {
@@ -80,8 +93,16 @@ if [ ! -f "$GENERIC_HOME/skills/council/SKILL.md" ]; then
   echo "FAIL: --dir did not install council skill into DIR/skills/council"
   fail=1
 fi
+if [ ! -f "$GENERIC_HOME/skills/ship/SKILL.md" ]; then
+  echo "FAIL: --dir did not install ship skill into DIR/skills/ship"
+  fail=1
+fi
 if [ ! -f "$GENERIC_HOME/prompts/council-orchestrator.md" ]; then
   echo "FAIL: --dir did not install prompt into DIR/prompts"
+  fail=1
+fi
+if [ ! -f "$GENERIC_HOME/prompts/ship-orchestrator.md" ]; then
+  echo "FAIL: --dir did not install ship prompt into DIR/prompts"
   fail=1
 fi
 if [ -L "$GENERIC_HOME/agents/red-team.md" ]; then
@@ -91,7 +112,7 @@ fi
 ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --dir "$GENERIC_HOME" --uninstall >/dev/null 2>&1 ) || {
   echo "FAIL: install.sh --dir --uninstall exited non-zero"; fail=1
 }
-if [ -f "$GENERIC_HOME/agents/red-team.md" ] || [ -e "$GENERIC_HOME/skills/council" ] || [ -f "$GENERIC_HOME/prompts/council-orchestrator.md" ]; then
+if [ -f "$GENERIC_HOME/agents/red-team.md" ] || [ -e "$GENERIC_HOME/skills/council" ] || [ -e "$GENERIC_HOME/skills/ship" ] || [ -f "$GENERIC_HOME/prompts/council-orchestrator.md" ] || [ -f "$GENERIC_HOME/prompts/ship-orchestrator.md" ]; then
   echo "FAIL: --dir --uninstall left installed files behind"
   fail=1
 fi
@@ -104,8 +125,8 @@ tmp=$(mktemp_d)
 }
 if [ -d "$tmp/.cave/agents" ]; then
   n=$(find "$tmp/.cave/agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
-  if [ "$n" != "$expected_personas" ]; then
-    echo "FAIL: --tool cave placed $n persona files; expected $expected_personas"
+  if [ "$n" != "$expected_agents" ]; then
+    echo "FAIL: --tool cave placed $n agent files; expected $expected_agents"
     fail=1
   fi
 else
@@ -124,6 +145,10 @@ if [ ! -f "$tmp/.cave/skills/council/SKILL.md" ]; then
   echo "FAIL: --tool cave did not install council skill into .cave/skills/council"
   fail=1
 fi
+if [ ! -f "$tmp/.cave/skills/ship/SKILL.md" ]; then
+  echo "FAIL: --tool cave did not install ship skill into .cave/skills/ship"
+  fail=1
+fi
 if ! grep -q '^tools: read, find, grep, bash$' "$tmp/.cave/agents/red-team.md"; then
   echo "FAIL: --tool cave did not rewrite persona tools to Cave lowercase names"
   fail=1
@@ -135,7 +160,7 @@ fi
 ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool cave --uninstall >/dev/null 2>&1 ) || {
   echo "FAIL: install.sh --tool cave --uninstall exited non-zero"; fail=1
 }
-if [ -f "$tmp/.cave/agents/red-team.md" ] || [ -e "$tmp/.cave/skills/council" ] || [ -f "$tmp/.cave/prompts/council-orchestrator.md" ]; then
+if [ -f "$tmp/.cave/agents/red-team.md" ] || [ -e "$tmp/.cave/skills/council" ] || [ -e "$tmp/.cave/skills/ship" ] || [ -f "$tmp/.cave/prompts/council-orchestrator.md" ] || [ -f "$tmp/.cave/prompts/ship-orchestrator.md" ]; then
   echo "FAIL: --tool cave --uninstall left installed files behind"
   fail=1
 fi
@@ -178,6 +203,10 @@ if [ ! -f "$tmp/cave-home/agent/agents/red-team.md" ]; then
 fi
 if [ ! -f "$tmp/cave-home/skills/council/SKILL.md" ]; then
   echo "FAIL: --tool cave --user did not install skill into CAVE_HOME/skills/council"
+  fail=1
+fi
+if [ ! -f "$tmp/cave-home/skills/ship/SKILL.md" ]; then
+  echo "FAIL: --tool cave --user did not install ship skill into CAVE_HOME/skills/ship"
   fail=1
 fi
 if [ ! -f "$tmp/cave-home/prompts/council-orchestrator.md" ]; then

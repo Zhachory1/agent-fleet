@@ -9,22 +9,22 @@
   "tools": {
     "claude": {
       "command": "bash install.sh --tool claude",
-      "installs": ["~/.claude/agents", "~/.claude/skills/council"],
+      "installs": ["~/.claude/agents", "~/.claude/skills/council", "~/.claude/skills/ship"],
       "scope": "user-global"
     },
     "codex": {
       "command": "bash install.sh --tool codex",
-      "installs": ["~/.codex/skills/council", "~/.codex/agent-fleet"],
+      "installs": ["~/.codex/skills/council", "~/.codex/skills/ship", "~/.codex/agent-fleet"],
       "scope": "user-global plus project refs"
     },
     "cave_project": {
       "command": "bash install.sh --tool cave",
-      "installs": ["./.cave/agents", "./.cave/skills/council", "./.cave/prompts"],
+      "installs": ["./.cave/agents", "./.cave/skills/council", "./.cave/skills/ship", "./.cave/prompts"],
       "scope": "project"
     },
     "cave_user": {
       "command": "bash install.sh --tool cave --user",
-      "installs": ["${CAVE_HOME:-~/.cave}/agent/agents", "${CAVE_HOME:-~/.cave}/skills/council", "${CAVE_HOME:-~/.cave}/prompts"],
+      "installs": ["${CAVE_HOME:-~/.cave}/agent/agents", "${CAVE_HOME:-~/.cave}/skills/council", "${CAVE_HOME:-~/.cave}/skills/ship", "${CAVE_HOME:-~/.cave}/prompts"],
       "scope": "user-global"
     },
     "cursor": {
@@ -40,7 +40,7 @@
     "unknown_global_tui": {
       "command": "bash install.sh --dir <TUI_CONFIG_DIR>",
       "uninstall": "bash install.sh --dir <TUI_CONFIG_DIR> --uninstall",
-      "installs": ["<TUI_CONFIG_DIR>/agents", "<TUI_CONFIG_DIR>/skills/council", "<TUI_CONFIG_DIR>/prompts"],
+      "installs": ["<TUI_CONFIG_DIR>/agents", "<TUI_CONFIG_DIR>/skills/council", "<TUI_CONFIG_DIR>/skills/ship", "<TUI_CONFIG_DIR>/prompts"],
       "example": "bash install.sh --dir ~/.mewrite",
       "scope": "user-global"
     },

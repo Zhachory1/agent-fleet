@@ -5,6 +5,8 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+- `ship` implementation workflow skill with scope-lock, implementation, spec-check/test-writer, doc-writer, occams-principles, and focused validation.
+- `ship-agents/` implementation agents: `ship-implementation-lead`, `ship-spec-checker`, `ship-test-writer`, `ship-doc-writer`, and `ship-occams-principles`.
 
 ### Changed
 - Promoted `data-engineer`, `product-pm`, `docs-dx`, `mvp`, and `occams-razor` after meeting the ≥3 acted-on real-run criterion.

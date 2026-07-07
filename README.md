@@ -43,7 +43,7 @@ export AGENT_FLEET_HOME=$PWD
 bash install.sh                # Claude Code (default; symlinks)
 # OR: bash install.sh --tool cursor    # Cursor   (→ ./.cursor/rules/)
 # OR: bash install.sh --tool opencode  # opencode (→ ./.agent-fleet/)
-# OR: bash install.sh --tool codex     # Codex    (→ ./.agent-fleet/ + ~/.codex/skills/council)
+# OR: bash install.sh --tool codex     # Codex    (→ ./.agent-fleet/ + ~/.codex/skills/{council,ship})
 # OR: bash install.sh --tool cave      # Cave     (→ ./.cave/{agents,skills,prompts})
 # OR: bash install.sh --print | pbcopy  # any chat: paste the prompt
 bash examples/first-council/run.sh         # see a real run end-to-end (isolated tmpdir)
@@ -171,14 +171,14 @@ Install only the **agent prompts/personas/skills** into the AI TUI's normal user
 
 | TUI | Preferred install location | Command |
 |---|---|---|
-| Claude Code | `~/.claude/agents` + `~/.claude/skills/council` | `bash install.sh --tool claude` |
-| Codex CLI | `~/.codex/skills/council` + `~/.codex/agent-fleet` payload | `bash install.sh --tool codex` |
+| Claude Code | `~/.claude/agents` + `~/.claude/skills/{council,ship}` | `bash install.sh --tool claude` |
+| Codex CLI | `~/.codex/skills/{council,ship}` + `~/.codex/agent-fleet` payload | `bash install.sh --tool codex` |
 | Cave | project `.cave/{agents,skills,prompts}` or user `~/.cave` | `bash install.sh --tool cave` or `bash install.sh --tool cave --user` |
 | Cursor | project `.cursor/rules` | `bash install.sh --tool cursor` |
 | opencode | project `.agent-fleet` | `bash install.sh --tool opencode` |
 | Unknown TUI with global config dir, e.g. Mewrite | `~/.mewrite/{agents,skills,prompts}` or whatever dir your TUI documents | `bash install.sh --dir ~/.mewrite` |
 
-Use `--dir DIR` when this repo does not know your TUI by name. It copies the generic payload into `DIR/agents`, `DIR/skills/council`, and `DIR/prompts/council-orchestrator.md`; uninstall with `bash install.sh --dir DIR --uninstall`.
+Use `--dir DIR` when this repo does not know your TUI by name. It copies the generic payload into `DIR/agents`, `DIR/skills/{council,ship}`, and `DIR/prompts/{council-orchestrator.md,ship-orchestrator.md}`; uninstall with `bash install.sh --dir DIR --uninstall`.
 
 If you are an AI agent doing the install, run `bash install.sh --agent-instructions` first. The same decision tree is also in [`INSTALL.md`](INSTALL.md) and [`install.manifest.json`](install.manifest.json).
 
@@ -188,7 +188,7 @@ If you are an AI agent doing the install, run `bash install.sh --agent-instructi
 ```bash
 git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
 cd ~/code/agent-fleet && export AGENT_FLEET_HOME=$PWD
-bash install.sh                     # symlinks agents → ~/.claude/agents, skill → ~/.claude/skills/council
+bash install.sh                     # symlinks agents → ~/.claude/agents, skills → ~/.claude/skills/{council,ship}
 # in Claude Code:  /council review this diff …
 bash install.sh --uninstall         # reversible
 ```
@@ -196,7 +196,7 @@ bash install.sh --uninstall         # reversible
 ### Codex CLI / opencode
 ```bash
 export AGENT_FLEET_HOME=~/code/agent-fleet
-bash "$AGENT_FLEET_HOME/install.sh" --tool codex     # → ~/.codex/{skills/council,agent-fleet} + ./.agent-fleet refs
+bash "$AGENT_FLEET_HOME/install.sh" --tool codex     # → ~/.codex/{skills/{council,ship},agent-fleet} + ./.agent-fleet refs
 bash "$AGENT_FLEET_HOME/install.sh" --tool opencode  # → ./.agent-fleet/
 # then ask the agent: "act as the council orchestrator in ./.agent-fleet/council-orchestrator.md"
 ```

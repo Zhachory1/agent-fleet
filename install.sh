@@ -29,15 +29,16 @@ print_agent_instructions() {
 AGENT-FLEET INSTALL INSTRUCTIONS FOR AI AGENTS
 
 Rule: do NOT vendor this repo into the user's project. Install only:
-- agents/*.md persona files
-- skills/council/ skill directory
-- prompts/council-orchestrator.md prompt
+- agents/*.md council persona files
+- ship-agents/*.md implementation agent files
+- skills/council/ and skills/ship/ skill directories
+- prompts/council-orchestrator.md and prompts/ship-orchestrator.md prompts
 
 Pick one:
 - Claude Code: bash install.sh --tool claude
-  -> ~/.claude/agents + ~/.claude/skills/council
+  -> ~/.claude/agents + ~/.claude/skills/{council,ship}
 - Codex CLI: bash install.sh --tool codex
-  -> ~/.codex/skills/council + ~/.codex/agent-fleet
+  -> ~/.codex/skills/{council,ship} + ~/.codex/agent-fleet
 - Cave project: bash install.sh --tool cave
   -> ./.cave/{agents,skills,prompts}
 - Cave user-global: bash install.sh --tool cave --user
@@ -49,7 +50,7 @@ Pick one:
 - Unknown TUI with global config dir: ask user for dir, then:
   bash install.sh --dir <DIR>
   Example: bash install.sh --dir ~/.mewrite
-  -> <DIR>/agents + <DIR>/skills/council + <DIR>/prompts
+  -> <DIR>/agents + <DIR>/skills/{council,ship} + <DIR>/prompts
 - Generic flat rules dir:
   bash install.sh --target <DIR> --copy
 
@@ -207,36 +208,54 @@ personas() {
   done
 }
 
+ship_agents() {
+  for f in "$SRC"/ship-agents/*.md; do
+    [ -e "$f" ] || continue
+    echo "$f"
+  done
+}
+agent_payloads() {
+  personas
+  ship_agents
+}
+
 # Generic global install for unknown TUI home dirs (for example ~/.mewrite).
 # This is intentionally copy-only and uses the conventional {agents,skills,prompts}
 # resource layout. Use --target for a flat directory instead.
 if [ -n "$INSTALL_DIR" ]; then
   AGENTS_DST="$INSTALL_DIR/agents"
   SKILL_DST="$INSTALL_DIR/skills/council"
+  SHIP_SKILL_DST="$INSTALL_DIR/skills/ship"
   PROMPT_DST="$INSTALL_DIR/prompts/council-orchestrator.md"
+  SHIP_PROMPT_DST="$INSTALL_DIR/prompts/ship-orchestrator.md"
   if [ "$UNINSTALL" = "1" ]; then
-    for f in $(personas); do rm -f "$AGENTS_DST/$(basename "$f")"; done
-    rm -f "$PROMPT_DST"
-    rm -rf "$SKILL_DST"
+    for f in $(agent_payloads); do rm -f "$AGENTS_DST/$(basename "$f")"; done
+    rm -f "$PROMPT_DST" "$SHIP_PROMPT_DST"
+    rm -rf "$SKILL_DST" "$SHIP_SKILL_DST"
     echo "agent-fleet: uninstalled generic payload from $INSTALL_DIR"
     exit 0
   fi
   COPY=1
-  for f in $(personas); do place "$f" "$AGENTS_DST/$(basename "$f")"; done
+  for f in $(agent_payloads); do place "$f" "$AGENTS_DST/$(basename "$f")"; done
   place_dir "$SRC/skills/council" "$SKILL_DST"
+  place_dir "$SRC/skills/ship" "$SHIP_SKILL_DST"
   place "$SRC/prompts/council-orchestrator.md" "$PROMPT_DST"
+  place "$SRC/prompts/ship-orchestrator.md" "$SHIP_PROMPT_DST"
   echo "agent-fleet: installed generic agents → $AGENTS_DST"
-  echo "agent-fleet: installed generic skill → $SKILL_DST"
-  echo "agent-fleet: installed generic prompt → $PROMPT_DST"
+  echo "agent-fleet: installed generic council skill → $SKILL_DST"
+  echo "agent-fleet: installed generic ship skill → $SHIP_SKILL_DST"
+  echo "agent-fleet: installed generic council prompt → $PROMPT_DST"
+  echo "agent-fleet: installed generic ship prompt → $SHIP_PROMPT_DST"
   echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
   exit 0
 fi
 
 # Generic target: drop personas + the portable orchestrator prompt into DIR.
 if [ -n "$TARGET" ]; then
-  for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
+  for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
   place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
-  echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
+  place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
+  echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
   echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
   exit 0
 fi
@@ -246,18 +265,20 @@ case "$TOOL" in
   cursor)
     [ -n "$TARGET" ] || TARGET="./.cursor/rules"
     COPY=1  # Cursor's rules dir doesn't follow symlinks reliably
-    for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
+    for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
     place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
-    echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
+    place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
+    echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
     echo "Cursor will auto-load .cursor/rules/. Set AGENT_FLEET_HOME=$SRC so the lib/ helpers resolve."
     exit 0
     ;;
   opencode)
     [ -n "$TARGET" ] || TARGET="./.agent-fleet"
     COPY=1
-    for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
+    for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
     place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
-    echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
+    place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
+    echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
     echo ""
     echo "Next: ensure your project's AGENTS.md references the orchestrator at:"
     echo "  $TARGET/council-orchestrator.md"
@@ -270,22 +291,27 @@ case "$TOOL" in
     COPY=1
     CODEX_BASE="${CODEX_HOME:-$HOME/.codex}"
     CODEX_SKILL_DST="$CODEX_BASE/skills/council"
+    CODEX_SHIP_SKILL_DST="$CODEX_BASE/skills/ship"
     CODEX_BUNDLE_DST="$CODEX_BASE/agent-fleet"
     if [ "$UNINSTALL" = "1" ]; then
-      for f in $(personas); do rm -f "$TARGET/$(basename "$f")"; done
-      rm -f "$TARGET/council-orchestrator.md"
-      rm -rf "$CODEX_SKILL_DST" "$CODEX_BUNDLE_DST"
+      for f in $(agent_payloads); do rm -f "$TARGET/$(basename "$f")"; done
+      rm -f "$TARGET/council-orchestrator.md" "$TARGET/ship-orchestrator.md"
+      rm -rf "$CODEX_SKILL_DST" "$CODEX_SHIP_SKILL_DST" "$CODEX_BUNDLE_DST"
       echo "agent-fleet: uninstalled Codex project files from $TARGET and global payload from $CODEX_BASE"
       exit 0
     fi
-    for f in $(personas); do place "$f" "$TARGET/$(basename "$f")"; done
+    for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
     place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
+    place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
     place_dir "$SRC/skills/council" "$CODEX_SKILL_DST"
+    place_dir "$SRC/skills/ship" "$CODEX_SHIP_SKILL_DST"
     mkdir -p "$CODEX_BUNDLE_DST/agents" "$CODEX_BUNDLE_DST/prompts"
-    for f in $(personas); do place "$f" "$CODEX_BUNDLE_DST/agents/$(basename "$f")"; done
+    for f in $(agent_payloads); do place "$f" "$CODEX_BUNDLE_DST/agents/$(basename "$f")"; done
     place "$SRC/prompts/council-orchestrator.md" "$CODEX_BUNDLE_DST/prompts/council-orchestrator.md"
-    echo "agent-fleet: placed $(personas | wc -l | tr -d ' ') personas + orchestrator prompt into $TARGET"
-    echo "agent-fleet: installed Codex skill → $CODEX_SKILL_DST"
+    place "$SRC/prompts/ship-orchestrator.md" "$CODEX_BUNDLE_DST/prompts/ship-orchestrator.md"
+    echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
+    echo "agent-fleet: installed Codex council skill → $CODEX_SKILL_DST"
+    echo "agent-fleet: installed Codex ship skill → $CODEX_SHIP_SKILL_DST"
     echo "agent-fleet: installed Codex global payload → $CODEX_BUNDLE_DST"
     echo ""
     echo "Next: ensure your project's AGENTS.md references the orchestrator at:"
@@ -299,25 +325,33 @@ case "$TOOL" in
       CAVE_BASE="${CAVE_HOME:-$HOME/.cave}"
       CAVE_AGENTS_DST="$CAVE_BASE/agent/agents"
       CAVE_SKILL_DST="$CAVE_BASE/skills/council"
+      CAVE_SHIP_SKILL_DST="$CAVE_BASE/skills/ship"
       CAVE_PROMPT_DST="$CAVE_BASE/prompts/council-orchestrator.md"
+      CAVE_SHIP_PROMPT_DST="$CAVE_BASE/prompts/ship-orchestrator.md"
     else
       CAVE_AGENTS_DST="./.cave/agents"
       CAVE_SKILL_DST="./.cave/skills/council"
+      CAVE_SHIP_SKILL_DST="./.cave/skills/ship"
       CAVE_PROMPT_DST="./.cave/prompts/council-orchestrator.md"
+      CAVE_SHIP_PROMPT_DST="./.cave/prompts/ship-orchestrator.md"
     fi
     if [ "$UNINSTALL" = "1" ]; then
-      for f in $(personas); do rm -f "$CAVE_AGENTS_DST/$(basename "$f")"; done
-      rm -f "$CAVE_PROMPT_DST"
-      rm -rf "$CAVE_SKILL_DST"
+      for f in $(agent_payloads); do rm -f "$CAVE_AGENTS_DST/$(basename "$f")"; done
+      rm -f "$CAVE_PROMPT_DST" "$CAVE_SHIP_PROMPT_DST"
+      rm -rf "$CAVE_SKILL_DST" "$CAVE_SHIP_SKILL_DST"
       echo "agent-fleet: uninstalled Cave $SCOPE-scope files."
       exit 0
     fi
-    for f in $(personas); do place_cave_persona "$f" "$CAVE_AGENTS_DST/$(basename "$f")"; done
+    for f in $(agent_payloads); do place_cave_persona "$f" "$CAVE_AGENTS_DST/$(basename "$f")"; done
     place "$SRC/prompts/council-orchestrator.md" "$CAVE_PROMPT_DST"
+    place "$SRC/prompts/ship-orchestrator.md" "$CAVE_SHIP_PROMPT_DST"
     place_dir "$SRC/skills/council" "$CAVE_SKILL_DST"
+    place_dir "$SRC/skills/ship" "$CAVE_SHIP_SKILL_DST"
     echo "agent-fleet: installed Cave $SCOPE-scope agents → $CAVE_AGENTS_DST"
-    echo "agent-fleet: installed Cave skill → $CAVE_SKILL_DST"
-    echo "agent-fleet: installed Cave prompt → $CAVE_PROMPT_DST"
+    echo "agent-fleet: installed Cave council skill → $CAVE_SKILL_DST"
+    echo "agent-fleet: installed Cave ship skill → $CAVE_SHIP_SKILL_DST"
+    echo "agent-fleet: installed Cave council prompt → $CAVE_PROMPT_DST"
+    echo "agent-fleet: installed Cave ship prompt → $CAVE_SHIP_PROMPT_DST"
     echo "Cave agent copies map Claude-Code tool names to Cave lowercase names."
     echo "Set AGENT_FLEET_HOME=$SRC so the lib/ helpers (transcript/journal) resolve."
     exit 0
@@ -327,15 +361,16 @@ esac
 # Claude Code (default): native agents + skill dirs.
 case "$TOOL" in
   claude)
-    AGENTS_DST="$HOME/.claude/agents"; SKILL_DST="$HOME/.claude/skills/council"
+    AGENTS_DST="$HOME/.claude/agents"; SKILL_DST="$HOME/.claude/skills/council"; SHIP_SKILL_DST="$HOME/.claude/skills/ship"
     if [ "$UNINSTALL" = "1" ]; then
-      for f in $(personas); do rm -f "$AGENTS_DST/$(basename "$f")"; done
-      rm -f "$SKILL_DST"; echo "agent-fleet: uninstalled Claude symlinks."; exit 0
+      for f in $(agent_payloads); do rm -f "$AGENTS_DST/$(basename "$f")"; done
+      rm -f "$SKILL_DST" "$SHIP_SKILL_DST"; echo "agent-fleet: uninstalled Claude symlinks."; exit 0
     fi
     mkdir -p "$AGENTS_DST" "$HOME/.claude/skills"
-    for f in $(personas); do ln -sf "$f" "$AGENTS_DST/$(basename "$f")"; done
+    for f in $(agent_payloads); do ln -sf "$f" "$AGENTS_DST/$(basename "$f")"; done
     ln -sfn "$SRC/skills/council" "$SKILL_DST"
-    echo "agent-fleet: installed for Claude Code. agents → $AGENTS_DST ; skill → $SKILL_DST"
+    ln -sfn "$SRC/skills/ship" "$SHIP_SKILL_DST"
+    echo "agent-fleet: installed for Claude Code. agents → $AGENTS_DST ; council skill → $SKILL_DST ; ship skill → $SHIP_SKILL_DST"
     echo ""
     echo "Optional next steps:"
     echo "  - Set a private overlay for your org's KPIs/stack/hot-paths/priorities:"

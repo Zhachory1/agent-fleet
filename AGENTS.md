@@ -11,14 +11,15 @@ orchestrator prompt where Cursor will find them.
 
 If you are an AI coding agent installing this repo for a user: **do not vendor this repo into the user's project**. Install only the payload files into the TUI's resource folder:
 
-- personas: `agents/*.md`
-- skill: `skills/council/`
-- prompt: `prompts/council-orchestrator.md`
+- council personas: `agents/*.md`
+- ship implementation agents: `ship-agents/*.md`
+- skills: `skills/council/`, `skills/ship/`
+- prompts: `prompts/council-orchestrator.md`, `prompts/ship-orchestrator.md`
 
 Decision tree:
 
-- Claude Code: `bash install.sh --tool claude` → `~/.claude/agents` + `~/.claude/skills/council`
-- Codex CLI: `bash install.sh --tool codex` → `~/.codex/skills/council` + `~/.codex/agent-fleet`
+- Claude Code: `bash install.sh --tool claude` → `~/.claude/agents` + `~/.claude/skills/{council,ship}`
+- Codex CLI: `bash install.sh --tool codex` → `~/.codex/skills/{council,ship}` + `~/.codex/agent-fleet`
 - Cave project: `bash install.sh --tool cave` → `./.cave/{agents,skills,prompts}`
 - Cave user-global: `bash install.sh --tool cave --user` → `${CAVE_HOME:-~/.cave}`
 - Cursor: `bash install.sh --tool cursor` → `./.cursor/rules`
@@ -32,6 +33,8 @@ Before guessing, run `bash install.sh --agent-instructions` or read `INSTALL.md`
 ## To run a council
 Load the orchestrator prompt at `prompts/council-orchestrator.md` and follow it. The reviewer
 personas live in `agents/*.md` — each is a self-contained system prompt (one judgment lens).
+For accepted implementation work, load `prompts/ship-orchestrator.md` or invoke the `ship` skill;
+its implementation agents live in `ship-agents/*.md`.
 
 Personas:
 - **Core six** — `ml-scientist` (model quality), `ab-critic` (experiment validity),
