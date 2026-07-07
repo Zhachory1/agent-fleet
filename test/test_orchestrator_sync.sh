@@ -29,6 +29,8 @@ grep -qF 'AGENT_FLEET_JOURNAL' "$B" || { echo "FAIL: portable prompt missing exp
 grep -qF '$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt' "$B" || { echo "FAIL: portable prompt missing FR9 durable artifact path"; exit 1; }
 grep -qF '@@from: synthesis' "$B" || { echo "FAIL: portable prompt missing synthesis capture"; exit 1; }
 grep -qF 'blind-judge.sh" candidates --all' "$B" || { echo "FAIL: portable prompt missing candidate verification"; exit 1; }
+grep -qF 'Task output paths are not a' "$B" || { echo "FAIL: portable prompt missing task-output-not-transcript warning"; exit 1; }
+grep -qF 'council not complete — formal room/journal capture missing' "$B" || { echo "FAIL: portable prompt missing formal capture hard stop"; exit 1; }
 grep -qF 'TRUNCATION_GUARD' "$B" || { echo "FAIL: portable prompt missing task-output truncation guard"; exit 1; }
 grep -qF 'at most 5 `top_issues`' "$B" || { echo "FAIL: portable prompt missing bounded top_issues cap"; exit 1; }
 grep -qF -- '--mode ship' "$B" || { echo "FAIL: portable prompt missing ship mode"; exit 1; }

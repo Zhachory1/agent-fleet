@@ -42,7 +42,16 @@ mkdir -p "$AGENT_CHAT_ROOT/rooms/$ROOM" "$(dirname "$AGENT_FLEET_JOURNAL")"
 ```
 
 Every artifact, transcript line, synthesis block, and journal row for this council MUST use the same
-`ROOM`, `AGENT_CHAT_ROOT`, and `AGENT_FLEET_JOURNAL`. At the end, verify all three exist:
+`ROOM`, `AGENT_CHAT_ROOT`, and `AGENT_FLEET_JOURNAL`. **This is non-optional for every mode,
+including `--mode research`, external subagent/task runs, and private-doc/report work.** Do not treat
+Task/subagent output, chat history, tool logs, or a final written artifact as a substitute for formal
+room capture.
+
+**Hard stop:** if you cannot write `artifact.txt`, capture persona positions into `log.jsonl`, capture
+`@@from: synthesis`, and append a journal row, then do not call the council complete. Say explicitly:
+"council not complete — formal room/journal capture missing."
+
+At the end, verify all three exist:
 
 ```bash
 test -f "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
@@ -188,7 +197,9 @@ POSITION (persona: <name>)
 
 **MANDATORY:** persist ALL positions in ONE call (the durable record of the thinking),
 round-tagged `#r<N>`. Do NOT loop N appends — this exact step was skipped on real runs and
-lost the transcript.
+lost the transcript. If positions came from an external task/subagent mechanism, copy each persona's
+FULL returned POSITION back into this capture block before continuing. Task output paths are not a
+transcript; `log.jsonl` is the transcript.
 ```
 bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture "$ROOM" <<'EOF'
 @@from: <persona-1>#r1
@@ -204,7 +215,8 @@ test -f "$AGENT_CHAT_ROOT/rooms/$ROOM/log.jsonl"
 bash "$AGENT_FLEET_HOME/lib/transcript.sh" show "$ROOM" | grep -q '#r1\|round 1'
 ```
 
-If either check fails, the run is unrecorded — redo capture before synthesizing.
+If either check fails, the run is unrecorded — redo capture before synthesizing. Never continue to
+synthesis from unpersisted task outputs.
 
 ### Iterations 2..N — reflection (critique-before-concede)
 For each round `r` from 2 to N, re-run the SAME personas. Each persona's prompt **injects each
@@ -226,7 +238,9 @@ Revise YOURS — but in this ORDER:
 in its OWN prior position** — "a peer changed my mind" is not sufficient for red-team.
 
 Capture each round round-tagged `@@from: <persona>#r<N>` using the same `$ROOM`. Do not switch
-`AGENT_CHAT_ROOT` or room names mid-council.
+`AGENT_CHAT_ROOT` or room names mid-council. For every reflection round, copy the FULL persona
+responses from subagents/tasks into the room log before running the next round. A council with
+uncaptured reflection rounds is invalid for research/accounting.
 
 **Convergence / mush check (`warned` state machine).** Derive `issue_count` per persona by counting
 its emitted `top_issues` bullets (e.g. `grep -cE '^\s*-\s*\[(BLOCKER|MAJOR|MINOR)\]'`). After each
@@ -253,7 +267,7 @@ Then produce:
 ```
 
 Immediately persist that exact synthesis into the same room. This is mandatory for later
-blinded-judge dissent-erasure checks:
+blinded-judge dissent-erasure checks and for any claim that the council influenced the artifact:
 
 ```bash
 bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture "$ROOM" <<'EOF'
@@ -280,7 +294,8 @@ Legacy 12-positional form is still supported (run `journal.sh --help` for both s
 `run_kind` matters: `investigation` runs naturally surface many hypotheses that don't all get
 pursued, so they are reported separately (no acted-on gate). `code` and `design` runs share the
 actionable gate. Default is `code` if omitted (backward compat).
-After append, verify the journal row and candidate status before ending the run:
+After append, verify the journal row and candidate status before ending the run. If `journal.sh append`
+fails, the council is not complete; fix capture/journal state rather than summarizing from memory:
 
 ```bash
 jq -e --arg room "$ROOM" 'select(.room==$room)' "$AGENT_FLEET_JOURNAL" >/dev/null
