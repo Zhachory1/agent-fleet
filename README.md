@@ -326,3 +326,5 @@ first-run install path and overlay presets match a non-author workflow.
 ## License
 
 [MIT](LICENSE) — Copyright (c) 2026 Zhachory Volker.
+
+- [JMT x402 Agent Tools](https://jmt-x402-proxy.jmthomasofficial.workers.dev) — 25 paid x402 endpoints on Base mainnet: web search, AI analysis, crypto/stock data, SEC filings, company intel, news, sentiment, macro dashboard. $0.001-$0.15/call USDC. Local LLM-powered.
