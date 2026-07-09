@@ -11,6 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: install deps
         run: sudo apt-get update && sudo apt-get install -y jq
 
@@ -18,12 +22,14 @@ jobs:
         run: |
           bash --version | head -1
           jq --version
+          node --version
 
       - name: syntax check
         run: |
           for f in install.sh lib/*.sh test/*.sh; do
             bash -n "$f" || { echo "FAIL: $f failed bash -n"; exit 1; }
           done
+          node --check bin/agent-fleet.js
 
       - name: run tests
         run: |

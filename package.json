@@ -1,0 +1,52 @@
+{
+  "name": "agent-fleet",
+  "version": "0.3.0",
+  "description": "Portable council and ship agent prompts for AI coding tools.",
+  "license": "MIT",
+  "author": "Zhachory Volker",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zhachory1/agent-fleet.git"
+  },
+  "homepage": "https://github.com/Zhachory1/agent-fleet#readme",
+  "bugs": {
+    "url": "https://github.com/Zhachory1/agent-fleet/issues"
+  },
+  "bin": {
+    "agent-fleet": "bin/agent-fleet.js"
+  },
+  "files": [
+    "agents/*.md",
+    "!agents/_overlay.md",
+    "!agents/_rokt-overlay.md",
+    "agents/_overlay.md.example",
+    "agents/_overlay.example",
+    "ship-agents/*.md",
+    "skills",
+    "prompts",
+    "bin",
+    "lib",
+    "examples",
+    "install.sh",
+    "install.manifest.json",
+    "VERSION",
+    "README.md",
+    "INSTALL.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "bash -c 'fail=0; for t in test/test_*.sh; do bash \"$t\" || fail=1; done; exit $fail'"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ai-agents",
+    "coding-agents",
+    "claude-code",
+    "codex",
+    "opencode",
+    "cursor",
+    "cave"
+  ]
+}

@@ -45,7 +45,7 @@ grep -qF -- '--personas a,b,c' "$B" || { echo "FAIL: portable prompt missing for
 fail=0
 for pf in "$DIR"/agents/*.md; do
   name=$(basename "$pf" .md)
-  case "$name" in INDEX|_overlay|_overlay.md.example) continue ;; esac
+  case "$name" in INDEX|_overlay|_rokt-overlay|_overlay.md.example) continue ;; esac
   if ! grep -qE "(^|[^a-zA-Z0-9_-])${name}([^a-zA-Z0-9_-]|$)" "$B"; then
     echo "FAIL: persona '$name' is not referenced in canonical orchestrator prompt"
     fail=1

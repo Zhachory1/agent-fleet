@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # agent-fleet installer — works across AI coding tools.
 #
-# Usage:
+# Primary usage:
+#   npx agent-fleet install --tool claude
+#
+# Fallback usage when npm/npx is unavailable:
 #   install.sh                      # default: --tool claude
 #   install.sh --tool claude        # symlink personas -> ~/.claude/agents, skill -> ~/.claude/skills/council
 #                                   # (copies personas instead when AGENT_FLEET_SUBAGENT_MODEL is set)
@@ -23,7 +26,7 @@
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 VERSION="$(cat "$SRC/VERSION" 2>/dev/null || echo 'unknown')"
-TOOL="claude"; TARGET=""; INSTALL_DIR=""; COPY=0; UNINSTALL=0; PRINT=0; AGENT_INSTRUCTIONS=0; SCOPE="project"
+TOOL="claude"; TARGET=""; INSTALL_DIR=""; COPY="${AGENT_FLEET_INSTALL_COPY:-0}"; UNINSTALL=0; PRINT=0; AGENT_INSTRUCTIONS=0; SCOPE="project"
 SUBAGENT_MODEL_OVERRIDE="${AGENT_FLEET_SUBAGENT_MODEL:-}"
 
 print_agent_instructions() {
@@ -36,31 +39,41 @@ Rule: do NOT vendor this repo into the user's project. Install only:
 - skills/council/ and skills/ship/ skill directories
 - prompts/council-orchestrator.md and prompts/ship-orchestrator.md prompts
 
+Use npm/npx first. Keep this script as the fallback when npm is unavailable.
+
 Spawned agents default to cheaper `model: haiku`. To rewrite installed agent copies to another model:
-  AGENT_FLEET_SUBAGENT_MODEL=<model> bash install.sh ...
+  AGENT_FLEET_SUBAGENT_MODEL=<model> npx agent-fleet install ...
+  # fallback: AGENT_FLEET_SUBAGENT_MODEL=<model> bash install.sh ...
 
 Pick one:
-- Claude Code: bash install.sh --tool claude
+- Claude Code: npx agent-fleet install --tool claude
   -> ~/.claude/agents + ~/.claude/skills/{council,ship}
-- Codex CLI: bash install.sh --tool codex
+  fallback: bash install.sh --tool claude
+- Codex CLI: npx agent-fleet install --tool codex
   -> ~/.codex/skills/{council,ship} + ~/.codex/agent-fleet
-- Cave project: bash install.sh --tool cave
+  fallback: bash install.sh --tool codex
+- Cave project: npx agent-fleet install --tool cave
   -> ./.cave/{agents,skills,prompts}
-- Cave user-global: bash install.sh --tool cave --user
+  fallback: bash install.sh --tool cave
+- Cave user-global: npx agent-fleet install --tool cave --user
   -> ${CAVE_HOME:-~/.cave}
-- Cursor: bash install.sh --tool cursor
+  fallback: bash install.sh --tool cave --user
+- Cursor: npx agent-fleet install --tool cursor
   -> ./.cursor/rules
-- opencode: bash install.sh --tool opencode
+  fallback: bash install.sh --tool cursor
+- opencode: npx agent-fleet install --tool opencode
   -> ./.agent-fleet
+  fallback: bash install.sh --tool opencode
 - Unknown TUI with global config dir: ask user for dir, then:
-  bash install.sh --dir <DIR>
-  Example: bash install.sh --dir ~/.mewrite
+  npx agent-fleet install --dir <DIR>
+  Example: npx agent-fleet install --dir ~/.mewrite
   -> <DIR>/agents + <DIR>/skills/{council,ship} + <DIR>/prompts
+  fallback: bash install.sh --dir ~/.mewrite
 - Generic flat rules dir:
-  bash install.sh --target <DIR> --copy
+  npx agent-fleet install --target <DIR> --copy
+  fallback: bash install.sh --target <DIR> --copy
 
 More: INSTALL.md and install.manifest.json.
-No npm/npx package is published yet; clone/download repo and run install.sh.
 HELP
 }
 
@@ -68,7 +81,10 @@ print_help() {
   cat <<HELP
 agent-fleet installer v${VERSION}
 
-Usage:
+Primary npm UX:
+  npx agent-fleet install [options]
+
+Fallback script UX:
   install.sh [options]
 
 Options:
@@ -111,22 +127,31 @@ Options:
   --help, -h                 This message
 
 Examples:
-  install.sh                                  # Claude Code, default symlinks
-  install.sh --tool cursor                    # Cursor: copy into ./.cursor/rules/
-  install.sh --tool opencode                  # opencode: copy into ./.agent-fleet/
-  install.sh --tool codex                     # Codex: copy prompt/personas + install skill
-  install.sh --tool cave                      # Cave: install into ./.cave/{agents,skills,prompts}
-  install.sh --dir ~/.mewrite                 # unknown TUI: generic global DIR/{agents,skills,prompts}
-  install.sh --target ./custom/path --copy    # explicit flat target override
-  install.sh --agent-instructions             # agent-facing install decision tree
-  install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
+  npx agent-fleet install --tool claude                    # Claude Code, durable copies
+  npx agent-fleet install --tool cursor                    # Cursor: copy into ./.cursor/rules/
+  npx agent-fleet install --tool opencode                  # opencode: copy into ./.agent-fleet/
+  npx agent-fleet install --tool codex                     # Codex: copy prompt/personas + install skill
+  npx agent-fleet install --tool cave                      # Cave: install into ./.cave/{agents,skills,prompts}
+  npx agent-fleet install --dir ~/.mewrite                 # unknown TUI: generic global DIR/{agents,skills,prompts}
+  npx agent-fleet install --target ./custom/path --copy    # explicit flat target override
+  npx agent-fleet install --agent-instructions             # agent-facing install decision tree
+  npx agent-fleet install --print | pbcopy                 # copy prompt to clipboard for chat tools
+
+Fallback examples when npm/npx is unavailable:
+  bash install.sh --tool claude      # symlinks from local clone by default
+  AGENT_FLEET_INSTALL_COPY=1 bash install.sh --tool claude
+  bash install.sh --dir ~/.mewrite
 
 Model override:
   Spawned agents default to cheaper \`model: haiku\`. Set
   AGENT_FLEET_SUBAGENT_MODEL=<model> during install to rewrite installed
   agent frontmatter. This does not change the parent/orchestrator model.
 
-Requirements: bash, jq (and git for full functionality).
+Copy mode:
+  AGENT_FLEET_INSTALL_COPY=1 forces copy mode for native installs. The npm CLI
+  sets this automatically so one-shot npx installs do not point at npm cache paths.
+
+Requirements: bash for install; jq for council journal/transcript helpers.
   Run \`bash $SRC/lib/journal.sh --help\` for journal CLI usage.
 HELP
 }
@@ -170,22 +195,24 @@ if [ -n "$SUBAGENT_MODEL_OVERRIDE" ]; then
   fi
 fi
 
-# Dependency precheck (fast-fail with a clear message if jq missing). --help,
-# --version, --print, and --agent-instructions intentionally work without jq.
+# jq is required by journal/transcript helpers, but not by payload installation itself.
+# Keep install low-friction; warn instead of blocking npm/npx installs.
 if ! command -v jq >/dev/null 2>&1; then
-  echo "install.sh: jq is required but not found on PATH." >&2
+  echo "install.sh: WARN jq not found. Install still proceeds, but council journal/transcript helpers require jq." >&2
   echo "  macOS:  brew install jq" >&2
   echo "  Debian: apt-get install jq" >&2
   echo "  Other:  https://jqlang.github.io/jq/download/" >&2
-  exit 1
 fi
 
 place() { # place <src-file> <dst-path>
   mkdir -p "$(dirname "$2")"
+  rm -f "$2"
   if [ "$COPY" = "1" ]; then cp -f "$1" "$2"; else ln -sf "$1" "$2"; fi
 }
 place_dir() { # place_dir <src-dir> <dst-dir>; copy-only for sandboxed tool resource dirs
-  mkdir -p "$(dirname "$2")" "$2"
+  mkdir -p "$(dirname "$2")"
+  if [ -L "$2" ] || [ -f "$2" ]; then rm -f "$2"; fi
+  mkdir -p "$2"
   cp -R "$1"/. "$2"/
 }
 place_agent() { # place_agent <src-file> <dst-path>
@@ -266,12 +293,13 @@ place_cave_personas() { # place_cave_personas <dst-dir>
 }
 # personas: enumerate the actual persona files. Excludes:
 #   - _overlay.md          (private overlay, not a persona; gitignored)
+#   - _rokt-overlay.md     (legacy private overlay name; gitignored)
 #   - _overlay.md.example  (overlay template, not a persona)
 #   - INDEX.md             (the catalog, not a persona)
 personas() {
   for f in "$SRC"/agents/*.md; do
     case "$(basename "$f")" in
-      _overlay.md|_overlay.md.example|INDEX.md) continue ;;
+      _overlay.md|_rokt-overlay.md|_overlay.md.example|INDEX.md) continue ;;
     esac
     echo "$f"
   done
@@ -433,12 +461,17 @@ case "$TOOL" in
     AGENTS_DST="$HOME/.claude/agents"; SKILL_DST="$HOME/.claude/skills/council"; SHIP_SKILL_DST="$HOME/.claude/skills/ship"
     if [ "$UNINSTALL" = "1" ]; then
       remove_agents "$AGENTS_DST"
-      rm -f "$SKILL_DST" "$SHIP_SKILL_DST"; echo "agent-fleet: uninstalled Claude files."; exit 0
+      rm -rf "$SKILL_DST" "$SHIP_SKILL_DST"; echo "agent-fleet: uninstalled Claude files."; exit 0
     fi
     mkdir -p "$AGENTS_DST" "$HOME/.claude/skills"
     place_agents "$AGENTS_DST"
-    ln -sfn "$SRC/skills/council" "$SKILL_DST"
-    ln -sfn "$SRC/skills/ship" "$SHIP_SKILL_DST"
+    if [ "$COPY" = "1" ]; then
+      place_dir "$SRC/skills/council" "$SKILL_DST"
+      place_dir "$SRC/skills/ship" "$SHIP_SKILL_DST"
+    else
+      ln -sfn "$SRC/skills/council" "$SKILL_DST"
+      ln -sfn "$SRC/skills/ship" "$SHIP_SKILL_DST"
+    fi
     echo "agent-fleet: installed for Claude Code. agents → $AGENTS_DST ; council skill → $SKILL_DST ; ship skill → $SHIP_SKILL_DST"
     echo ""
     echo "Optional next steps:"

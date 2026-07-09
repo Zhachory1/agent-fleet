@@ -11,7 +11,7 @@ fail=0
 
 # How many installable agent .md files exist (council personas + ship implementation agents).
 expected_personas=$(find "$DIR/agents" -maxdepth 1 -name '*.md' \
-  ! -name 'INDEX.md' ! -name '_overlay.md' ! -name '_overlay.md.example' | wc -l | tr -d ' ')
+  ! -name 'INDEX.md' ! -name '_overlay.md' ! -name '_rokt-overlay.md' ! -name '_overlay.md.example' | wc -l | tr -d ' ')
 expected_ship_agents=$(find "$DIR/ship-agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
 expected_agents=$((expected_personas + expected_ship_agents))
 expected_files=$((expected_agents + 2))  # agents + council-orchestrator.md + ship-orchestrator.md
@@ -316,6 +316,62 @@ if [ ! -f "$tmp/cave-home/prompts/council-orchestrator.md" ]; then
 fi
 rm -rf "$tmp"
 
+# npm/npx CLI is the primary UX and delegates to the same installer behavior.
+tmp=$(mktemp_d)
+CLI_HOME="$tmp/mewrite-home"
+( cd "$tmp" && HOME="$tmp/home" node "$DIR/bin/agent-fleet.js" install --dir "$CLI_HOME" >/dev/null 2>&1 ) || {
+  echo "FAIL: agent-fleet install --dir exited non-zero"; fail=1
+}
+if [ ! -f "$CLI_HOME/agents/red-team.md" ] || [ ! -f "$CLI_HOME/skills/council/SKILL.md" ] || [ ! -f "$CLI_HOME/skills/ship/SKILL.md" ]; then
+  echo "FAIL: agent-fleet install --dir did not place generic payload"
+  fail=1
+fi
+if [ ! -f "$tmp/home/.agent-fleet/lib/transcript.sh" ] || [ -f "$tmp/home/.agent-fleet/agents/_overlay.md" ]; then
+  echo "FAIL: agent-fleet CLI did not sync safe stable runtime home"
+  fail=1
+fi
+rm -rf "$tmp"
+
+tmp=$(mktemp_d)
+mkdir -p "$tmp/stale/agents" "$tmp/stale/skills/council" "$tmp/home/.claude/agents" "$tmp/home/.claude/skills"
+printf 'stale\n' > "$tmp/stale/agents/red-team.md"
+printf 'stale\n' > "$tmp/stale/skills/council/SKILL.md"
+ln -s "$tmp/stale/agents/red-team.md" "$tmp/home/.claude/agents/red-team.md"
+ln -s "$tmp/stale/skills/council" "$tmp/home/.claude/skills/council"
+( cd "$tmp" && HOME="$tmp/home" node "$DIR/bin/agent-fleet.js" install --tool claude >/dev/null 2>&1 ) || {
+  echo "FAIL: agent-fleet install --tool claude exited non-zero"; fail=1
+}
+if [ ! -f "$tmp/home/.claude/agents/red-team.md" ] || [ ! -f "$tmp/home/.claude/skills/council/SKILL.md" ]; then
+  echo "FAIL: agent-fleet install --tool claude did not place Claude payload"
+  fail=1
+fi
+if [ -L "$tmp/home/.claude/agents/red-team.md" ] || [ -L "$tmp/home/.claude/skills/council" ]; then
+  echo "FAIL: agent-fleet install --tool claude should replace stale symlinks with durable copies"
+  fail=1
+fi
+if grep -q '^stale$' "$tmp/home/.claude/agents/red-team.md" || grep -q '^stale$' "$tmp/home/.claude/skills/council/SKILL.md"; then
+  echo "FAIL: agent-fleet install --tool claude left stale symlink targets in place"
+  fail=1
+fi
+( cd "$tmp" && HOME="$tmp/home" node "$DIR/bin/agent-fleet.js" install --tool claude --uninstall >/dev/null 2>&1 ) || {
+  echo "FAIL: agent-fleet install --tool claude --uninstall exited non-zero after copy install"; fail=1
+}
+if [ -e "$tmp/home/.claude/agents/red-team.md" ] || [ -e "$tmp/home/.claude/skills/council" ]; then
+  echo "FAIL: agent-fleet install --tool claude --uninstall left copied payload behind"
+  fail=1
+fi
+rm -rf "$tmp"
+
+tmp=$(mktemp_d)
+( cd "$tmp" && HOME="$tmp/home" AGENT_FLEET_SUBAGENT_MODEL=sonnet node "$DIR/bin/agent-fleet.js" install --tool cave >/dev/null 2>&1 ) || {
+  echo "FAIL: agent-fleet install --tool cave with model override exited non-zero"; fail=1
+}
+if ! grep -q '^model: sonnet$' "$tmp/.cave/agents/red-team.md"; then
+  echo "FAIL: agent-fleet install did not pass AGENT_FLEET_SUBAGENT_MODEL through"
+  fail=1
+fi
+rm -rf "$tmp"
+
 set +e
 OUT=$(HOME="$(mktemp_d)" bash "$DIR/install.sh" --tool codex --user 2>&1)
 rc=$?
@@ -331,12 +387,14 @@ echo "$HELP_OUT" | grep -q 'AGENT_FLEET_SUBAGENT_MODEL' \
 AGENT_OUT=$(bash "$DIR/install.sh" --agent-instructions)
 echo "$AGENT_OUT" | grep -q 'do NOT vendor this repo' \
   || { echo "FAIL: --agent-instructions missing anti-vendor rule"; fail=1; }
+echo "$AGENT_OUT" | grep -q 'npx agent-fleet install --dir ~/.mewrite' \
+  || { echo "FAIL: --agent-instructions missing primary unknown TUI npx example"; fail=1; }
 echo "$AGENT_OUT" | grep -q 'bash install.sh --dir ~/.mewrite' \
-  || { echo "FAIL: --agent-instructions missing unknown TUI --dir example"; fail=1; }
+  || { echo "FAIL: --agent-instructions missing fallback unknown TUI --dir example"; fail=1; }
 echo "$AGENT_OUT" | grep -q 'AGENT_FLEET_SUBAGENT_MODEL' \
   || { echo "FAIL: --agent-instructions missing subagent model override"; fail=1; }
-jq -e '.tools.unknown_global_tui.command == "bash install.sh --dir <TUI_CONFIG_DIR>" and .tools.claude.command == "bash install.sh --tool claude"' \
+jq -e '.tools.unknown_global_tui.command == "npx agent-fleet install --dir <TUI_CONFIG_DIR>" and .tools.unknown_global_tui.fallback == "bash install.sh --dir <TUI_CONFIG_DIR>" and .tools.claude.command == "npx agent-fleet install --tool claude" and .tools.claude.fallback == "bash install.sh --tool claude"' \
   "$DIR/install.manifest.json" >/dev/null \
-  || { echo "FAIL: install.manifest.json missing expected commands"; fail=1; }
+  || { echo "FAIL: install.manifest.json missing expected primary npx/fallback commands"; fail=1; }
 
 [ "$fail" = "0" ] && echo "PASS test_install_tool_flags" || exit 1

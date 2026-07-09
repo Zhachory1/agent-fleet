@@ -25,7 +25,7 @@ false-consensus flag**. Built to *disagree with you* — catch what a single pas
 |---|---|
 | Personas | 17 total: 6 core + 10 promoted + 1 experimental |
 | Tool support | Claude Code, Cave, opencode, Codex, Cursor, generic chat |
-| Tests | 18 shell test scripts; same loop runs in CI |
+| Tests | shell test suite; same loop runs in CI |
 | Parallel vs single-context | 10-pair dogfood complete: parallel 10/10, single-context 8/10, mean +20pp, median 0pp |
 | Blinded judge | Phase 1 complete; strict Phase 2 in progress at 29/50 distinct judged rooms |
 | Lens baseline | 26/28 councils beat same-lens single pass; current gate passed |
@@ -36,17 +36,17 @@ Current work is tracked in [`docs/ROADMAP.md`](docs/ROADMAP.md). Historical impl
 ## Quick start
 
 ```bash
-git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
-cd ~/code/agent-fleet
-export AGENT_FLEET_HOME=$PWD
 # Read the maturity disclaimer above before relying on output as decision-grade.
-bash install.sh                # Claude Code (default; symlinks)
-# OR: bash install.sh --tool cursor    # Cursor   (→ ./.cursor/rules/)
-# OR: bash install.sh --tool opencode  # opencode (→ ./.agent-fleet/)
-# OR: bash install.sh --tool codex     # Codex    (→ ./.agent-fleet/ + ~/.codex/skills/{council,ship})
-# OR: bash install.sh --tool cave      # Cave     (→ ./.cave/{agents,skills,prompts})
-# OR: bash install.sh --print | pbcopy  # any chat: paste the prompt
-bash examples/first-council/run.sh         # see a real run end-to-end (isolated tmpdir)
+npx agent-fleet install --tool claude        # Claude Code (copies durable payloads)
+# OR: npx agent-fleet install --tool cursor    # Cursor   (→ ./.cursor/rules/)
+# OR: npx agent-fleet install --tool opencode  # opencode (→ ./.agent-fleet/)
+# OR: npx agent-fleet install --tool codex     # Codex    (→ ./.agent-fleet/ + ~/.codex/skills/{council,ship})
+# OR: npx agent-fleet install --tool cave      # Cave     (→ ./.cave/{agents,skills,prompts})
+# OR: npx agent-fleet install --print | pbcopy # any chat: paste the prompt
+
+# Optional local clone for examples/dev:
+git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
+cd ~/code/agent-fleet && bash examples/first-council/run.sh  # isolated tmpdir
 ```
 
 ## What you get
@@ -146,12 +146,12 @@ persona still reads peers' prior-round POSITIONs and must REFUTE-FIRST before co
 
 | Tool | Round-1 isolation | How |
 |---|---|---|
-| **Claude Code** | parallel (Task tool) | `install.sh` → native agents + `/council` skill |
-| **opencode** | parallel (subagents) | `AGENTS.md` + `--target` personas; orchestrate via subagents |
+| **Claude Code** | parallel (Task tool) | `npx agent-fleet install --tool claude` → native agents + `/council` skill |
+| **opencode** | parallel (subagents) | `npx agent-fleet install --tool opencode`; orchestrate via subagents |
 | **Codex CLI** | single-context | reads root `AGENTS.md`; run the orchestrator prompt |
-| **Cursor** | single-context | drop personas into `.cursor/rules/`; paste orchestrator prompt |
-| **Cave** | parallel when using subagents | `install.sh --tool cave` → `.cave/{agents,skills,prompts}` |
-| **any AI chat** | single-context | `install.sh --print` → paste the prompt |
+| **Cursor** | single-context | `npx agent-fleet install --tool cursor` → `.cursor/rules/`; paste orchestrator prompt |
+| **Cave** | parallel when using subagents | `npx agent-fleet install --tool cave` → `.cave/{agents,skills,prompts}` |
+| **any AI chat** | single-context | `npx agent-fleet install --print` → paste the prompt |
 
 > **Honest disclosure on the difference:** parallel mode guarantees personas don't influence
 > each other's round-1 POSITIONs; single-context mode has known round-1 contamination risk
@@ -171,59 +171,59 @@ Install only the **agent prompts/personas/skills** into the AI TUI's normal user
 
 | TUI | Preferred install location | Command |
 |---|---|---|
-| Claude Code | `~/.claude/agents` + `~/.claude/skills/{council,ship}` | `bash install.sh --tool claude` |
-| Codex CLI | `~/.codex/skills/{council,ship}` + `~/.codex/agent-fleet` payload | `bash install.sh --tool codex` |
-| Cave | project `.cave/{agents,skills,prompts}` or user `~/.cave` | `bash install.sh --tool cave` or `bash install.sh --tool cave --user` |
-| Cursor | project `.cursor/rules` | `bash install.sh --tool cursor` |
-| opencode | project `.agent-fleet` | `bash install.sh --tool opencode` |
-| Unknown TUI with global config dir, e.g. Mewrite | `~/.mewrite/{agents,skills,prompts}` or whatever dir your TUI documents | `bash install.sh --dir ~/.mewrite` |
+| Claude Code | `~/.claude/agents` + `~/.claude/skills/{council,ship}` | `npx agent-fleet install --tool claude` |
+| Codex CLI | `~/.codex/skills/{council,ship}` + `~/.codex/agent-fleet` payload | `npx agent-fleet install --tool codex` |
+| Cave | project `.cave/{agents,skills,prompts}` or user `~/.cave` | `npx agent-fleet install --tool cave` or `npx agent-fleet install --tool cave --user` |
+| Cursor | project `.cursor/rules` | `npx agent-fleet install --tool cursor` |
+| opencode | project `.agent-fleet` | `npx agent-fleet install --tool opencode` |
+| Unknown TUI with global config dir, e.g. Mewrite | `~/.mewrite/{agents,skills,prompts}` or whatever dir your TUI documents | `npx agent-fleet install --dir ~/.mewrite` |
 
-Use `--dir DIR` when this repo does not know your TUI by name. It copies the generic payload into `DIR/agents`, `DIR/skills/{council,ship}`, and `DIR/prompts/{council-orchestrator.md,ship-orchestrator.md}`; uninstall with `bash install.sh --dir DIR --uninstall`.
+Use `--dir DIR` when this repo does not know your TUI by name. It copies the generic payload into `DIR/agents`, `DIR/skills/{council,ship}`, and `DIR/prompts/{council-orchestrator.md,ship-orchestrator.md}`; uninstall with `npx agent-fleet install --dir DIR --uninstall`.
 
-Spawned personas and ship agents default to cheaper `model: haiku`; parent/orchestrator stays on your selected model. To install spawned agents with another model, run `AGENT_FLEET_SUBAGENT_MODEL=<model> bash install.sh ...` and rerun the installer to change it later.
+Spawned personas and ship agents default to cheaper `model: haiku`; parent/orchestrator stays on your selected model. To install spawned agents with another model, run `AGENT_FLEET_SUBAGENT_MODEL=<model> npx agent-fleet install ...` and rerun the installer to change it later.
 
-If you are an AI agent doing the install, run `bash install.sh --agent-instructions` first. The same decision tree is also in [`INSTALL.md`](INSTALL.md) and [`install.manifest.json`](install.manifest.json).
+If you are an AI agent doing the install, run `npx agent-fleet install --agent-instructions` first. The same decision tree is also in [`INSTALL.md`](INSTALL.md) and [`install.manifest.json`](install.manifest.json).
 
-`npx`/npm install is **not published yet**: this repo has no `package.json` package entrypoint. For now, clone or download the repo, then run `install.sh`. If a future `npx agent-fleet install --tool <tui>` exists, it should do the same copy-only resource install into the TUI folders above, with `--dir` as the escape hatch for unknown tools.
+`install.sh` remains as the compatibility fallback for environments without npm/npx. Fallback Claude installs symlink from your local clone unless `AGENT_FLEET_INSTALL_COPY=1` is set:
+
+```bash
+git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
+cd ~/code/agent-fleet
+bash install.sh --tool claude
+```
 
 ### Claude Code (recommended — full council)
 ```bash
-git clone https://github.com/Zhachory1/agent-fleet ~/code/agent-fleet
-cd ~/code/agent-fleet && export AGENT_FLEET_HOME=$PWD
-bash install.sh                     # symlinks agents → ~/.claude/agents, skills → ~/.claude/skills/{council,ship}
+npx agent-fleet install --tool claude  # copies agents → ~/.claude/agents, skills → ~/.claude/skills/{council,ship}
 # in Claude Code:  /council review this diff …
-bash install.sh --uninstall         # reversible
+npx agent-fleet install --tool claude --uninstall  # reversible
 ```
 
 ### Codex CLI / opencode
 ```bash
-export AGENT_FLEET_HOME=~/code/agent-fleet
-bash "$AGENT_FLEET_HOME/install.sh" --tool codex     # → ~/.codex/{skills/{council,ship},agent-fleet} + ./.agent-fleet refs
-bash "$AGENT_FLEET_HOME/install.sh" --tool opencode  # → ./.agent-fleet/
+npx agent-fleet install --tool codex     # → ~/.codex/{skills/{council,ship},agent-fleet} + ./.agent-fleet refs
+npx agent-fleet install --tool opencode  # → ./.agent-fleet/
 # then ask the agent: "act as the council orchestrator in ./.agent-fleet/council-orchestrator.md"
 ```
 
 ### Cave
 ```bash
-export AGENT_FLEET_HOME=~/code/agent-fleet
-bash "$AGENT_FLEET_HOME/install.sh" --tool cave      # → ./.cave/{agents,skills,prompts}
+npx agent-fleet install --tool cave      # → ./.cave/{agents,skills,prompts}
 ```
 
 ### Cursor
 ```bash
-export AGENT_FLEET_HOME=~/code/agent-fleet
-bash "$AGENT_FLEET_HOME/install.sh" --tool cursor    # → ./.cursor/rules/
+npx agent-fleet install --tool cursor    # → ./.cursor/rules/
 ```
 
 ### Unknown TUI global dir, e.g. Mewrite
 ```bash
-export AGENT_FLEET_HOME=~/code/agent-fleet
-bash "$AGENT_FLEET_HOME/install.sh" --dir ~/.mewrite   # → ~/.mewrite/{agents,skills,prompts}
+npx agent-fleet install --dir ~/.mewrite   # → ~/.mewrite/{agents,skills,prompts}
 ```
 
 ### Any AI editor / chat
 ```bash
-bash ~/code/agent-fleet/install.sh --print   # prints the orchestrator prompt — paste into chat
+npx agent-fleet install --print   # prints the orchestrator prompt — paste into chat
 # then paste 3-6 relevant agents/*.md persona prompts when asked
 ```
 
@@ -315,7 +315,7 @@ decision and README/stats update.** See the
 for t in test/test_*.sh; do bash "$t"; done
 ```
 
-CI runs the same loop on every push and PR (see badge above). 18 shell test scripts pass locally and in CI.
+CI runs the same loop on every push and PR (see badge above).
 
 ## Contributing
 

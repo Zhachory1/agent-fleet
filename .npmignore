@@ -1,0 +1,25 @@
+# private overlays / local context
+agents/_overlay.md
+agents/_rokt-overlay.md
+*.local
+.env
+.env.*
+
+# run artifacts
+tmp-council-*
+.workflow-runs/
+docs/measurement/parallel-vs-single-data/
+
+# repo/dev-only files
+test/
+docs/
+.github/
+.gitignore
+AGENTS.md
+CHANGELOG.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+assets/
+.cave/
+.agent-fleet/
+.cursor/

@@ -13,8 +13,8 @@ description: "Convene a council of 3-6 specialist personas to review a high-stak
 <!-- ITER_DEFAULT=2 -->
 
 Paste this into any AI coding tool (or load it as a rule / agent / AGENTS.md). It drives a
-multi-persona review. Set `AGENT_FLEET_HOME` to the repo path so the `lib/` helpers resolve
-(else skip the bash steps and keep the transcript by hand).
+multi-persona review. `npx agent-fleet install ...` syncs helpers to `~/.agent-fleet`; set
+`AGENT_FLEET_HOME` manually only if you use a custom repo/package path.
 
 You are the **council orchestrator**. Personas are independent reviewers; YOU sequence everything
 and hold all their outputs.
@@ -27,6 +27,8 @@ that vary across CLIs (`~/.claude`, `~/.agent-fleet`, XDG, etc.). Set/export the
 if [ -z "${AGENT_FLEET_HOME:-}" ]; then
   if command -v agent-fleet >/dev/null 2>&1 && AGENT_FLEET_HOME="$(agent-fleet home 2>/dev/null)" && [ -d "$AGENT_FLEET_HOME/lib" ]; then
     :
+  elif [ -d "$HOME/.agent-fleet/lib" ]; then
+    AGENT_FLEET_HOME="$HOME/.agent-fleet"
   elif [ -d "$HOME/code/agent-fleet/lib" ]; then
     AGENT_FLEET_HOME="$HOME/code/agent-fleet"
   else
