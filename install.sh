@@ -4,6 +4,7 @@
 # Usage:
 #   install.sh                      # default: --tool claude
 #   install.sh --tool claude        # symlink personas -> ~/.claude/agents, skill -> ~/.claude/skills/council
+#                                   # (copies personas instead when AGENT_FLEET_SUBAGENT_MODEL is set)
 #   install.sh --tool claude --uninstall
 #   install.sh --tool cursor        # COPY personas + orchestrator -> ./.cursor/rules/ (current repo)
 #   install.sh --tool opencode      # COPY personas + orchestrator -> ./.agent-fleet/ (current repo)
@@ -23,6 +24,7 @@ set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 VERSION="$(cat "$SRC/VERSION" 2>/dev/null || echo 'unknown')"
 TOOL="claude"; TARGET=""; INSTALL_DIR=""; COPY=0; UNINSTALL=0; PRINT=0; AGENT_INSTRUCTIONS=0; SCOPE="project"
+SUBAGENT_MODEL_OVERRIDE="${AGENT_FLEET_SUBAGENT_MODEL:-}"
 
 print_agent_instructions() {
   cat <<'HELP'
@@ -33,6 +35,9 @@ Rule: do NOT vendor this repo into the user's project. Install only:
 - ship-agents/*.md implementation agent files
 - skills/council/ and skills/ship/ skill directories
 - prompts/council-orchestrator.md and prompts/ship-orchestrator.md prompts
+
+Spawned agents default to cheaper `model: haiku`. To rewrite installed agent copies to another model:
+  AGENT_FLEET_SUBAGENT_MODEL=<model> bash install.sh ...
 
 Pick one:
 - Claude Code: bash install.sh --tool claude
@@ -69,6 +74,7 @@ Usage:
 Options:
   --tool claude              Default. Symlink personas → ~/.claude/agents,
                              skill → ~/.claude/skills/council
+                             (copies personas when AGENT_FLEET_SUBAGENT_MODEL is set)
   --tool claude --uninstall  Reverse a Claude Code install
   --tool cursor              COPY personas + orchestrator → ./.cursor/rules/
                              (Cursor reads .cursor/rules/, not AGENTS.md)
@@ -115,6 +121,11 @@ Examples:
   install.sh --agent-instructions             # agent-facing install decision tree
   install.sh --print | pbcopy                 # copy prompt to clipboard for chat tools
 
+Model override:
+  Spawned agents default to cheaper \`model: haiku\`. Set
+  AGENT_FLEET_SUBAGENT_MODEL=<model> during install to rewrite installed
+  agent frontmatter. This does not change the parent/orchestrator model.
+
 Requirements: bash, jq (and git for full functionality).
   Run \`bash $SRC/lib/journal.sh --help\` for journal CLI usage.
 HELP
@@ -149,6 +160,16 @@ if [ "$PRINT" = "1" ]; then
   exit 0
 fi
 
+if [ -n "$SUBAGENT_MODEL_OVERRIDE" ]; then
+  case "$SUBAGENT_MODEL_OVERRIDE" in
+    *$'\n'*|*$'\r'*) echo "install.sh: AGENT_FLEET_SUBAGENT_MODEL must be a single-line model id." >&2; exit 1;;
+  esac
+  if ! printf '%s' "$SUBAGENT_MODEL_OVERRIDE" | grep -Eq '^[[:alnum:]_.:/+-]+$'; then
+    echo "install.sh: AGENT_FLEET_SUBAGENT_MODEL contains unsupported characters: $SUBAGENT_MODEL_OVERRIDE" >&2
+    exit 1
+  fi
+fi
+
 # Dependency precheck (fast-fail with a clear message if jq missing). --help,
 # --version, --print, and --agent-instructions intentionally work without jq.
 if ! command -v jq >/dev/null 2>&1; then
@@ -167,19 +188,49 @@ place_dir() { # place_dir <src-dir> <dst-dir>; copy-only for sandboxed tool reso
   mkdir -p "$(dirname "$2")" "$2"
   cp -R "$1"/. "$2"/
 }
+place_agent() { # place_agent <src-file> <dst-path>
+  local tmp
+  mkdir -p "$(dirname "$2")"
+  if [ -z "$SUBAGENT_MODEL_OVERRIDE" ]; then
+    place "$1" "$2"
+    return
+  fi
+  tmp="$2.tmp.$$"
+  if ! awk -v model="$SUBAGENT_MODEL_OVERRIDE" '
+    BEGIN { in_frontmatter = 0; replaced = 0 }
+    NR == 1 && $0 == "---" { in_frontmatter = 1; print; next }
+    in_frontmatter && $0 == "---" { in_frontmatter = 0; print; next }
+    in_frontmatter && /^model:[[:space:]]*/ { print "model: " model; replaced = 1; next }
+    { print }
+    END { if (!replaced) exit 42 }
+  ' "$1" > "$tmp"; then
+    echo "install.sh: failed to rewrite model frontmatter for $1" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  mv "$tmp" "$2"
+}
 place_cave_persona() { # place_cave_persona <src-file> <dst-path>
   local tmp
   mkdir -p "$(dirname "$2")"
   # Cave's tool registry uses lowercase canonical tool names. Keep source personas
   # Claude-Code-compatible; transform only the Cave install copies.
   tmp="$2.tmp.$$"
-  awk '
+  if ! awk -v model="$SUBAGENT_MODEL_OVERRIDE" '
     function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
     BEGIN {
+      in_frontmatter = 0; replaced = (model == "")
       map["Read"] = "read"; map["Bash"] = "bash"; map["Edit"] = "edit"; map["Write"] = "write"
       map["Grep"] = "grep"; map["Glob"] = "find"; map["LS"] = "ls"; map["Ls"] = "ls"
     }
-    /^tools:[[:space:]]*/ {
+    NR == 1 && $0 == "---" { in_frontmatter = 1; print; next }
+    in_frontmatter && $0 == "---" { in_frontmatter = 0; print; next }
+    in_frontmatter && model != "" && /^model:[[:space:]]*/ {
+      print "model: " model
+      replaced = 1
+      next
+    }
+    in_frontmatter && /^tools:[[:space:]]*/ {
       tools = $0; sub(/^tools:[[:space:]]*/, "", tools)
       n = split(tools, raw, ",")
       out = ""
@@ -193,7 +244,25 @@ place_cave_persona() { # place_cave_persona <src-file> <dst-path>
       next
     }
     { print }
-  ' "$1" > "$tmp" && mv "$tmp" "$2" || { rm -f "$tmp"; return 1; }
+    END { if (!replaced) exit 42 }
+  ' "$1" > "$tmp"; then
+    echo "install.sh: failed to transform Cave persona $1" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  mv "$tmp" "$2"
+}
+remove_agents() { # remove_agents <dst-dir>
+  local f
+  while IFS= read -r f; do rm -f "$1/$(basename "$f")"; done < <(agent_payloads)
+}
+place_agents() { # place_agents <dst-dir>
+  local f
+  while IFS= read -r f; do place_agent "$f" "$1/$(basename "$f")"; done < <(agent_payloads)
+}
+place_cave_personas() { # place_cave_personas <dst-dir>
+  local f
+  while IFS= read -r f; do place_cave_persona "$f" "$1/$(basename "$f")"; done < <(agent_payloads)
 }
 # personas: enumerate the actual persona files. Excludes:
 #   - _overlay.md          (private overlay, not a persona; gitignored)
@@ -229,14 +298,14 @@ if [ -n "$INSTALL_DIR" ]; then
   PROMPT_DST="$INSTALL_DIR/prompts/council-orchestrator.md"
   SHIP_PROMPT_DST="$INSTALL_DIR/prompts/ship-orchestrator.md"
   if [ "$UNINSTALL" = "1" ]; then
-    for f in $(agent_payloads); do rm -f "$AGENTS_DST/$(basename "$f")"; done
+    remove_agents "$AGENTS_DST"
     rm -f "$PROMPT_DST" "$SHIP_PROMPT_DST"
     rm -rf "$SKILL_DST" "$SHIP_SKILL_DST"
     echo "agent-fleet: uninstalled generic payload from $INSTALL_DIR"
     exit 0
   fi
   COPY=1
-  for f in $(agent_payloads); do place "$f" "$AGENTS_DST/$(basename "$f")"; done
+  place_agents "$AGENTS_DST"
   place_dir "$SRC/skills/council" "$SKILL_DST"
   place_dir "$SRC/skills/ship" "$SHIP_SKILL_DST"
   place "$SRC/prompts/council-orchestrator.md" "$PROMPT_DST"
@@ -252,7 +321,7 @@ fi
 
 # Generic target: drop personas + the portable orchestrator prompt into DIR.
 if [ -n "$TARGET" ]; then
-  for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
+  place_agents "$TARGET"
   place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
   place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
   echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
@@ -265,7 +334,7 @@ case "$TOOL" in
   cursor)
     [ -n "$TARGET" ] || TARGET="./.cursor/rules"
     COPY=1  # Cursor's rules dir doesn't follow symlinks reliably
-    for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
+    place_agents "$TARGET"
     place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
     place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
     echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
@@ -275,7 +344,7 @@ case "$TOOL" in
   opencode)
     [ -n "$TARGET" ] || TARGET="./.agent-fleet"
     COPY=1
-    for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
+    place_agents "$TARGET"
     place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
     place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
     echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
@@ -294,19 +363,19 @@ case "$TOOL" in
     CODEX_SHIP_SKILL_DST="$CODEX_BASE/skills/ship"
     CODEX_BUNDLE_DST="$CODEX_BASE/agent-fleet"
     if [ "$UNINSTALL" = "1" ]; then
-      for f in $(agent_payloads); do rm -f "$TARGET/$(basename "$f")"; done
+      remove_agents "$TARGET"
       rm -f "$TARGET/council-orchestrator.md" "$TARGET/ship-orchestrator.md"
       rm -rf "$CODEX_SKILL_DST" "$CODEX_SHIP_SKILL_DST" "$CODEX_BUNDLE_DST"
       echo "agent-fleet: uninstalled Codex project files from $TARGET and global payload from $CODEX_BASE"
       exit 0
     fi
-    for f in $(agent_payloads); do place "$f" "$TARGET/$(basename "$f")"; done
+    place_agents "$TARGET"
     place "$SRC/prompts/council-orchestrator.md" "$TARGET/council-orchestrator.md"
     place "$SRC/prompts/ship-orchestrator.md" "$TARGET/ship-orchestrator.md"
     place_dir "$SRC/skills/council" "$CODEX_SKILL_DST"
     place_dir "$SRC/skills/ship" "$CODEX_SHIP_SKILL_DST"
     mkdir -p "$CODEX_BUNDLE_DST/agents" "$CODEX_BUNDLE_DST/prompts"
-    for f in $(agent_payloads); do place "$f" "$CODEX_BUNDLE_DST/agents/$(basename "$f")"; done
+    place_agents "$CODEX_BUNDLE_DST/agents"
     place "$SRC/prompts/council-orchestrator.md" "$CODEX_BUNDLE_DST/prompts/council-orchestrator.md"
     place "$SRC/prompts/ship-orchestrator.md" "$CODEX_BUNDLE_DST/prompts/ship-orchestrator.md"
     echo "agent-fleet: placed $(agent_payloads | wc -l | tr -d ' ') agents + council + ship prompts into $TARGET"
@@ -336,13 +405,13 @@ case "$TOOL" in
       CAVE_SHIP_PROMPT_DST="./.cave/prompts/ship-orchestrator.md"
     fi
     if [ "$UNINSTALL" = "1" ]; then
-      for f in $(agent_payloads); do rm -f "$CAVE_AGENTS_DST/$(basename "$f")"; done
+      remove_agents "$CAVE_AGENTS_DST"
       rm -f "$CAVE_PROMPT_DST" "$CAVE_SHIP_PROMPT_DST"
       rm -rf "$CAVE_SKILL_DST" "$CAVE_SHIP_SKILL_DST"
       echo "agent-fleet: uninstalled Cave $SCOPE-scope files."
       exit 0
     fi
-    for f in $(agent_payloads); do place_cave_persona "$f" "$CAVE_AGENTS_DST/$(basename "$f")"; done
+    place_cave_personas "$CAVE_AGENTS_DST"
     place "$SRC/prompts/council-orchestrator.md" "$CAVE_PROMPT_DST"
     place "$SRC/prompts/ship-orchestrator.md" "$CAVE_SHIP_PROMPT_DST"
     place_dir "$SRC/skills/council" "$CAVE_SKILL_DST"
@@ -363,11 +432,11 @@ case "$TOOL" in
   claude)
     AGENTS_DST="$HOME/.claude/agents"; SKILL_DST="$HOME/.claude/skills/council"; SHIP_SKILL_DST="$HOME/.claude/skills/ship"
     if [ "$UNINSTALL" = "1" ]; then
-      for f in $(agent_payloads); do rm -f "$AGENTS_DST/$(basename "$f")"; done
-      rm -f "$SKILL_DST" "$SHIP_SKILL_DST"; echo "agent-fleet: uninstalled Claude symlinks."; exit 0
+      remove_agents "$AGENTS_DST"
+      rm -f "$SKILL_DST" "$SHIP_SKILL_DST"; echo "agent-fleet: uninstalled Claude files."; exit 0
     fi
     mkdir -p "$AGENTS_DST" "$HOME/.claude/skills"
-    for f in $(agent_payloads); do ln -sf "$f" "$AGENTS_DST/$(basename "$f")"; done
+    place_agents "$AGENTS_DST"
     ln -sfn "$SRC/skills/council" "$SKILL_DST"
     ln -sfn "$SRC/skills/ship" "$SHIP_SKILL_DST"
     echo "agent-fleet: installed for Claude Code. agents → $AGENTS_DST ; council skill → $SKILL_DST ; ship skill → $SHIP_SKILL_DST"

@@ -1,7 +1,7 @@
 ---
 name: docs-dx
 description: 'Developer-experience reviewer who judges API ergonomics, error messages, onboarding friction, and docs quality. Pick for SDKs, libraries, CLIs, public APIs, internal platform tools, or any change that other engineers will have to live with.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

@@ -14,6 +14,14 @@ Do **not** vendor this repo into another project. Install only the agent-fleet p
 
 Put that payload in the AI TUI's normal resource folder.
 
+Spawned personas and ship agents default to cheaper `model: haiku`; the parent/orchestrator stays on the operator-selected model. To install spawned agents with another model, run:
+
+```bash
+AGENT_FLEET_SUBAGENT_MODEL=<model> bash install.sh ...
+```
+
+The override rewrites installed agent frontmatter at install time. Rerun the installer to change it later.
+
 ## Decision table
 
 | If user uses... | Run | Installs to |

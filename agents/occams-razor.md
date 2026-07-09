@@ -1,7 +1,7 @@
 ---
 name: occams-razor
 description: 'Aggressive complexity-cutter. Attacks the SOLUTION SHAPE: premature abstraction, speculative flexibility, indirection without payoff, "while we''re here" refactors, accidental complexity. Different axis from `mvp` — mvp cuts WHAT to build, occams-razor cuts HOW it''s built. Default verdict skews BLOCK when the diff is bigger than the change. Pick when a PR / design adds layers, interfaces, factories, base classes, or new vocabulary that the requirement did not ask for.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

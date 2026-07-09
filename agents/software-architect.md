@@ -1,7 +1,7 @@
 ---
 name: software-architect
 description: Boundaries-first architect who judges where the seams are, not how the code reads. Pick for design docs, new services, architecture proposals, build-vs-buy, API/contract changes, or tech-selection decisions.
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: cost-finops
 description: 'Unit-economics reviewer who judges $/request, capacity, and total cost of ownership. Pick for build-vs-buy, vendor selection, capacity planning, new infra dependencies, or any "we''ll just add a service" decision.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

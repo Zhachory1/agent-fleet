@@ -10,6 +10,7 @@ for name in "${EXPECTED[@]}"; do
   grep -q "^name: $name$" "$f" || { echo "FAIL: $name name field wrong"; fail=1; }
   grep -q '^description:' "$f" || { echo "FAIL: $name no description"; fail=1; }
   grep -q '^tools:' "$f" || { echo "FAIL: $name no tools"; fail=1; }
+  grep -q '^model: haiku$' "$f" || { echo "FAIL: $name should default spawned subagent model to haiku"; fail=1; }
   grep -q 'Context requirements' "$f" || { echo "FAIL: $name missing context requirements"; fail=1; }
   grep -q 'strongest_counterargument' "$f" || { echo "FAIL: $name missing strongest_counterargument"; fail=1; }
   grep -q 'Output format' "$f" || { echo "FAIL: $name missing output format"; fail=1; }

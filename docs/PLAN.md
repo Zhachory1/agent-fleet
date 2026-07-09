@@ -216,7 +216,7 @@ git commit -m "feat: add counterfactual journal helper + test"
 ---
 name: <persona-name>
 description: <one-line lens + when orchestrator should pick this persona>
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

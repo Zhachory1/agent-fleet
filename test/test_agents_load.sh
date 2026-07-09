@@ -13,6 +13,7 @@ for name in "${EXPECTED[@]}"; do
   head -1 "$f" | grep -q '^---$' || { echo "FAIL: $name no frontmatter"; fail=1; }
   grep -q "^name: $name$" "$f" || { echo "FAIL: $name name field wrong"; fail=1; }
   grep -q "^tools:" "$f" || { echo "FAIL: $name no tools"; fail=1; }
+  grep -q "^model: haiku$" "$f" || { echo "FAIL: $name should default spawned subagent model to haiku"; fail=1; }
   grep -q "strongest_counterargument" "$f" || { echo "FAIL: $name missing mandatory dissent"; fail=1; }
   grep -q "TRUNCATION_GUARD" "$f" || { echo "FAIL: $name missing truncation guard"; fail=1; }
   grep -q "_overlay.md" "$f" || { echo "FAIL: $name no overlay hook"; fail=1; }

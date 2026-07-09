@@ -1,7 +1,7 @@
 ---
 name: ship-implementation-lead
 description: 'Implementation lead for accepted specs. Writes the smallest correct patch, honors scope lock/non-goals, edits code/docs, runs focused validation, and stops. Use for /ship implementation, bugfix, small feature, focused refactor after direction is decided.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash, Edit, Write
 ---
 

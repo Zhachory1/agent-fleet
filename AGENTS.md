@@ -28,6 +28,8 @@ Decision tree:
   - Example: Mewrite → `bash install.sh --dir ~/.mewrite`
 - Generic flat rules dir: `bash install.sh --target <DIR> --copy`
 
+Spawned personas and ship agents default to cheaper `model: haiku`; set `AGENT_FLEET_SUBAGENT_MODEL=<model>` while installing to rewrite installed agent copies to another model.
+
 Before guessing, run `bash install.sh --agent-instructions` or read `INSTALL.md` / `install.manifest.json`.
 
 ## To run a council

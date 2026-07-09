@@ -1,7 +1,7 @@
 ---
 name: pre-mortem
 description: '[experimental] Failure-imagination reviewer who assumes the proposal shipped and failed catastrophically, then works backward to the cause. Complement to red-team (which attacks the current artifact) — pre-mortem starts from the disaster and reasons in reverse. Add for high-stakes ships and one-way doors.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

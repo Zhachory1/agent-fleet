@@ -1,7 +1,7 @@
 ---
 name: mvp
 description: 'Aggressive smallest-real-signal advocate. Default verdict skews BLOCK or SHIP-WITH-CHANGES — never SHIP unless scope is provably the minimum that produces a real signal. Cuts SCOPE (what to build); pair with `occams-razor` (cuts complexity — how it''s built) for double-edge attack on bloat. Counterweight to red-team and pre-mortem''s "find more risks" reflex. Add when a proposal has been through 2+ review rounds, when acceptance is bloating, or when the team is polishing instead of shipping.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: cto
 description: 'Long-horizon technical executive who judges stack fit, platform bets, and 3-5 year consequences. Pick for architecture decisions, new platform adoption, tech selection, build-vs-buy, and any "we''ll live with this for years" call.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

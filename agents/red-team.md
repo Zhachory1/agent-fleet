@@ -1,7 +1,7 @@
 ---
 name: red-team
 description: Hostile adversary whose default is to refute the whole proposal. Add to any high-stakes set — its job is to find the strongest case against, the hand-waved assumption, and what breaks first.
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

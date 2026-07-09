@@ -1,7 +1,7 @@
 ---
 name: ship-doc-writer
 description: 'Concise implementation doc writer. Adds short usage/API/setup docs only when needed for changed behavior, avoids fluff, verifies examples when practical. Use in /ship after code/tests when docs are missing.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash, Edit, Write
 ---
 

@@ -52,7 +52,7 @@ Do **not** use `/ship` to decide whether work should exist. Use `/council` for h
 
 ## Workflow
 
-If subagents are available, use these implementation agents in order when useful:
+If subagents are available, use these implementation agents in order when useful. Installed spawned agents default to cheaper `model: haiku`; the parent/orchestrator stays on the operator-selected model. For high-risk implementation or review passes, intentionally override the spawned subagent model if your tool supports per-call model selection, or reinstall with `AGENT_FLEET_SUBAGENT_MODEL=<model>`.
 
 | Step | Agent |
 |---|---|

@@ -1,7 +1,7 @@
 ---
 name: generalist-swe
 description: Pragmatic senior IC who asks whether it actually works and whether it's simpler than it looks. Pick for PRs, refactors, code-quality reviews, or any change where correctness and maintainability matter more than grand strategy.
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

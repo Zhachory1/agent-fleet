@@ -132,8 +132,8 @@ risks, mvp cuts non-blocking scope. Picking mvp WITH either of them for any deci
 been through 2+ review rounds gives the reflection debate a real argument to resolve.
 
 Full catalog with overlap matrix + selection decision tree + persona-pairing recommendations:
-[`agents/INDEX.md`](agents/INDEX.md). Frontmatter detail (the `model: sonnet` field is
-Claude-Code-specific metadata; strip it from your local copy if your tool errors on unknown
+[`agents/INDEX.md`](agents/INDEX.md). Frontmatter detail (the `model: haiku` field is
+Claude-Code-specific metadata for cheaper spawned agents; strip it from your local copy if your tool errors on unknown
 frontmatter) is in [AGENTS.md](AGENTS.md).
 
 ## What you get depends on your tool
@@ -179,6 +179,8 @@ Install only the **agent prompts/personas/skills** into the AI TUI's normal user
 | Unknown TUI with global config dir, e.g. Mewrite | `~/.mewrite/{agents,skills,prompts}` or whatever dir your TUI documents | `bash install.sh --dir ~/.mewrite` |
 
 Use `--dir DIR` when this repo does not know your TUI by name. It copies the generic payload into `DIR/agents`, `DIR/skills/{council,ship}`, and `DIR/prompts/{council-orchestrator.md,ship-orchestrator.md}`; uninstall with `bash install.sh --dir DIR --uninstall`.
+
+Spawned personas and ship agents default to cheaper `model: haiku`; parent/orchestrator stays on your selected model. To install spawned agents with another model, run `AGENT_FLEET_SUBAGENT_MODEL=<model> bash install.sh ...` and rerun the installer to change it later.
 
 If you are an AI agent doing the install, run `bash install.sh --agent-instructions` first. The same decision tree is also in [`INSTALL.md`](INSTALL.md) and [`install.manifest.json`](install.manifest.json).
 

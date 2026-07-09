@@ -1,7 +1,7 @@
 ---
 name: ship-spec-checker
 description: 'Acceptance-criteria auditor for implementation patches. Maps spec to diff/tests, finds missing behavior, scope creep, untested edge cases, and validation gaps. Use after implementation before final /ship response.'
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

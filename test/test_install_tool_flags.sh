@@ -16,6 +16,20 @@ expected_ship_agents=$(find "$DIR/ship-agents" -maxdepth 1 -name '*.md' | wc -l 
 expected_agents=$((expected_personas + expected_ship_agents))
 expected_files=$((expected_agents + 2))  # agents + council-orchestrator.md + ship-orchestrator.md
 
+# Payload iteration must survive repo paths with spaces.
+tmp=$(mktemp_d)
+space_repo="$tmp/agent fleet"
+ln -s "$DIR" "$space_repo"
+SPACE_HOME="$tmp/mewrite home"
+( cd "$tmp" && HOME="$tmp/home" bash "$space_repo/install.sh" --dir "$SPACE_HOME" >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --dir failed when repo path contains spaces"; fail=1
+}
+if [ ! -f "$SPACE_HOME/agents/red-team.md" ] || [ ! -f "$SPACE_HOME/agents/ship-spec-checker.md" ]; then
+  echo "FAIL: space-path install did not place expected agents"
+  fail=1
+fi
+rm -rf "$tmp"
+
 for tool_spec in "cursor:./.cursor/rules" "opencode:./.agent-fleet" "codex:./.agent-fleet"; do
   tool="${tool_spec%%:*}"
   expected_dir="${tool_spec##*:}"
@@ -109,11 +123,80 @@ if [ -L "$GENERIC_HOME/agents/red-team.md" ]; then
   echo "FAIL: --dir installed symlinks; should be copies for unknown TUI dirs"
   fail=1
 fi
+if ! grep -q '^model: haiku$' "$GENERIC_HOME/agents/red-team.md"; then
+  echo "FAIL: --dir did not keep cheaper default subagent model"
+  fail=1
+fi
 ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --dir "$GENERIC_HOME" --uninstall >/dev/null 2>&1 ) || {
   echo "FAIL: install.sh --dir --uninstall exited non-zero"; fail=1
 }
 if [ -f "$GENERIC_HOME/agents/red-team.md" ] || [ -e "$GENERIC_HOME/skills/council" ] || [ -e "$GENERIC_HOME/skills/ship" ] || [ -f "$GENERIC_HOME/prompts/council-orchestrator.md" ] || [ -f "$GENERIC_HOME/prompts/ship-orchestrator.md" ]; then
   echo "FAIL: --dir --uninstall left installed files behind"
+  fail=1
+fi
+rm -rf "$tmp"
+
+# AGENT_FLEET_SUBAGENT_MODEL rewrites installed agent frontmatter only.
+cat > "$EXTRA_PERSONA" <<'EOF'
+---
+name: cave-tool-map-fixture
+description: test-only fixture for model frontmatter rewrite
+model: haiku
+tools: Read
+---
+model: body-line-should-not-change
+EOF
+tmp=$(mktemp_d)
+MODEL_HOME="$tmp/mewrite-home"
+( cd "$tmp" && HOME="$tmp/home" AGENT_FLEET_SUBAGENT_MODEL=sonnet bash "$DIR/install.sh" --dir "$MODEL_HOME" >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --dir with AGENT_FLEET_SUBAGENT_MODEL exited non-zero"; fail=1
+}
+if ! grep -q '^model: sonnet$' "$MODEL_HOME/agents/red-team.md"; then
+  echo "FAIL: AGENT_FLEET_SUBAGENT_MODEL did not rewrite installed persona model"
+  fail=1
+fi
+if ! grep -q '^model: sonnet$' "$MODEL_HOME/agents/ship-spec-checker.md"; then
+  echo "FAIL: AGENT_FLEET_SUBAGENT_MODEL did not rewrite installed ship-agent model"
+  fail=1
+fi
+if ! grep -q '^model: body-line-should-not-change$' "$MODEL_HOME/agents/cave-tool-map-fixture.md"; then
+  echo "FAIL: AGENT_FLEET_SUBAGENT_MODEL rewrote a body model line"
+  fail=1
+fi
+rm -rf "$tmp"
+rm -f "$EXTRA_PERSONA"
+
+tmp=$(mktemp_d)
+TARGET_HOME="$tmp/flat-target"
+( cd "$tmp" && HOME="$tmp/home" AGENT_FLEET_SUBAGENT_MODEL=sonnet bash "$DIR/install.sh" --target "$TARGET_HOME" --copy >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --target with AGENT_FLEET_SUBAGENT_MODEL exited non-zero"; fail=1
+}
+if ! grep -q '^model: sonnet$' "$TARGET_HOME/red-team.md"; then
+  echo "FAIL: --target did not apply AGENT_FLEET_SUBAGENT_MODEL"
+  fail=1
+fi
+rm -rf "$tmp"
+
+tmp=$(mktemp_d)
+( cd "$tmp" && HOME="$tmp/home" AGENT_FLEET_SUBAGENT_MODEL=sonnet bash "$DIR/install.sh" --tool codex >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --tool codex with AGENT_FLEET_SUBAGENT_MODEL exited non-zero"; fail=1
+}
+if ! grep -q '^model: sonnet$' "$tmp/.agent-fleet/red-team.md" || ! grep -q '^model: sonnet$' "$tmp/home/.codex/agent-fleet/agents/red-team.md"; then
+  echo "FAIL: --tool codex did not apply AGENT_FLEET_SUBAGENT_MODEL to project and global payloads"
+  fail=1
+fi
+rm -rf "$tmp"
+
+tmp=$(mktemp_d)
+( cd "$tmp" && HOME="$tmp/home" AGENT_FLEET_SUBAGENT_MODEL=sonnet bash "$DIR/install.sh" --tool claude >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --tool claude with AGENT_FLEET_SUBAGENT_MODEL exited non-zero"; fail=1
+}
+if ! grep -q '^model: sonnet$' "$tmp/home/.claude/agents/red-team.md"; then
+  echo "FAIL: --tool claude did not apply AGENT_FLEET_SUBAGENT_MODEL"
+  fail=1
+fi
+if [ -L "$tmp/home/.claude/agents/red-team.md" ]; then
+  echo "FAIL: --tool claude model override should write copied agent files, not symlinks"
   fail=1
 fi
 rm -rf "$tmp"
@@ -157,11 +240,29 @@ if grep -q '^tools: Read, Glob, Grep, Bash$' "$tmp/.cave/agents/red-team.md"; th
   echo "FAIL: --tool cave left Claude-Code-cased tool names in installed Cave persona"
   fail=1
 fi
+if ! grep -q '^model: haiku$' "$tmp/.cave/agents/red-team.md"; then
+  echo "FAIL: --tool cave did not keep cheaper default subagent model"
+  fail=1
+fi
 ( cd "$tmp" && HOME="$tmp/home" bash "$DIR/install.sh" --tool cave --uninstall >/dev/null 2>&1 ) || {
   echo "FAIL: install.sh --tool cave --uninstall exited non-zero"; fail=1
 }
 if [ -f "$tmp/.cave/agents/red-team.md" ] || [ -e "$tmp/.cave/skills/council" ] || [ -e "$tmp/.cave/skills/ship" ] || [ -f "$tmp/.cave/prompts/council-orchestrator.md" ] || [ -f "$tmp/.cave/prompts/ship-orchestrator.md" ]; then
   echo "FAIL: --tool cave --uninstall left installed files behind"
+  fail=1
+fi
+rm -rf "$tmp"
+
+tmp=$(mktemp_d)
+( cd "$tmp" && HOME="$tmp/home" AGENT_FLEET_SUBAGENT_MODEL=sonnet bash "$DIR/install.sh" --tool cave >/dev/null 2>&1 ) || {
+  echo "FAIL: install.sh --tool cave with AGENT_FLEET_SUBAGENT_MODEL exited non-zero"; fail=1
+}
+if ! grep -q '^model: sonnet$' "$tmp/.cave/agents/red-team.md"; then
+  echo "FAIL: --tool cave did not apply AGENT_FLEET_SUBAGENT_MODEL"
+  fail=1
+fi
+if ! grep -q '^tools: read, find, grep, bash$' "$tmp/.cave/agents/red-team.md"; then
+  echo "FAIL: --tool cave model override broke tool rewrite"
   fail=1
 fi
 rm -rf "$tmp"
@@ -225,11 +326,15 @@ set -e
 HELP_OUT=$(bash "$DIR/install.sh" --help)
 echo "$HELP_OUT" | grep -q -- '--agent-instructions' \
   || { echo "FAIL: --help missing --agent-instructions"; fail=1; }
+echo "$HELP_OUT" | grep -q 'AGENT_FLEET_SUBAGENT_MODEL' \
+  || { echo "FAIL: --help missing subagent model override"; fail=1; }
 AGENT_OUT=$(bash "$DIR/install.sh" --agent-instructions)
 echo "$AGENT_OUT" | grep -q 'do NOT vendor this repo' \
   || { echo "FAIL: --agent-instructions missing anti-vendor rule"; fail=1; }
 echo "$AGENT_OUT" | grep -q 'bash install.sh --dir ~/.mewrite' \
   || { echo "FAIL: --agent-instructions missing unknown TUI --dir example"; fail=1; }
+echo "$AGENT_OUT" | grep -q 'AGENT_FLEET_SUBAGENT_MODEL' \
+  || { echo "FAIL: --agent-instructions missing subagent model override"; fail=1; }
 jq -e '.tools.unknown_global_tui.command == "bash install.sh --dir <TUI_CONFIG_DIR>" and .tools.claude.command == "bash install.sh --tool claude"' \
   "$DIR/install.manifest.json" >/dev/null \
   || { echo "FAIL: install.manifest.json missing expected commands"; fail=1; }

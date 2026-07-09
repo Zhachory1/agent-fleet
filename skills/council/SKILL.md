@@ -175,6 +175,8 @@ ABSOLUTE cap** (`<!-- ITER_CAP=4 -->`): no run exceeds 4 rounds. A SUSPICIOUS-FL
 round beyond the target `N` (bounded by 4) — so the brake works even at default `N=2`.
 
 ### Iteration 1 — blind
+**Model policy:** installed spawned personas default to cheaper `model: haiku`; the parent/orchestrator stays on the operator-selected model. For high-stakes rounds or personas that need stronger reasoning, intentionally override the spawned subagent model if your tool supports per-call model selection, or reinstall with `AGENT_FLEET_SUBAGENT_MODEL=<model>`.
+
 **If your tool has a subagent primitive** (Claude Code Task tool; opencode subagents): spawn each
 selected persona as an isolated subagent IN PARALLEL, prompt = persona file + artifact + task.
 For Claude Code, set `subagent_type` to the bare persona name (e.g. `red-team`); it resolves

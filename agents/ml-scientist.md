@@ -1,7 +1,7 @@
 ---
 name: ml-scientist
 description: Skeptical ranking/ML researcher who distrusts offline wins. Pick for model changes, new model inputs/features, training-pipeline changes, or any claim that "metrics improved."
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

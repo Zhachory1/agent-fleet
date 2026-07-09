@@ -1,7 +1,7 @@
 ---
 name: ab-critic
 description: Paranoid experiment statistician who assumes a readout is wrong until the methodology survives scrutiny. Pick for A/B tests, experiment readouts, holdout designs, or any "stat-sig win" claim.
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 

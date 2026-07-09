@@ -1,7 +1,7 @@
 ---
 name: reliability-sentinel
 description: SRE worrier who asks what pages oncall at 3am. Pick for serving-path / bid-path / latency changes, deploys, infra changes, or anything touching a hot path or a production SLO.
-model: sonnet
+model: haiku
 tools: Read, Glob, Grep, Bash
 ---
 
