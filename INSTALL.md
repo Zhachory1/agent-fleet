@@ -19,7 +19,7 @@ Use npm/npx first. Use `install.sh` only as the fallback when npm is unavailable
 Spawned personas and ship agents default to cheaper `model: haiku`; the parent/orchestrator stays on the operator-selected model. To install spawned agents with another model, run:
 
 ```bash
-AGENT_FLEET_SUBAGENT_MODEL=<model> npx agent-fleet install ...
+AGENT_FLEET_SUBAGENT_MODEL=<model> npx @zhachory1/agent-fleet install ...
 ```
 
 The override rewrites installed agent frontmatter at install time. Rerun the installer to change it later.
@@ -28,14 +28,14 @@ The override rewrites installed agent frontmatter at install time. Rerun the ins
 
 | If user uses... | Run | Installs to |
 |---|---|---|
-| Claude Code | `npx agent-fleet install --tool claude` | `~/.claude/agents`, `~/.claude/skills/{council,ship}` |
-| Codex CLI | `npx agent-fleet install --tool codex` | `~/.codex/skills/{council,ship}`, `~/.codex/agent-fleet` |
-| Cave project | `npx agent-fleet install --tool cave` | `./.cave/{agents,skills,prompts}` |
-| Cave user-global | `npx agent-fleet install --tool cave --user` | `${CAVE_HOME:-~/.cave}` |
-| Cursor | `npx agent-fleet install --tool cursor` | `./.cursor/rules` |
-| opencode | `npx agent-fleet install --tool opencode` | `./.agent-fleet` |
-| Unknown TUI with global config dir | `npx agent-fleet install --dir <DIR>` | `<DIR>/agents`, `<DIR>/skills/{council,ship}`, `<DIR>/prompts` |
-| Any generic flat rules dir | `npx agent-fleet install --target <DIR> --copy` | `<DIR>/*.md` flat payload |
+| Claude Code | `npx @zhachory1/agent-fleet install --tool claude` | `~/.claude/agents`, `~/.claude/skills/{council,ship}` |
+| Codex CLI | `npx @zhachory1/agent-fleet install --tool codex` | `~/.codex/skills/{council,ship}`, `~/.codex/agent-fleet` |
+| Cave project | `npx @zhachory1/agent-fleet install --tool cave` | `./.cave/{agents,skills,prompts}` |
+| Cave user-global | `npx @zhachory1/agent-fleet install --tool cave --user` | `${CAVE_HOME:-~/.cave}` |
+| Cursor | `npx @zhachory1/agent-fleet install --tool cursor` | `./.cursor/rules` |
+| opencode | `npx @zhachory1/agent-fleet install --tool opencode` | `./.agent-fleet` |
+| Unknown TUI with global config dir | `npx @zhachory1/agent-fleet install --dir <DIR>` | `<DIR>/agents`, `<DIR>/skills/{council,ship}`, `<DIR>/prompts` |
+| Any generic flat rules dir | `npx @zhachory1/agent-fleet install --target <DIR> --copy` | `<DIR>/*.md` flat payload |
 
 ## Unknown TUI rule
 
@@ -44,7 +44,7 @@ If this repo does not know the TUI by name, ask the user for the TUI config/reso
 Example:
 
 ```bash
-npx agent-fleet install --dir ~/.mewrite
+npx @zhachory1/agent-fleet install --dir ~/.mewrite
 ```
 
 This creates:
@@ -60,14 +60,14 @@ This creates:
 Uninstall:
 
 ```bash
-npx agent-fleet install --dir ~/.mewrite --uninstall
+npx @zhachory1/agent-fleet install --dir ~/.mewrite --uninstall
 ```
 
 ## Verify
 
 ```bash
-npx agent-fleet install --agent-instructions
-npx agent-fleet install --help
+npx @zhachory1/agent-fleet install --agent-instructions
+npx @zhachory1/agent-fleet install --help
 ```
 
 After install, verify expected files exist in the TUI resource dir. Do not guess paths if the TUI documents a different directory.
@@ -82,4 +82,4 @@ cd ~/code/agent-fleet
 bash install.sh --tool claude
 ```
 
-The npm CLI intentionally delegates to the same installer logic so `npx agent-fleet install ...` and `bash install.sh ...` stay aligned.
+The npm CLI intentionally delegates to the same installer logic so `npx @zhachory1/agent-fleet install ...` and `bash install.sh ...` stay aligned.

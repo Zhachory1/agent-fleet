@@ -5,7 +5,15 @@ All notable changes to agent-fleet are documented here. Format follows [Keep a C
 ## [Unreleased]
 
 ### Added
-- npm package metadata and `agent-fleet` CLI bin for `npx agent-fleet install ...` installs.
+
+### Changed
+
+### Fixed
+
+## [0.4.0] — 2026-07-09
+
+### Added
+- npm package metadata and `agent-fleet` CLI bin for `npx @zhachory1/agent-fleet install ...` installs.
 - `agent-fleet home` command so prompts can resolve the package root when installed via npm.
 
 ### Changed

@@ -1,6 +1,6 @@
 {
-  "name": "agent-fleet",
-  "version": "0.3.0",
+  "name": "@zhachory1/agent-fleet",
+  "version": "0.4.0",
   "description": "Portable council and ship agent prompts for AI coding tools.",
   "license": "MIT",
   "author": "Zhachory Volker",
@@ -48,5 +48,8 @@
     "opencode",
     "cursor",
     "cave"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

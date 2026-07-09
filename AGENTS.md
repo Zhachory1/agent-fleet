@@ -4,7 +4,7 @@ This repo is a portable **council of specialist review personas** + an orchestra
 3-6 of them, runs a bounded N-iteration reflection debate (critique-before-concede; default 2,
 cap 4 iterations), and synthesizes a decision-grade answer with named dissents.
 Tools that read `AGENTS.md` (Codex, opencode, …) pick this up automatically. Cursor reads
-`.cursor/rules/` instead — `npx agent-fleet install --target ./.cursor/rules --copy` places the personas +
+`.cursor/rules/` instead — `npx @zhachory1/agent-fleet install --target ./.cursor/rules --copy` places the personas +
 orchestrator prompt where Cursor will find them.
 
 ## Installing agent-fleet into a TUI
@@ -18,21 +18,21 @@ If you are an AI coding agent installing this repo for a user: **do not vendor t
 
 Decision tree:
 
-- Claude Code: `npx agent-fleet install --tool claude` → `~/.claude/agents` + `~/.claude/skills/{council,ship}`
-- Codex CLI: `npx agent-fleet install --tool codex` → `~/.codex/skills/{council,ship}` + `~/.codex/agent-fleet`
-- Cave project: `npx agent-fleet install --tool cave` → `./.cave/{agents,skills,prompts}`
-- Cave user-global: `npx agent-fleet install --tool cave --user` → `${CAVE_HOME:-~/.cave}`
-- Cursor: `npx agent-fleet install --tool cursor` → `./.cursor/rules`
-- opencode: `npx agent-fleet install --tool opencode` → `./.agent-fleet`
-- Unknown TUI with a global config dir: ask the user for that dir, then run `npx agent-fleet install --dir <DIR>`
-  - Example: Mewrite → `npx agent-fleet install --dir ~/.mewrite`
-- Generic flat rules dir: `npx agent-fleet install --target <DIR> --copy`
+- Claude Code: `npx @zhachory1/agent-fleet install --tool claude` → `~/.claude/agents` + `~/.claude/skills/{council,ship}`
+- Codex CLI: `npx @zhachory1/agent-fleet install --tool codex` → `~/.codex/skills/{council,ship}` + `~/.codex/agent-fleet`
+- Cave project: `npx @zhachory1/agent-fleet install --tool cave` → `./.cave/{agents,skills,prompts}`
+- Cave user-global: `npx @zhachory1/agent-fleet install --tool cave --user` → `${CAVE_HOME:-~/.cave}`
+- Cursor: `npx @zhachory1/agent-fleet install --tool cursor` → `./.cursor/rules`
+- opencode: `npx @zhachory1/agent-fleet install --tool opencode` → `./.agent-fleet`
+- Unknown TUI with a global config dir: ask the user for that dir, then run `npx @zhachory1/agent-fleet install --dir <DIR>`
+  - Example: Mewrite → `npx @zhachory1/agent-fleet install --dir ~/.mewrite`
+- Generic flat rules dir: `npx @zhachory1/agent-fleet install --target <DIR> --copy`
 
 Spawned personas and ship agents default to cheaper `model: haiku`; set `AGENT_FLEET_SUBAGENT_MODEL=<model>` while installing to rewrite installed agent copies to another model.
 
 Use `bash install.sh ...` only as the fallback when npm/npx is unavailable.
 
-Before guessing, run `npx agent-fleet install --agent-instructions` or read `INSTALL.md` / `install.manifest.json`.
+Before guessing, run `npx @zhachory1/agent-fleet install --agent-instructions` or read `INSTALL.md` / `install.manifest.json`.
 
 ## To run a council
 Load the orchestrator prompt at `prompts/council-orchestrator.md` and follow it. The reviewer

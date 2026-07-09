@@ -90,11 +90,11 @@ Commands:
   home      Sync and print the stable runtime home path.
 
 Examples:
-  npx agent-fleet install --tool claude
-  npx agent-fleet install --tool codex
-  npx agent-fleet install --tool opencode
-  npx agent-fleet install --tool cave --user
-  npx agent-fleet install --dir ~/.mewrite
+  npx @zhachory1/agent-fleet install --tool claude
+  npx @zhachory1/agent-fleet install --tool codex
+  npx @zhachory1/agent-fleet install --tool opencode
+  npx @zhachory1/agent-fleet install --tool cave --user
+  npx @zhachory1/agent-fleet install --dir ~/.mewrite
 
 Fallback if npm/npx is unavailable:
   bash install.sh --tool claude

@@ -61,13 +61,13 @@ fi
 rm -rf "$CLI_RUNTIME_HOME"
 
 cli_help=$(node "$DIR/bin/agent-fleet.js" --help 2>&1)
-if ! grep -q 'agent-fleet install' <<<"$cli_help" || ! grep -q 'npx agent-fleet install --tool claude' <<<"$cli_help"; then
+if ! grep -q 'agent-fleet install' <<<"$cli_help" || ! grep -q 'npx @zhachory1/agent-fleet install --tool claude' <<<"$cli_help"; then
   echo "FAIL: agent-fleet --help missing npx install guidance"
   fail=1
 fi
 
 install_help=$(AGENT_FLEET_NPM_HOME="$(mktemp -d)/runtime" node "$DIR/bin/agent-fleet.js" install --help 2>&1)
-if ! grep -q 'agent-fleet installer v' <<<"$install_help" || ! grep -q 'npx agent-fleet install --tool claude' <<<"$install_help"; then
+if ! grep -q 'agent-fleet installer v' <<<"$install_help" || ! grep -q 'npx @zhachory1/agent-fleet install --tool claude' <<<"$install_help"; then
   echo "FAIL: agent-fleet install --help did not delegate to installer help"
   fail=1
 fi

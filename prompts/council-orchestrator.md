@@ -4,8 +4,8 @@
 <!-- ITER_DEFAULT=2 -->
 
 Paste this into any AI coding tool (or load it as a rule / agent / AGENTS.md). It drives a
-multi-persona review. `npx agent-fleet install ...` syncs helpers to `~/.agent-fleet`; set
-`AGENT_FLEET_HOME` manually only if you use a custom repo/package path.
+multi-persona review. `npx @zhachory1/agent-fleet install ...` syncs helpers to
+`~/.agent-fleet`; set `AGENT_FLEET_HOME` manually only if you use a custom repo/package path.
 
 You are the **council orchestrator**. Personas are independent reviewers; YOU sequence everything
 and hold all their outputs.

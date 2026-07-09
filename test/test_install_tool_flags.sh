@@ -387,13 +387,13 @@ echo "$HELP_OUT" | grep -q 'AGENT_FLEET_SUBAGENT_MODEL' \
 AGENT_OUT=$(bash "$DIR/install.sh" --agent-instructions)
 echo "$AGENT_OUT" | grep -q 'do NOT vendor this repo' \
   || { echo "FAIL: --agent-instructions missing anti-vendor rule"; fail=1; }
-echo "$AGENT_OUT" | grep -q 'npx agent-fleet install --dir ~/.mewrite' \
+echo "$AGENT_OUT" | grep -q 'npx @zhachory1/agent-fleet install --dir ~/.mewrite' \
   || { echo "FAIL: --agent-instructions missing primary unknown TUI npx example"; fail=1; }
 echo "$AGENT_OUT" | grep -q 'bash install.sh --dir ~/.mewrite' \
   || { echo "FAIL: --agent-instructions missing fallback unknown TUI --dir example"; fail=1; }
 echo "$AGENT_OUT" | grep -q 'AGENT_FLEET_SUBAGENT_MODEL' \
   || { echo "FAIL: --agent-instructions missing subagent model override"; fail=1; }
-jq -e '.tools.unknown_global_tui.command == "npx agent-fleet install --dir <TUI_CONFIG_DIR>" and .tools.unknown_global_tui.fallback == "bash install.sh --dir <TUI_CONFIG_DIR>" and .tools.claude.command == "npx agent-fleet install --tool claude" and .tools.claude.fallback == "bash install.sh --tool claude"' \
+jq -e '.tools.unknown_global_tui.command == "npx @zhachory1/agent-fleet install --dir <TUI_CONFIG_DIR>" and .tools.unknown_global_tui.fallback == "bash install.sh --dir <TUI_CONFIG_DIR>" and .tools.claude.command == "npx @zhachory1/agent-fleet install --tool claude" and .tools.claude.fallback == "bash install.sh --tool claude"' \
   "$DIR/install.manifest.json" >/dev/null \
   || { echo "FAIL: install.manifest.json missing expected primary npx/fallback commands"; fail=1; }
 

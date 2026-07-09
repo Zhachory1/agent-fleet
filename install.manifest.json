@@ -5,61 +5,61 @@
   "primary": "npm/npx",
   "fallback": "bash install.sh when npm/npx is unavailable",
   "commands": {
-    "agent_instructions": "npx agent-fleet install --agent-instructions",
-    "help": "npx agent-fleet install --help",
-    "home": "npx agent-fleet home",
+    "agent_instructions": "npx @zhachory1/agent-fleet install --agent-instructions",
+    "help": "npx @zhachory1/agent-fleet install --help",
+    "home": "npx @zhachory1/agent-fleet home",
     "fallback_agent_instructions": "bash install.sh --agent-instructions",
     "fallback_help": "bash install.sh --help"
   },
   "tools": {
     "claude": {
-      "command": "npx agent-fleet install --tool claude",
+      "command": "npx @zhachory1/agent-fleet install --tool claude",
       "fallback": "bash install.sh --tool claude",
       "installs": ["~/.claude/agents", "~/.claude/skills/council", "~/.claude/skills/ship"],
       "scope": "user-global"
     },
     "codex": {
-      "command": "npx agent-fleet install --tool codex",
+      "command": "npx @zhachory1/agent-fleet install --tool codex",
       "fallback": "bash install.sh --tool codex",
       "installs": ["~/.codex/skills/council", "~/.codex/skills/ship", "~/.codex/agent-fleet"],
       "scope": "user-global plus project refs"
     },
     "cave_project": {
-      "command": "npx agent-fleet install --tool cave",
+      "command": "npx @zhachory1/agent-fleet install --tool cave",
       "fallback": "bash install.sh --tool cave",
       "installs": ["./.cave/agents", "./.cave/skills/council", "./.cave/skills/ship", "./.cave/prompts"],
       "scope": "project"
     },
     "cave_user": {
-      "command": "npx agent-fleet install --tool cave --user",
+      "command": "npx @zhachory1/agent-fleet install --tool cave --user",
       "fallback": "bash install.sh --tool cave --user",
       "installs": ["${CAVE_HOME:-~/.cave}/agent/agents", "${CAVE_HOME:-~/.cave}/skills/council", "${CAVE_HOME:-~/.cave}/skills/ship", "${CAVE_HOME:-~/.cave}/prompts"],
       "scope": "user-global"
     },
     "cursor": {
-      "command": "npx agent-fleet install --tool cursor",
+      "command": "npx @zhachory1/agent-fleet install --tool cursor",
       "fallback": "bash install.sh --tool cursor",
       "installs": ["./.cursor/rules"],
       "scope": "project"
     },
     "opencode": {
-      "command": "npx agent-fleet install --tool opencode",
+      "command": "npx @zhachory1/agent-fleet install --tool opencode",
       "fallback": "bash install.sh --tool opencode",
       "installs": ["./.agent-fleet"],
       "scope": "project"
     },
     "unknown_global_tui": {
-      "command": "npx agent-fleet install --dir <TUI_CONFIG_DIR>",
+      "command": "npx @zhachory1/agent-fleet install --dir <TUI_CONFIG_DIR>",
       "fallback": "bash install.sh --dir <TUI_CONFIG_DIR>",
-      "uninstall": "npx agent-fleet install --dir <TUI_CONFIG_DIR> --uninstall",
+      "uninstall": "npx @zhachory1/agent-fleet install --dir <TUI_CONFIG_DIR> --uninstall",
       "fallback_uninstall": "bash install.sh --dir <TUI_CONFIG_DIR> --uninstall",
       "installs": ["<TUI_CONFIG_DIR>/agents", "<TUI_CONFIG_DIR>/skills/council", "<TUI_CONFIG_DIR>/skills/ship", "<TUI_CONFIG_DIR>/prompts"],
-      "example": "npx agent-fleet install --dir ~/.mewrite",
+      "example": "npx @zhachory1/agent-fleet install --dir ~/.mewrite",
       "fallback_example": "bash install.sh --dir ~/.mewrite",
       "scope": "user-global"
     },
     "generic_flat_rules_dir": {
-      "command": "npx agent-fleet install --target <DIR> --copy",
+      "command": "npx @zhachory1/agent-fleet install --target <DIR> --copy",
       "fallback": "bash install.sh --target <DIR> --copy",
       "installs": ["<DIR>/*.md"],
       "scope": "project-or-user-defined"

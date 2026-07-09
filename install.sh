@@ -2,7 +2,7 @@
 # agent-fleet installer — works across AI coding tools.
 #
 # Primary usage:
-#   npx agent-fleet install --tool claude
+#   npx @zhachory1/agent-fleet install --tool claude
 #
 # Fallback usage when npm/npx is unavailable:
 #   install.sh                      # default: --tool claude
@@ -42,35 +42,35 @@ Rule: do NOT vendor this repo into the user's project. Install only:
 Use npm/npx first. Keep this script as the fallback when npm is unavailable.
 
 Spawned agents default to cheaper `model: haiku`. To rewrite installed agent copies to another model:
-  AGENT_FLEET_SUBAGENT_MODEL=<model> npx agent-fleet install ...
+  AGENT_FLEET_SUBAGENT_MODEL=<model> npx @zhachory1/agent-fleet install ...
   # fallback: AGENT_FLEET_SUBAGENT_MODEL=<model> bash install.sh ...
 
 Pick one:
-- Claude Code: npx agent-fleet install --tool claude
+- Claude Code: npx @zhachory1/agent-fleet install --tool claude
   -> ~/.claude/agents + ~/.claude/skills/{council,ship}
   fallback: bash install.sh --tool claude
-- Codex CLI: npx agent-fleet install --tool codex
+- Codex CLI: npx @zhachory1/agent-fleet install --tool codex
   -> ~/.codex/skills/{council,ship} + ~/.codex/agent-fleet
   fallback: bash install.sh --tool codex
-- Cave project: npx agent-fleet install --tool cave
+- Cave project: npx @zhachory1/agent-fleet install --tool cave
   -> ./.cave/{agents,skills,prompts}
   fallback: bash install.sh --tool cave
-- Cave user-global: npx agent-fleet install --tool cave --user
+- Cave user-global: npx @zhachory1/agent-fleet install --tool cave --user
   -> ${CAVE_HOME:-~/.cave}
   fallback: bash install.sh --tool cave --user
-- Cursor: npx agent-fleet install --tool cursor
+- Cursor: npx @zhachory1/agent-fleet install --tool cursor
   -> ./.cursor/rules
   fallback: bash install.sh --tool cursor
-- opencode: npx agent-fleet install --tool opencode
+- opencode: npx @zhachory1/agent-fleet install --tool opencode
   -> ./.agent-fleet
   fallback: bash install.sh --tool opencode
 - Unknown TUI with global config dir: ask user for dir, then:
-  npx agent-fleet install --dir <DIR>
-  Example: npx agent-fleet install --dir ~/.mewrite
+  npx @zhachory1/agent-fleet install --dir <DIR>
+  Example: npx @zhachory1/agent-fleet install --dir ~/.mewrite
   -> <DIR>/agents + <DIR>/skills/{council,ship} + <DIR>/prompts
   fallback: bash install.sh --dir ~/.mewrite
 - Generic flat rules dir:
-  npx agent-fleet install --target <DIR> --copy
+  npx @zhachory1/agent-fleet install --target <DIR> --copy
   fallback: bash install.sh --target <DIR> --copy
 
 More: INSTALL.md and install.manifest.json.
@@ -82,7 +82,7 @@ print_help() {
 agent-fleet installer v${VERSION}
 
 Primary npm UX:
-  npx agent-fleet install [options]
+  npx @zhachory1/agent-fleet install [options]
 
 Fallback script UX:
   install.sh [options]
@@ -127,15 +127,15 @@ Options:
   --help, -h                 This message
 
 Examples:
-  npx agent-fleet install --tool claude                    # Claude Code, durable copies
-  npx agent-fleet install --tool cursor                    # Cursor: copy into ./.cursor/rules/
-  npx agent-fleet install --tool opencode                  # opencode: copy into ./.agent-fleet/
-  npx agent-fleet install --tool codex                     # Codex: copy prompt/personas + install skill
-  npx agent-fleet install --tool cave                      # Cave: install into ./.cave/{agents,skills,prompts}
-  npx agent-fleet install --dir ~/.mewrite                 # unknown TUI: generic global DIR/{agents,skills,prompts}
-  npx agent-fleet install --target ./custom/path --copy    # explicit flat target override
-  npx agent-fleet install --agent-instructions             # agent-facing install decision tree
-  npx agent-fleet install --print | pbcopy                 # copy prompt to clipboard for chat tools
+  npx @zhachory1/agent-fleet install --tool claude                    # Claude Code, durable copies
+  npx @zhachory1/agent-fleet install --tool cursor                    # Cursor: copy into ./.cursor/rules/
+  npx @zhachory1/agent-fleet install --tool opencode                  # opencode: copy into ./.agent-fleet/
+  npx @zhachory1/agent-fleet install --tool codex                     # Codex: copy prompt/personas + install skill
+  npx @zhachory1/agent-fleet install --tool cave                      # Cave: install into ./.cave/{agents,skills,prompts}
+  npx @zhachory1/agent-fleet install --dir ~/.mewrite                 # unknown TUI: generic global DIR/{agents,skills,prompts}
+  npx @zhachory1/agent-fleet install --target ./custom/path --copy    # explicit flat target override
+  npx @zhachory1/agent-fleet install --agent-instructions             # agent-facing install decision tree
+  npx @zhachory1/agent-fleet install --print | pbcopy                 # copy prompt to clipboard for chat tools
 
 Fallback examples when npm/npx is unavailable:
   bash install.sh --tool claude      # symlinks from local clone by default
