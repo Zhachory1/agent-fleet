@@ -74,12 +74,24 @@ After the council, judge whether it surfaced a net-new catch the baseline missed
 Identify what's under review (diff, doc, metrics, pasted text). Save it to one path/excerpt you
 pass to every persona — do NOT rely on shared conversation, personas don't inherit it.
 
+**Integrity metadata (required):** first line of every new artifact MUST be exactly one of
+`council_artifact_kind: infrastructure` or `council_artifact_kind: general`. Do not infer or
+default the kind. An infrastructure artifact MUST also include a `## Capability Reuse Inventory`
+with non-empty `plausible existing capabilities`, `owner/source of truth`, `current consumers`,
+`access contract`, and `evidence for rejection` fields. Run the guard before debate; on failure,
+return `NEED-MORE-INFO` with no persona work:
+
+```bash
+bash "$AGENT_FLEET_HOME/lib/council-guard.sh" artifact "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt"
+```
+
 **FR9 (NEW):** also persist a durable copy at
 `$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt` so the blinded-judge helper (`lib/blind-judge.sh`)
-can find the artifact days later. For already-durable sources, the file may be a one-line pointer
-(`@file: <abs-path>` or `@diff: <git-ref>`); the helper resolves at judge-time and refuses if
-unresolvable (prevents confabulation). Use absolute paths only. For pasted text, write the actual
-content. Never point at `/tmp/...` unless the file will be preserved until after blinded judging.
+can find the artifact days later. Legacy unmanaged rooms may use a one-line pointer
+(`@file: <abs-path>` or `@diff: <git-ref>`); the helper resolves it at judge-time and refuses if
+unresolvable. New managed artifacts must retain required metadata and inventory in `artifact.txt`,
+so copy source content instead of using a pointer. Use absolute paths only for legacy pointers.
+Never point at `/tmp/...` unless the file will be preserved until after blinded judging.
 Verify immediately:
 
 ```bash
@@ -130,7 +142,18 @@ Task table:
 | multi-team commitment / capacity / sequencing | vp-eng, software-architect, product-pm |
 | default / unmatched | pick 3-6 + justify each in one line |
 
-State the selection + why before convening.
+State the selection + why before convening. Before `begin`, explicitly select execution mode:
+`spawned` only for isolated subagent personas, or `lens-simulation` for sequential single-context
+personas. This immutable label is required; never claim `spawned` for a single-context run. Record
+it and the selection rationale, then create the managed-room receipt before any persona runs:
+
+```bash
+PERSONAS="<persona-1>,<persona-2>,<persona-3>"
+export COUNCIL_EXECUTION_MODE="<spawned|lens-simulation>"
+export COUNCIL_SELECTION_RATIONALE="<one-line roster rationale>"
+bash "$AGENT_FLEET_HOME/lib/council-guard.sh" begin "$ROOM" \
+  "$AGENT_CHAT_ROOT/rooms/$ROOM/artifact.txt" <ship|research|domain|exec|minimal> "$PERSONAS"
+```
 
 **Overlap check:** consult `agents/INDEX.md`'s `Tends to agree with` column. If 2 of your picks
 overlap (`ml-scientist`+`ab-critic`, `software-architect`+`cto`, `ceo`+`product-pm`,
@@ -188,24 +211,30 @@ from `~/.claude/agents/`.
 state each one fresh; do NOT let an earlier persona bias a later one. (Note: single-context mode
 is closer to the lens-baseline than a true multi-agent council — see Step 0.5.)
 This first iteration is **blind** — no peer context. Capture round-tagged `@@from: <persona>#r1`.
+Copy spawned output directly: never author, summarize, reconstruct, or relabel persona evidence.
+If a raw response is missing or fails validation, retry that persona once. After its second failure,
+run `journal.sh incomplete`, return nonzero with `COUNCIL_INCOMPLETE`, and stop: no synthesis,
+verdict, convergence claim, or blinded judge. For single-context work,
+`COUNCIL_EXECUTION_MODE` must already be `lens-simulation`; it is not independent multi-agent review.
 
 Each persona returns a bounded, top-findings-first POSITION. **TRUNCATION_GUARD:** subagent/task transports may clip long responses, so the first screen must be decision-grade: ≤120 lines or ~8k chars, at most 5 `top_issues`, BLOCKERs before MAJORs before MINORs, cut minor/background prose before any blocker, and mention omitted non-blocking count in `one_line`.
 ```
 POSITION (persona: <name>)
 - verdict: SHIP | SHIP-WITH-CHANGES | BLOCK | NEED-MORE-INFO
-- top_issues: [{severity: BLOCKER|MAJOR|MINOR, claim, evidence, fix}]
+- top_issues:
 - strongest_counterargument: the best case AGAINST your own verdict   # MANDATORY (anti-consensus)
-- confidence: low|med|high
-- one_line
+- confidence: low | med | high
+- one_line: <non-empty>
 ```
 
 **MANDATORY:** persist ALL positions in ONE call (the durable record of the thinking),
 round-tagged `#r<N>`. Do NOT loop N appends — this exact step was skipped on real runs and
 lost the transcript. If positions came from an external task/subagent mechanism, copy each persona's
 FULL returned POSITION back into this capture block before continuing. Task output paths are not a
-transcript; `log.jsonl` is the transcript.
+transcript; `log.jsonl` is the transcript. Strict capture validates every required POSITION before
+writing any row and creates the formal per-round receipt.
 ```
-bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture "$ROOM" <<'EOF'
+bash "$AGENT_FLEET_HOME/lib/transcript.sh" capture-positions "$ROOM" <<'EOF'
 @@from: <persona-1>#r1
 <full POSITION-1>
 @@from: <persona-2>#r1
@@ -241,10 +270,13 @@ Revise YOURS — but in this ORDER:
 **Hardened dissenter:** red-team **may not move to CONCEDE without citing a specific factual error
 in its OWN prior position** — "a peer changed my mind" is not sufficient for red-team.
 
-Capture each round round-tagged `@@from: <persona>#r<N>` using the same `$ROOM`. Do not switch
-`AGENT_CHAT_ROOT` or room names mid-council. For every reflection round, copy the FULL persona
-responses from subagents/tasks into the room log before running the next round. A council with
-uncaptured reflection rounds is invalid for research/accounting.
+Capture each round round-tagged `@@from: <persona>#r<N>` using one
+`transcript.sh capture-positions "$ROOM"` batch for the complete roster. Do not switch
+`AGENT_CHAT_ROOT` or room names mid-council. The helper rejects malformed, duplicate, mixed-round,
+or partial batches and writes one round receipt only after all raw responses validate. For every
+reflection round, copy the FULL persona responses from subagents/tasks directly into this strict
+capture before running the next round. A council with uncaptured reflection rounds is invalid for
+research/accounting; use one retry per invalid/missing response, then terminalize incomplete.
 
 **Convergence / mush check (`warned` state machine).** Derive `issue_count` per persona by counting
 its emitted `top_issues` bullets (e.g. `grep -cE '^\s*-\s*\[(BLOCKER|MAJOR|MINOR)\]'`). After each
@@ -257,11 +289,19 @@ cleared.** If a SUSPICIOUS-FLIP persisted to the cap (warned and still flipping)
 headline `⚠ council capitulated under reflection — treat consensus as suspect`.
 
 ## Step 5 — Synthesize (in YOUR context)
+Only after selecting final captured round, mark the managed room complete. `finish` rejects missing
+round receipts; `capture` rejects synthesis until this succeeds:
+
+```bash
+bash "$AGENT_FLEET_HOME/lib/council-guard.sh" finish "$ROOM" <final-round>
+```
+
 Flag consensus deterministically (optional helper):
 `printf '<persona> <verdict>\n...' | bash "$AGENT_FLEET_HOME/lib/synth.sh" flag`
 Then produce:
 ```
 ## Council verdict: <consensus OR "split">
+### Execution mode: <spawned|lens-simulation>
 ⚠ false-consensus risk        # ONLY if all agreed — unanimity is not safety
 ⚠ council capitulated under reflection — treat consensus as suspect   # if a SUSPICIOUS-FLIP persisted to the cap (warned and still flipping)
 ### Ranked issues   (1..n, severity-tagged, with which personas raised + fix)
@@ -282,7 +322,8 @@ jq -e 'select(.from=="synthesis")' "$AGENT_CHAT_ROOT/rooms/$ROOM/log.jsonl" >/de
 ```
 
 ## Step 6 — Journal (enforced)
-The journal REFUSES unless the transcript was captured (Step 3) — that's the anti-skip guard.
+The journal REFUSES unless the transcript was captured and managed manifest is complete — that's
+the anti-skip guard. Completed appends emit `event_type: council_completed`, `schema_version: 2`.
 Prefer the kw-args form (positional bool args at positions 5 and 7 are easy to misorder):
 ```
 bash "$AGENT_FLEET_HOME/lib/journal.sh" append \
@@ -293,7 +334,17 @@ bash "$AGENT_FLEET_HOME/lib/journal.sh" append \
   --lens-baseline <true|false> --council-beat-baseline <true|false|null> \
   --issues-raised <int> --run-kind <code|investigation|design>
 ```
+For managed rooms, `append` copies immutable manifest `execution_mode` into the completed result.
 Legacy 12-positional form is still supported (run `journal.sh --help` for both shapes).
+
+For retry exhaustion, terminalize before any verdict and do not continue even if journal write
+fails (state remains incomplete; recover by writing its event, never by resuming this room):
+
+```bash
+bash "$AGENT_FLEET_HOME/lib/journal.sh" incomplete "$ROOM" <task-slug> \
+  "<failed-personas-csv>" "<transport-reason>"
+# exits nonzero and prints COUNCIL_INCOMPLETE, failed_personas, transport_reason
+```
 
 `run_kind` matters: `investigation` runs naturally surface many hypotheses that don't all get
 pursued, so they are reported separately (no acted-on gate). `code` and `design` runs share the

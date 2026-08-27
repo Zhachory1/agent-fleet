@@ -68,18 +68,38 @@ _check_journal_writable() {
   local d; d="$(dirname "$JOURNAL")"
   # If JOURNAL exists, must be writable. If not, the parent dir must be writable (or createable).
   if [ -e "$JOURNAL" ]; then
-    [ -w "$JOURNAL" ] || { echo "journal: $JOURNAL is not writable (check permissions or AGENT_FLEET_JOURNAL)" >&2; exit 1; }
+    [ -w "$JOURNAL" ] || { echo "journal: $JOURNAL is not writable (check permissions or AGENT_FLEET_JOURNAL)" >&2; return 1; }
   elif [ -d "$d" ]; then
-    [ -w "$d" ] || { echo "journal: $d is not writable (check permissions or AGENT_FLEET_JOURNAL)" >&2; exit 1; }
+    [ -w "$d" ] || { echo "journal: $d is not writable (check permissions or AGENT_FLEET_JOURNAL)" >&2; return 1; }
   else
     # Walk up to first existing ancestor; it must be writable so mkdir -p can create $d.
     local p="$d"
     while [ ! -e "$p" ]; do p="$(dirname "$p")"; [ "$p" = "/" ] && break; done
-    [ -w "$p" ] || { echo "journal: cannot create $d (nearest existing ancestor $p is not writable)" >&2; exit 1; }
+    [ -w "$p" ] || { echo "journal: cannot create $d (nearest existing ancestor $p is not writable)" >&2; return 1; }
   fi
 }
 
 ac_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+require_complete_manifest() {
+  local room="$1" manifest
+  manifest="$(_agent_chat_root)/rooms/$room/manifest.json"
+  [ -f "$manifest" ] || return 0
+  jq -e '.state == "complete"' "$manifest" >/dev/null || {
+    echo "journal: managed room '$room' requires a complete manifest" >&2
+    return 1
+  }
+}
+
+managed_execution_mode() {
+  local room="$1" manifest
+  manifest="$(_agent_chat_root)/rooms/$room/manifest.json"
+  [ -f "$manifest" ] || return 0
+  jq -er 'if .execution_mode == "spawned" or .execution_mode == "lens-simulation" then .execution_mode else error("invalid execution_mode") end' "$manifest" 2>/dev/null || {
+    echo "journal: managed room '$room' requires a valid execution_mode" >&2
+    return 1
+  }
+}
 
 acquire_lock() {
   local lockdir="$1"
@@ -287,6 +307,8 @@ case "$cmd" in
       exit 1
     fi
     case "$kind" in code|investigation|design) ;; *) echo "journal: invalid run_kind '$kind' (want code|investigation|design)" >&2; exit 1;; esac
+    require_complete_manifest "$room" || exit 2
+    execution_mode="$(managed_execution_mode "$room")" || exit 2
     # GUARD: no transcript -> no journal. Prevents the 'journaled but skipped capture' data loss.
     if [ "${AGENT_FLEET_REQUIRE_TRANSCRIPT:-1}" = "1" ]; then
       ACR="$(_agent_chat_root)"; rlog="$ACR/rooms/$room/log.jsonl"
@@ -311,7 +333,7 @@ case "$cmd" in
       --arg personas "$personas" --argjson catch "$catch" --arg note "$note" \
       --argjson acted "$acted" --argjson dis "$dis" \
       --argjson base_run "$base_run" --argjson beat "$beat" --argjson raised "$raised" \
-      --arg kind "$kind" \
+      --arg kind "$kind" --arg execution_mode "$execution_mode" \
       --argjson judge_blinded "$judge_blinded" --argjson judge_catch "$judge_catch" \
       --arg judge_why "$judge_why" --arg judge_evidence "$judge_evidence" \
       --arg judge_implied_by "$judge_implied_by" --arg judge_reasoning "$judge_reasoning" \
@@ -320,10 +342,10 @@ case "$cmd" in
       --arg judge_template_sha256 "$judge_template_sha256" --arg judge_render_sha256 "$judge_render_sha256" \
       --arg judge_ts "$judge_ts" \
       --argjson solo_wc "$solo_wc" --argjson synth_wc "$synth_wc" \
-      '{ts:$ts, room:$room, task:$task, solo_decision:$solo, personas:($personas|split(",")),
+      '{schema_version:2, event_type:"council_completed", ts:$ts, room:$room, task:$task, solo_decision:$solo, personas:($personas|split(",")),
         net_new_catch:$catch, catch_note:$note, acted_on:$acted, dismissed_count:$dis,
         lens_baseline_run:$base_run, council_beat_baseline:$beat, issues_raised:$raised,
-        run_kind:$kind, judge_blinded:$judge_blinded, judge_blinded_catch:$judge_catch,
+        run_kind:$kind, execution_mode:(if $execution_mode=="" then null else $execution_mode end), judge_blinded:$judge_blinded, judge_blinded_catch:$judge_catch,
         judge_why:$judge_why, judge_evidence:$judge_evidence, judge_implied_by:$judge_implied_by,
         judge_reasoning:$judge_reasoning, judge_dissent_diff:$judge_dissent_diff,
         judge_model_family_self_reported:$judge_model_family, judge_prompt_version:(if $judge_prompt_version=="" then null else $judge_prompt_version end),
@@ -377,6 +399,8 @@ case "$cmd" in
       echo "journal: invariant violated — judge_blinded_catch=false requires judge_evidence empty" >&2
       exit 1
     fi
+    require_complete_manifest "$room" || exit 2
+    execution_mode="$(managed_execution_mode "$room")" || exit 2
     row_ts="$(ac_now)"
     judge_ts=""
     [ "$judge_blinded" = "true" ] && judge_ts="$row_ts"
@@ -385,6 +409,7 @@ case "$cmd" in
     lockdir="$JOURNAL.lockdir"
     acquire_lock "$lockdir"
     jq -cn --arg ts "$row_ts" --arg room "$room" --arg task "$task" \
+      --arg execution_mode "$execution_mode" \
       --argjson judge_blinded "$judge_blinded" --argjson judge_catch "$judge_catch" \
       --arg judge_why "$judge_why" --arg judge_evidence "$judge_evidence" \
       --arg judge_implied_by "$judge_implied_by" --arg judge_reasoning "$judge_reasoning" \
@@ -395,7 +420,7 @@ case "$cmd" in
       '{ts:$ts, room:$room, task:$task, solo_decision:null, personas:null,
         net_new_catch:null, catch_note:null, acted_on:null, dismissed_count:null,
         lens_baseline_run:null, council_beat_baseline:null, issues_raised:null,
-        run_kind:null, judge_blinded:$judge_blinded, judge_blinded_catch:$judge_catch,
+        run_kind:null, execution_mode:(if $execution_mode=="" then null else $execution_mode end), judge_blinded:$judge_blinded, judge_blinded_catch:$judge_catch,
         judge_why:$judge_why, judge_evidence:$judge_evidence, judge_implied_by:$judge_implied_by,
         judge_reasoning:$judge_reasoning, judge_dissent_diff:$judge_dissent_diff,
         judge_model_family_self_reported:$judge_model_family, judge_prompt_version:(if $judge_prompt_version=="" then null else $judge_prompt_version end),
@@ -404,6 +429,44 @@ case "$cmd" in
         solo_decision_word_count:null, synthesis_word_count:null}' \
       >> "$JOURNAL"
     release_lock "$lockdir"
+    ;;
+  incomplete)
+    room="${1:?room}"; task="${2:?task}"; failed_personas="${3:?failed personas}"; transport_reason="${4:?transport reason}"
+    [ -n "$failed_personas" ] && [ -n "$transport_reason" ] || { echo "journal: failed personas and transport reason are required" >&2; exit 1; }
+    ACR="$(_agent_chat_root)"; manifest="$ACR/rooms/$room/manifest.json"
+    [ -f "$manifest" ] || { echo "journal: incomplete requires managed room '$room'" >&2; exit 1; }
+    retry_incomplete=0
+    case "$(jq -r '.state' "$manifest")" in
+      pending|running) bash "$SCRIPT_DIR/council-guard.sh" state "$room" incomplete ;;
+      incomplete) retry_incomplete=1 ;;
+      *) echo "journal: room '$room' is already complete" >&2; exit 1 ;;
+    esac
+    row_ts="$(ac_now)"
+    recovery="bash $SCRIPT_DIR/journal.sh incomplete $room $task '$failed_personas' '$transport_reason'"
+    if ! _check_journal_writable || ! mkdir -p "$(dirname "$JOURNAL")"; then
+      echo "journal: room '$room' remains incomplete; recovery: $recovery" >&2
+      exit 1
+    fi
+    lockdir="$JOURNAL.lockdir"
+    acquire_lock "$lockdir"
+    if [ -f "$JOURNAL" ] && jq -e --arg room "$room" 'select(.event_type == "council_incomplete" and .room == $room)' "$JOURNAL" >/dev/null; then
+      release_lock "$lockdir"
+      printf 'COUNCIL_INCOMPLETE\nfailed_personas: %s\ntransport_reason: %s\n' "$failed_personas" "$transport_reason"
+      exit 1
+    fi
+    if [ "$retry_incomplete" = "1" ]; then
+      bash "$SCRIPT_DIR/council-guard.sh" retry-incomplete "$room" || { release_lock "$lockdir"; exit 1; }
+    fi
+    if ! jq -cn --arg ts "$row_ts" --arg room "$room" --arg task "$task" --arg failed "$failed_personas" --arg reason "$transport_reason" \
+      '{schema_version:2, event_type:"council_incomplete", ts:$ts, room:$room, task:$task, verdict:null, failed_personas:($failed|split(",")), transport_reason:$reason}' \
+      >> "$JOURNAL"; then
+      release_lock "$lockdir"
+      echo "journal: room '$room' remains incomplete; recovery: $recovery" >&2
+      exit 1
+    fi
+    release_lock "$lockdir"
+    printf 'COUNCIL_INCOMPLETE\nfailed_personas: %s\ntransport_reason: %s\n' "$failed_personas" "$transport_reason"
+    exit 1
     ;;
   stats)
     flag="${1:-}"
@@ -416,6 +479,7 @@ case "$cmd" in
                    judge_why: (.judge_why // ""),
                    judge_evidence: (.judge_evidence // ""),
                    judge_ts: (.judge_ts // null)} |
+             select((.event_type // "council_completed") != "council_incomplete") |
              select(.judge_blinded==true) |
              [((.judge_ts // .ts // "")[0:10]), (.net_new_catch|tostring), (.judge_blinded_catch|tostring),
               .judge_why, .judge_evidence] | @tsv' "$JOURNAL" \
@@ -427,9 +491,13 @@ case "$cmd" in
     [ -z "$n" ] && n=0 || :
     [ -f "$JOURNAL" ] || { echo "no journal yet at $JOURNAL"; exit 0; }
     jq -rs --argjson n "$n" '
-      (if $n > 0 then .[-$n:] else . end) as $r
+      (if $n > 0 then .[-$n:] else . end) as $window
+      | ([$window[] | select((.event_type // "council_completed") != "council_incomplete")]) as $r
+      | ([$window[] | select((.event_type // "council_completed") == "council_incomplete")] | length) as $incomplete
       | ($r | length) as $t
-      | if $t == 0 then "no runs logged yet" else
+      | if $t == 0 then
+          if $incomplete > 0 then "no completed runs logged yet", "incomplete councils : \($incomplete)" else "no runs logged yet" end
+        else
         # backward-compat: rows logged before run_kind existed default to "code";
         # rows before judge_blinded existed default to judge_blinded=false
         ([$r[] | . + {run_kind: (if has("run_kind") then .run_kind else "code" end),
@@ -451,7 +519,8 @@ case "$cmd" in
       | ([$r[]|select(.run_kind=="design")]|length) as $dN
       | (($catches/$t)*100|floor) as $catchpct
       | (if $raised>0 then (($dis/$raised)*100|floor) else -1 end) as $fapct
-      | "═══ council journal — last \($t) run(s) ═══",
+      | "═══ council journal — last \($t) completed run(s) ═══",
+        "incomplete councils : \($incomplete)",
         "net-new catch rate : \($catches)/\($t) = \($catchpct)%   [gate ≥40%: \(if $catchpct>=40 then "PASS ✓" else "FAIL ✗" end)]",
         "acted-on (code+design): \(if $actN>0 then "\($actWins)/\($actN) = \((($actWins/$actN)*100|floor))%" else "n/a (no code/design runs)" end)",
         "hypotheses pursued (investigations): \(if $invN>0 then "\($invWins)/\($invN) = \((($invWins/$invN)*100|floor))%   (no gate — investigations surface many hypotheses by design)" else "n/a (no investigation runs)" end)",
@@ -553,5 +622,5 @@ case "$cmd" in
     mv "$tmp" "$JOURNAL"
     echo "migrate: $changed / $total row(s) updated; backup at $JOURNAL.bak"
     ;;
-  *) echo "usage: journal.sh {append ... | stats [N] | migrate [--dry-run]}" >&2; exit 1;;
+  *) echo "usage: journal.sh {append ... | incomplete <room> <task> <failed-personas> <transport-reason> | stats [N] | migrate [--dry-run]}" >&2; exit 1;;
 esac

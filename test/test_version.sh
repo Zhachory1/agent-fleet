@@ -81,7 +81,7 @@ if [ "$rc" != "1" ] || ! grep -q "unknown command" <<<"$out"; then
   fail=1
 fi
 
-for helper in "$DIR/install.sh" "$DIR/lib/journal.sh" "$DIR/lib/transcript.sh" \
+for helper in "$DIR/install.sh" "$DIR/lib/council-guard.sh" "$DIR/lib/journal.sh" "$DIR/lib/transcript.sh" \
               "$DIR/lib/synth.sh" "$DIR/lib/blind-judge.sh" "$DIR/lib/overlay.sh"; do
   actual=$(bash "$helper" --version 2>&1 | tr -d '[:space:]')
   if [ "$actual" != "$EXPECTED" ]; then

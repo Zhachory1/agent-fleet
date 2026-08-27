@@ -242,6 +242,13 @@ $AGENT_FLEET_HOME/lib/journal.sh --help                     # see all flags
 `journal.sh append` **refuses** unless the run's transcript was captured first — you cannot
 record a council whose thinking was not persisted.
 
+Managed lifecycle: `council-guard.sh begin` (requires artifact metadata,
+`COUNCIL_SELECTION_RATIONALE`, and explicit `COUNCIL_EXECUTION_MODE=spawned|lens-simulation`) →
+`transcript.sh capture-positions` for each full round → `council-guard.sh finish` → capture
+`synthesis` → `journal.sh append` (copies execution mode into completed result). Use
+`journal.sh incomplete` after exhausted retries; generic capture cannot add `#rN` positions to a
+managed room.
+
 ### Private overlay (extension)
 
 If `agents/_overlay.md` exists, every persona loads it into its system prompt for your org's

@@ -430,10 +430,10 @@ bash "$DIR/lib/blind-judge.sh" record "$ROOM_J" --catch false \
   --why "stand-alone judge" --reasoning "r" --dissent-diff "- (none)" \
   && note "PASS record-judge-only-row" \
   || { note "FAIL record-judge-only-row"; fail=1; }
-jq -se --arg r "$ROOM_J" 'map(select(.room==$r)) | .[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T"))' \
+jq -se --arg r "$ROOM_J" 'map(select(.room==$r)) | .[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and .execution_mode==null and (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T"))' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
-  && note "PASS judge-only-row-has-null-self-report" \
-  || { note "FAIL judge-only-row-shape"; fail=1; }
+  && note "PASS unmanaged judge-only row retains null execution_mode" \
+  || { note "FAIL unmanaged judge-only row execution_mode"; fail=1; }
 
 echo "## concurrency (flock serializes two-terminal race)"
 
@@ -942,6 +942,77 @@ echo "$CAND_ALL" | grep -q $'^judged\tcandidate-judged\t1\t3\tyes\tcandidate-jud
   && note "PASS candidates --all includes judged room" || { note "FAIL candidates --all missing judged room: $CAND_ALL"; fail=1; }
 echo "$CAND_ALL" | grep -q 'council-paired-candidate-single' \
   && note "PASS candidates --include-paired includes paired room" || { note "FAIL candidates --include-paired missing paired room: $CAND_ALL"; fail=1; }
+
+echo "## managed-room integrity (issue #78 review fixes)"
+MANAGED_ART="$TEST_PARENT_TMP/managed-artifact.txt"
+printf 'council_artifact_kind: general\nmanaged artifact\n' > "$MANAGED_ART"
+MANAGED_ROOM=managed-judge-room
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$MANAGED_ROOM"
+cp "$MANAGED_ART" "$AGENT_CHAT_ROOT/rooms/$MANAGED_ROOM/artifact.txt"
+export COUNCIL_SELECTION_RATIONALE="adversarial coverage"
+export COUNCIL_EXECUTION_MODE=spawned
+bash "$DIR/lib/council-guard.sh" begin "$MANAGED_ROOM" "$AGENT_CHAT_ROOT/rooms/$MANAGED_ROOM/artifact.txt" ship 'red-team,mvp,occams-razor' >/dev/null
+cat <<'EOF' | bash "$DIR/lib/transcript.sh" capture-positions "$MANAGED_ROOM" >/dev/null
+@@from: red-team#r1
+POSITION (persona: red-team)
+- verdict: BLOCK
+- top_issues:
+- strongest_counterargument: transport may be enough
+- confidence: high
+- one_line: block
+@@from: mvp#r1
+POSITION (persona: mvp)
+- verdict: SHIP
+- top_issues:
+- strongest_counterargument: scope may grow
+- confidence: med
+- one_line: ship
+@@from: occams-razor#r1
+POSITION (persona: occams-razor)
+- verdict: SHIP
+- top_issues:
+- strongest_counterargument: changes may be needless
+- confidence: low
+- one_line: trim it
+EOF
+bash "$DIR/lib/council-guard.sh" finish "$MANAGED_ROOM" 1
+printf '@@from: synthesis\nmanaged synthesis\n' | bash "$DIR/lib/transcript.sh" capture "$MANAGED_ROOM" >/dev/null
+# No journal append yet: record must take its managed judge-only fallback path.
+bash "$DIR/lib/blind-judge.sh" record "$MANAGED_ROOM" --catch false --why covered --reasoning r --dissent-diff '- (none)' >/dev/null
+jq -se --arg room "$MANAGED_ROOM" '.[-1] | .room==$room and .solo_decision==null and .execution_mode=="spawned"' "$AGENT_FLEET_JOURNAL" >/dev/null \
+  && note "PASS managed blind-judge fallback persists execution_mode" \
+  || { note "FAIL managed blind-judge fallback missing execution_mode"; fail=1; }
+bash "$DIR/lib/journal.sh" append "$MANAGED_ROOM" managed-task solo red-team,mvp,occams-razor false "" false 0 >/dev/null
+jq -cn --arg ts now --arg from 'stale#r9' --arg text stale '{ts:$ts,from:$from,text:$text}' >> "$AGENT_CHAT_ROOT/rooms/$MANAGED_ROOM/log.jsonl"
+MANAGED_PREP=$(bash "$DIR/lib/blind-judge.sh" prepare "$MANAGED_ROOM" --phase1 judge-a)
+MANAGED_POSITIONS=$(awk '/==== PERSONA_POSITIONS ====/,/==== OPERATOR_SYNTHESIS ====/' <<<"$MANAGED_PREP")
+if grep -q 'red-team#r1' <<<"$MANAGED_POSITIONS" && ! grep -q 'stale#r9' <<<"$MANAGED_POSITIONS"; then
+  note "PASS managed prepare uses receipt-listed positions only"
+else
+  note "FAIL managed prepare included unreceipted positions: $MANAGED_POSITIONS"; fail=1
+fi
+printf 'council_artifact_kind: general\nchanged after finish\n' > "$AGENT_CHAT_ROOT/rooms/$MANAGED_ROOM/artifact.txt"
+expect_fail_msg "prepare-changed-managed-artifact-refuses" \
+  "bash '$DIR/lib/blind-judge.sh' prepare '$MANAGED_ROOM' --phase1 judge-a" \
+  "artifact integrity check failed"
+expect_fail_msg "record-changed-managed-artifact-refuses" \
+  "bash '$DIR/lib/blind-judge.sh' record '$MANAGED_ROOM' --catch false --why covered --reasoning r --dissent-diff '- (none)'" \
+  "artifact integrity check failed"
+rm "$AGENT_CHAT_ROOT/rooms/$MANAGED_ROOM/artifact.txt"
+expect_fail_msg "judge-missing-managed-artifact-refuses" \
+  "bash '$DIR/lib/blind-judge.sh' judge '$MANAGED_ROOM' --phase1 judge-a --response-file '$RF_RESP'" \
+  "artifact integrity check failed"
+INCOMPLETE_ROOM=managed-judge-incomplete
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$INCOMPLETE_ROOM"
+cp "$MANAGED_ART" "$AGENT_CHAT_ROOT/rooms/$INCOMPLETE_ROOM/artifact.txt"
+bash "$DIR/lib/council-guard.sh" begin "$INCOMPLETE_ROOM" "$AGENT_CHAT_ROOT/rooms/$INCOMPLETE_ROOM/artifact.txt" ship 'red-team,mvp,occams-razor' >/dev/null
+bash "$DIR/lib/council-guard.sh" state "$INCOMPLETE_ROOM" incomplete
+expect_fail_msg "record-incomplete-managed-room-refuses" \
+  "bash '$DIR/lib/blind-judge.sh' record '$INCOMPLETE_ROOM' --catch false --why covered --reasoning r --dissent-diff '- (none)'" \
+  "requires a complete manifest"
+expect_fail_msg "judge-incomplete-managed-room-refuses" \
+  "bash '$DIR/lib/blind-judge.sh' judge '$INCOMPLETE_ROOM' --phase1 judge-a --response-file '$RF_RESP'" \
+  "requires a complete manifest"
 
 echo "---"
 if [ "$fail" = "0" ]; then echo "PASS test_blind_judge"; else echo "FAIL test_blind_judge"; exit 1; fi
