@@ -31,7 +31,8 @@ managed_entry_allowed() {
   fi
 }
 room_lock() {
-  local rd="$1" lockdir="$rd/.manifest.lockdir" waited=0
+  local rd="$1"
+  local lockdir="$rd/.manifest.lockdir" waited=0
   while ! mkdir "$lockdir" 2>/dev/null; do
     sleep 0.05
     waited=$((waited + 1))

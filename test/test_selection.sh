@@ -34,7 +34,7 @@ done
 for name in ml-scientist ab-critic reliability-sentinel software-architect generalist-swe red-team \
             data-engineer perf-engineer product-pm cost-finops docs-dx pre-mortem cto ceo vp-eng mvp; do
   # The selection table is between '## Step 2' and 'State the selected personas'
-  awk '/^## Step 2/,/State the selected personas/' "$DIR/skills/council/SKILL.md" | grep -q "\\b$name\\b" \
+  grep -q "\\b$name\\b" < <(awk '/^## Step 2/,/State the selected personas/' "$DIR/skills/council/SKILL.md") \
     || { echo "FAIL: persona '$name' missing from SKILL.md selection table"; exit 1; }
 done
 

@@ -206,13 +206,15 @@ room_self_report_count() {
 }
 
 require_complete_managed_room() {
-  local room="$1" manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
+  local room="$1"
+  local manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
   [ -f "$manifest" ] || return 0
   jq -e '.state == "complete"' "$manifest" >/dev/null || die "managed room '$room' requires a complete manifest"
 }
 
 managed_execution_mode() {
-  local room="$1" manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
+  local room="$1"
+  local manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
   [ -f "$manifest" ] || return 0
   jq -er 'if .execution_mode == "spawned" or .execution_mode == "lens-simulation" then .execution_mode else error("invalid execution_mode") end' "$manifest" 2>/dev/null || {
     echo "blind-judge: managed room '$room' requires a valid execution_mode" >&2
@@ -221,7 +223,8 @@ managed_execution_mode() {
 }
 
 require_managed_room_artifact() {
-  local room="$1" manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
+  local room="$1"
+  local manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
   [ -f "$manifest" ] || return 0
   "$DIR/council-guard.sh" verify-room-artifact "$room" >/dev/null || die "managed room '$room' artifact integrity check failed"
 }

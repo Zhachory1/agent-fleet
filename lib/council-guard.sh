@@ -53,7 +53,9 @@ EOF
 }
 
 begin() {
-  local room="$(safe "${1:?room}")" artifact_file="${2:?artifact path}" mode="${3:?mode}" csv="${4:?personas csv}"
+  local room
+  room="$(safe "${1:?room}")"
+  local artifact_file="${2:?artifact path}" mode="${3:?mode}" csv="${4:?personas csv}"
   local receipt roster manifest rd lockdir rationale="${COUNCIL_SELECTION_RATIONALE:-}" execution_mode="${COUNCIL_EXECUTION_MODE:-}"
   case "$mode" in ship|research|domain|exec|minimal) ;; *) echo "council-guard: invalid mode '$mode'" >&2; exit 1;; esac
   case "$execution_mode" in spawned|lens-simulation) ;; *) echo "council-guard: COUNCIL_EXECUTION_MODE must be spawned or lens-simulation" >&2; exit 1;; esac
@@ -97,7 +99,9 @@ EOF
 }
 
 verify_room_artifact() {
-  local room="$(safe "${1:?room}")" rd manifest artifact_file receipt
+  local room
+  room="$(safe "${1:?room}")"
+  local rd manifest artifact_file receipt
   rd="$ROOMS/$room"; manifest="$rd/manifest.json"; artifact_file="$rd/artifact.txt"
   [ -f "$manifest" ] || { echo "council-guard: no manifest for room '$room'" >&2; exit 1; }
   receipt="$(artifact "$artifact_file")" || exit 1
@@ -106,7 +110,9 @@ verify_room_artifact() {
 }
 
 finish() {
-  local room="$(safe "${1:?room}")" round="${2:?round}" manifest rd lockdir
+  local room
+  room="$(safe "${1:?room}")"
+  local round="${2:?round}" manifest rd lockdir
   [[ "$round" =~ ^[1-9][0-9]*$ ]] || { echo "council-guard: invalid round" >&2; exit 1; }
   rd="$ROOMS/$room"; manifest="$rd/manifest.json"; [ -f "$manifest" ] || { echo "council-guard: no manifest for room '$room'" >&2; exit 1; }
   lockdir="$(lock "$rd")"
@@ -122,7 +128,9 @@ finish() {
 }
 
 state() {
-  local room="$(safe "${1:?room}")" target="${2:?state}" manifest rd lockdir
+  local room
+  room="$(safe "${1:?room}")"
+  local target="${2:?state}" manifest rd lockdir
   [ "$target" = incomplete ] || { echo "council-guard: unsupported state '$target'" >&2; exit 1; }
   rd="$ROOMS/$room"; manifest="$rd/manifest.json"; [ -f "$manifest" ] || { echo "council-guard: no manifest for room '$room'" >&2; exit 1; }
   lockdir="$(lock "$rd")"
@@ -133,7 +141,9 @@ state() {
 }
 
 retry_incomplete() {
-  local room="$(safe "${1:?room}")" manifest rd lockdir
+  local room
+  room="$(safe "${1:?room}")"
+  local manifest rd lockdir
   rd="$ROOMS/$room"; manifest="$rd/manifest.json"; [ -f "$manifest" ] || { echo "council-guard: no manifest for room '$room'" >&2; exit 1; }
   lockdir="$(lock "$rd")"
   jq -e '.state == "incomplete" and (.incomplete_journal_retry_used // false | not)' "$manifest" >/dev/null || { unlock "$lockdir"; echo "council-guard: incomplete journal retry already used" >&2; exit 1; }
