@@ -205,6 +205,30 @@ room_self_report_count() {
   jq -s --arg r "$room" '[.[] | select(.room == $r and (.solo_decision // null) != null)] | length' "$AGENT_FLEET_JOURNAL" 2>/dev/null || echo 0
 }
 
+require_complete_managed_room() {
+  local room="$1"
+  local manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
+  [ -f "$manifest" ] || return 0
+  jq -e '.state == "complete"' "$manifest" >/dev/null || die "managed room '$room' requires a complete manifest"
+}
+
+managed_execution_mode() {
+  local room="$1"
+  local manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
+  [ -f "$manifest" ] || return 0
+  jq -er 'if .execution_mode == "spawned" or .execution_mode == "lens-simulation" then .execution_mode else error("invalid execution_mode") end' "$manifest" 2>/dev/null || {
+    echo "blind-judge: managed room '$room' requires a valid execution_mode" >&2
+    return 1
+  }
+}
+
+require_managed_room_artifact() {
+  local room="$1"
+  local manifest="$AGENT_CHAT_ROOT/rooms/$room/manifest.json"
+  [ -f "$manifest" ] || return 0
+  "$DIR/council-guard.sh" verify-room-artifact "$room" >/dev/null || die "managed room '$room' artifact integrity check failed"
+}
+
 # resolve_artifact ROOM -> stdout the artifact content; die on unresolvable pointer.
 resolve_artifact() {
   local room="$1"
@@ -224,10 +248,18 @@ resolve_artifact() {
   fi
 }
 
-# extract_persona_positions ROOM_LOG -> stdout: all '@@from: <persona>#r<N>' position blocks
+# extract_persona_positions ROOM ROOM_LOG -> stdout: receipt-listed position blocks for managed rooms, all round-tagged blocks otherwise.
 extract_persona_positions() {
-  local room_log="$1"
-  jq -r 'select(.from | test("#r[0-9]+$")) | "@@from: \(.from)\n\(.text)\n"' "$room_log" 2>/dev/null
+  local room="$1" room_log="$2" manifest="$AGENT_CHAT_ROOT/rooms/$1/manifest.json"
+  if [ -f "$manifest" ]; then
+    jq -r --slurpfile manifest "$manifest" '
+      ($manifest[0].rounds // [] | [.[] as $receipt | $receipt.personas[] | . + "#r" + ($receipt.round | tostring)]) as $receipts
+      | select(.from as $from | $receipts | index($from))
+      | "@@from: \(.from)\n\(.text)\n"
+    ' "$room_log" 2>/dev/null
+  else
+    jq -r 'select(.from | test("#r[0-9]+$")) | "@@from: \(.from)\n\(.text)\n"' "$room_log" 2>/dev/null
+  fi
 }
 
 # extract_operator_synthesis ROOM_LOG -> stdout: the synthesis block (last @@from: synthesis entry)
@@ -325,6 +357,8 @@ case "$cmd" in
     done
     enforce_phase1 "$room" "$phase1"
 
+    require_complete_managed_room "$room"
+    require_managed_room_artifact "$room"
     artifact_content=$(resolve_artifact "$room")
     room_log="$AGENT_CHAT_ROOT/rooms/$room/log.jsonl"
     [ -f "$room_log" ] || die "no transcript for room '$room'"
@@ -340,7 +374,7 @@ case "$cmd" in
     SOLO_DECISION=$(jq -r '.solo_decision // ""' <<<"$row")
     [ -n "$SOLO_DECISION" ] || die "no solo_decision in journal for room '$room'"
     PERSONA_LIST=$(jq -r '.personas // [] | join(", ")' <<<"$row")
-    PERSONA_POSITIONS=$(extract_persona_positions "$room_log")
+    PERSONA_POSITIONS=$(extract_persona_positions "$room" "$room_log")
     OPERATOR_SYNTHESIS=$(extract_operator_synthesis "$room_log")
 
     rubric_file="$DIR/blind-judge-prompt.v2.txt"
@@ -427,6 +461,8 @@ BANNER
         *) die "unknown flag '$1'";;
       esac
     done
+    require_complete_managed_room "$room"
+    require_managed_room_artifact "$room"
     [ -n "$catch" ] || die "--catch required"
     case "$catch" in true|false) ;; *) die "--catch must be 'true' or 'false'";; esac
     [ -n "$why" ] || die "--why required"
@@ -531,8 +567,9 @@ BANNER
       fi
     else
       # No row exists — write a judge-only row (FR8 step-3-when-step-2-failed)
+      execution_mode="$(managed_execution_mode "$room")" || { release_lock "$lockdir"; exit 1; }
       judge_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      jq -cn --arg ts "$judge_ts" --arg room "$room" \
+      jq -cn --arg ts "$judge_ts" --arg room "$room" --arg execution_mode "$execution_mode" \
         --argjson catch "$catch" \
         --arg why "$why" --arg ev "$evidence" --arg ib "$implied_by" \
         --arg reas "$reasoning" --arg dd "$dissent_diff" \
@@ -541,7 +578,7 @@ BANNER
         '{ts:$ts, room:$room, task:"", solo_decision:null, personas:[],
           net_new_catch:null, catch_note:"", acted_on:null, dismissed_count:0,
           lens_baseline_run:false, council_beat_baseline:null, issues_raised:0,
-          run_kind:"code",
+          run_kind:"code", execution_mode:(if $execution_mode=="" then null else $execution_mode end),
           judge_blinded:true, judge_blinded_catch:$catch, judge_why:$why,
           judge_evidence:$ev, judge_implied_by:$ib, judge_reasoning:$reas,
           judge_dissent_diff:$dd, judge_model_family_self_reported:$mf,
@@ -601,6 +638,8 @@ EOF
     # PR C correctness fix (#23 MAJOR #2): hold a per-room lock spanning prepare→record so two
     # terminals can't both pass enforce_phase1 simultaneously. Lock is on the room directory
     # (separate from journal lock to avoid double-locking when record runs in this same process).
+    require_complete_managed_room "$room"
+    require_managed_room_artifact "$room"
     room_dir="$AGENT_CHAT_ROOT/rooms/$room"
     [ -d "$room_dir" ] || die "room '$room' does not exist (no transcript directory)"
     judge_lockdir="$room_dir/.judge.lockdir"

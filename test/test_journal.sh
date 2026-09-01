@@ -101,9 +101,9 @@ verdict: SHIP"
   --judge-model-family gpt --judge-prompt-version v2 \
   --judge-template-sha256 deadbeef --judge-render-sha256 baadf00d \
   --judge-reasoning "solo already named the issue" --judge-dissent-diff "- (none)"
-jq -se '.[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and .room=="'"$ROOM_K"'" and (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T"))' \
+jq -se '.[-1] | .judge_blinded==true and .net_new_catch==null and .acted_on==null and .execution_mode==null and .room=="'"$ROOM_K"'" and (.judge_ts|test("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T"))' \
   "$AGENT_FLEET_JOURNAL" >/dev/null \
-  || { echo "FAIL: judge-only row should have judge_blinded=true and self-report fields=null"; exit 1; }
+  || { echo "FAIL: unmanaged judge-only row should retain null execution_mode"; exit 1; }
 
 # Issue #3: kw-args form (PREFERRED entry path).
 ROOM_KW=council-kwargs-row
@@ -256,3 +256,82 @@ echo "$OUT" | grep -q 'Phase 2: 5/50 rooms judged' \
   || { echo "FAIL: stats Phase 2 distinct-room progress wrong: $OUT"; exit 1; }
 
 echo "PASS test_journal_phase2_distinct_rooms"
+
+# Managed completed rows copy immutable execution mode from manifest.
+MODE_ROOM=council-execution-mode
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$MODE_ROOM"
+jq -cn '{state:"complete", execution_mode:"lens-simulation"}' > "$AGENT_CHAT_ROOT/rooms/$MODE_ROOM/manifest.json"
+printf '@@from: synthesis\nverdict\n' | "$DIR/lib/transcript.sh" capture "$MODE_ROOM" >/dev/null
+"$DIR/lib/journal.sh" append "$MODE_ROOM" mode-task solo red-team false "" false 0
+jq -se --arg room "$MODE_ROOM" '.[-1] | .room==$room and .execution_mode=="lens-simulation"' "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: managed execution mode was not persisted"; exit 1; }
+"$DIR/lib/journal.sh" append-judge-only "$MODE_ROOM" judge-only-mode \
+  --judge-blinded true --judge-catch false --judge-why covered \
+  --judge-reasoning r --judge-dissent-diff '- (none)'
+jq -se --arg room "$MODE_ROOM" '.[-1] | .room==$room and .solo_decision==null and .execution_mode=="lens-simulation"' "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: managed judge-only row did not persist execution_mode"; exit 1; }
+BAD_MODE_ROOM=council-invalid-execution-mode
+mkdir -p "$AGENT_CHAT_ROOT/rooms/$BAD_MODE_ROOM"
+jq -cn '{state:"complete", execution_mode:"invalid"}' > "$AGENT_CHAT_ROOT/rooms/$BAD_MODE_ROOM/manifest.json"
+set +e
+"$DIR/lib/journal.sh" append-judge-only "$BAD_MODE_ROOM" invalid-mode \
+  --judge-blinded true --judge-catch false --judge-why covered \
+  --judge-reasoning r --judge-dissent-diff '- (none)' >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = "2" ] || { echo "FAIL: judge-only row accepted invalid managed execution_mode"; exit 1; }
+
+# Issue #78: managed rooms need a complete manifest; terminal incomplete is typed and excluded.
+AGENT_FLEET_JOURNAL="$(mktemp_d)/integrity.jsonl"; export AGENT_FLEET_JOURNAL
+ART="$TEST_PARENT_TMP/integrity-artifact.txt"
+printf 'council_artifact_kind: general\nreview\n' > "$ART"
+IROOM=council-integrity-incomplete
+export COUNCIL_SELECTION_RATIONALE="adversarial coverage"
+export COUNCIL_EXECUTION_MODE=spawned
+"$DIR/lib/council-guard.sh" begin "$IROOM" "$ART" ship 'red-team,mvp,occams-razor' >/dev/null
+set +e
+"$DIR/lib/journal.sh" append-judge-only "$IROOM" task --judge-blinded true --judge-catch false --judge-why covered --judge-reasoning r --judge-dissent-diff '- (none)' >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = "2" ] || { echo "FAIL: incomplete managed room accepted judge-only evidence"; exit 1; }
+set +e
+AGENT_FLEET_REQUIRE_TRANSCRIPT=0 "$DIR/lib/journal.sh" append "$IROOM" task solo red-team,mvp,occams-razor false "" false 0 >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = "2" ] || { echo "FAIL: pending managed room appended as complete"; exit 1; }
+FAILED_JOURNAL="$(mktemp_d)"
+set +e
+AGENT_FLEET_JOURNAL="$FAILED_JOURNAL" "$DIR/lib/journal.sh" incomplete "$IROOM" task red-team timeout >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = "1" ] || { echo "FAIL: forced incomplete journal write failure must return nonzero"; exit 1; }
+jq -e '.state=="incomplete" and .incomplete_journal_retry_used==false' "$AGENT_CHAT_ROOT/rooms/$IROOM/manifest.json" >/dev/null \
+  || { echo "FAIL: failed incomplete write did not terminalize manifest"; exit 1; }
+set +e
+INCOMPLETE_OUT="$("$DIR/lib/journal.sh" incomplete "$IROOM" task red-team timeout)"
+rc=$?
+set -e
+[ "$rc" = "1" ] || { echo "FAIL: incomplete recovery must return nonzero"; exit 1; }
+printf '%s\n' "$INCOMPLETE_OUT" | grep -qx 'COUNCIL_INCOMPLETE' || { echo "FAIL: incomplete contract header missing"; exit 1; }
+printf '%s\n' "$INCOMPLETE_OUT" | grep -qx 'failed_personas: red-team' || { echo "FAIL: incomplete failed-personas missing"; exit 1; }
+printf '%s\n' "$INCOMPLETE_OUT" | grep -qx 'transport_reason: timeout' || { echo "FAIL: incomplete reason missing"; exit 1; }
+jq -e '.event_type=="council_incomplete" and .schema_version==2 and .verdict==null and .failed_personas==["red-team"] and .transport_reason=="timeout"' "$AGENT_FLEET_JOURNAL" >/dev/null \
+  || { echo "FAIL: incomplete journal event invalid"; exit 1; }
+jq -e '.state=="incomplete" and .incomplete_journal_retry_used==true' "$AGENT_CHAT_ROOT/rooms/$IROOM/manifest.json" >/dev/null \
+  || { echo "FAIL: incomplete did not terminalize manifest"; exit 1; }
+set +e
+"$DIR/lib/journal.sh" incomplete "$IROOM" task red-team timeout >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = "1" ] && [ "$(jq -s --arg room "$IROOM" '[.[] | select(.event_type=="council_incomplete" and .room==$room)] | length' "$AGENT_FLEET_JOURNAL")" = "1" ] \
+  || { echo "FAIL: incomplete recovery wrote a duplicate event"; exit 1; }
+set +e
+AGENT_FLEET_REQUIRE_TRANSCRIPT=0 "$DIR/lib/journal.sh" append "$IROOM" task solo red-team,mvp,occams-razor false "" false 0 >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = "2" ] || { echo "FAIL: incomplete managed room appended as complete"; exit 1; }
+AGENT_FLEET_REQUIRE_TRANSCRIPT=0 "$DIR/lib/journal.sh" append legacy-complete task solo red-team false "" false 0
+OUT="$($DIR/lib/journal.sh stats)"
+echo "$OUT" | grep -q 'net-new catch rate : 0/1' || { echo "FAIL: incomplete entered completed denominator: $OUT"; exit 1; }
+echo "$OUT" | grep -q 'incomplete councils : 1' || { echo "FAIL: incomplete count missing: $OUT"; exit 1; }
+echo "PASS test_journal_input_integrity"

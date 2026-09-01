@@ -39,6 +39,9 @@ grep -qF -- '--mode domain' "$B" || { echo "FAIL: portable prompt missing domain
 grep -qF -- '--mode exec' "$B" || { echo "FAIL: portable prompt missing exec mode"; exit 1; }
 grep -qF -- '--mode minimal' "$B" || { echo "FAIL: portable prompt missing minimal mode"; exit 1; }
 grep -qF -- '--personas a,b,c' "$B" || { echo "FAIL: portable prompt missing forced persona roster"; exit 1; }
+for tok in 'council_artifact_kind: infrastructure' 'Capability Reuse Inventory' 'council-guard.sh" artifact' 'council-guard.sh" begin' 'COUNCIL_EXECUTION_MODE' 'capture-positions "$ROOM"' 'council-guard.sh" finish' 'journal.sh" incomplete' 'COUNCIL_INCOMPLETE' 'never author, summarize, reconstruct, or relabel' 'Execution mode: <spawned|lens-simulation>'; do
+  grep -qF "$tok" "$B" || { echo "FAIL: portable prompt missing input-integrity sentinel $tok"; exit 1; }
+done
 
 # Selection-table coverage: every persona file in agents/ must be referenced by
 # the canonical prompt. Generated skill equality above gives skill parity for free.
